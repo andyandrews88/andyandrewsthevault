@@ -8,7 +8,6 @@ import Audit from "./pages/Audit";
 import Results from "./pages/Results";
 import VaultPage from "./pages/VaultPage";
 import Nutrition from "./pages/Nutrition";
-import AuthPageWrapper from "./pages/AuthPageWrapper";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -25,7 +24,6 @@ const App = () => (
           <Route path="/results" element={<Results />} />
           <Route path="/vault" element={<VaultPage />} />
           <Route path="/nutrition" element={<Nutrition />} />
-          <Route path="/auth" element={<AuthPageWrapper />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
