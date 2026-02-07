@@ -41,6 +41,126 @@ export type Database = {
         }
         Relationships: []
       }
+      user_body_entries: {
+        Row: {
+          bmi: number | null
+          body_fat_percent: number | null
+          bone_density: number | null
+          chest_cm: number | null
+          created_at: string
+          entry_date: string
+          fat_mass_kg: number | null
+          height_cm: number | null
+          hips_cm: number | null
+          id: string
+          lean_mass_kg: number | null
+          left_arm_fat_percent: number | null
+          left_bicep_cm: number | null
+          left_calf_cm: number | null
+          left_forearm_cm: number | null
+          left_leg_fat_percent: number | null
+          left_thigh_cm: number | null
+          measurement_source:
+            | Database["public"]["Enums"]["measurement_source"]
+            | null
+          neck_cm: number | null
+          notes: string | null
+          photo_path: string | null
+          right_arm_fat_percent: number | null
+          right_bicep_cm: number | null
+          right_calf_cm: number | null
+          right_forearm_cm: number | null
+          right_leg_fat_percent: number | null
+          right_thigh_cm: number | null
+          shoulders_cm: number | null
+          trunk_fat_percent: number | null
+          updated_at: string
+          user_id: string
+          uses_imperial: boolean | null
+          visceral_fat_rating: number | null
+          waist_cm: number | null
+          weight_kg: number | null
+        }
+        Insert: {
+          bmi?: number | null
+          body_fat_percent?: number | null
+          bone_density?: number | null
+          chest_cm?: number | null
+          created_at?: string
+          entry_date?: string
+          fat_mass_kg?: number | null
+          height_cm?: number | null
+          hips_cm?: number | null
+          id?: string
+          lean_mass_kg?: number | null
+          left_arm_fat_percent?: number | null
+          left_bicep_cm?: number | null
+          left_calf_cm?: number | null
+          left_forearm_cm?: number | null
+          left_leg_fat_percent?: number | null
+          left_thigh_cm?: number | null
+          measurement_source?:
+            | Database["public"]["Enums"]["measurement_source"]
+            | null
+          neck_cm?: number | null
+          notes?: string | null
+          photo_path?: string | null
+          right_arm_fat_percent?: number | null
+          right_bicep_cm?: number | null
+          right_calf_cm?: number | null
+          right_forearm_cm?: number | null
+          right_leg_fat_percent?: number | null
+          right_thigh_cm?: number | null
+          shoulders_cm?: number | null
+          trunk_fat_percent?: number | null
+          updated_at?: string
+          user_id: string
+          uses_imperial?: boolean | null
+          visceral_fat_rating?: number | null
+          waist_cm?: number | null
+          weight_kg?: number | null
+        }
+        Update: {
+          bmi?: number | null
+          body_fat_percent?: number | null
+          bone_density?: number | null
+          chest_cm?: number | null
+          created_at?: string
+          entry_date?: string
+          fat_mass_kg?: number | null
+          height_cm?: number | null
+          hips_cm?: number | null
+          id?: string
+          lean_mass_kg?: number | null
+          left_arm_fat_percent?: number | null
+          left_bicep_cm?: number | null
+          left_calf_cm?: number | null
+          left_forearm_cm?: number | null
+          left_leg_fat_percent?: number | null
+          left_thigh_cm?: number | null
+          measurement_source?:
+            | Database["public"]["Enums"]["measurement_source"]
+            | null
+          neck_cm?: number | null
+          notes?: string | null
+          photo_path?: string | null
+          right_arm_fat_percent?: number | null
+          right_bicep_cm?: number | null
+          right_calf_cm?: number | null
+          right_forearm_cm?: number | null
+          right_leg_fat_percent?: number | null
+          right_thigh_cm?: number | null
+          shoulders_cm?: number | null
+          trunk_fat_percent?: number | null
+          updated_at?: string
+          user_id?: string
+          uses_imperial?: boolean | null
+          visceral_fat_rating?: number | null
+          waist_cm?: number | null
+          weight_kg?: number | null
+        }
+        Relationships: []
+      }
       user_meals: {
         Row: {
           created_at: string
@@ -155,6 +275,81 @@ export type Database = {
         }
         Relationships: []
       }
+      user_wearable_connections: {
+        Row: {
+          access_token: string | null
+          created_at: string
+          device_type: Database["public"]["Enums"]["wearable_device"]
+          external_user_id: string | null
+          id: string
+          is_connected: boolean | null
+          last_sync_at: string | null
+          refresh_token: string | null
+          sync_error: string | null
+          token_expires_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token?: string | null
+          created_at?: string
+          device_type: Database["public"]["Enums"]["wearable_device"]
+          external_user_id?: string | null
+          id?: string
+          is_connected?: boolean | null
+          last_sync_at?: string | null
+          refresh_token?: string | null
+          sync_error?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string | null
+          created_at?: string
+          device_type?: Database["public"]["Enums"]["wearable_device"]
+          external_user_id?: string | null
+          id?: string
+          is_connected?: boolean | null
+          last_sync_at?: string | null
+          refresh_token?: string | null
+          sync_error?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_wearable_data: {
+        Row: {
+          device_type: Database["public"]["Enums"]["wearable_device"]
+          id: string
+          metric_type: Database["public"]["Enums"]["wearable_metric"]
+          recorded_at: string
+          synced_at: string
+          user_id: string
+          value: number
+        }
+        Insert: {
+          device_type: Database["public"]["Enums"]["wearable_device"]
+          id?: string
+          metric_type: Database["public"]["Enums"]["wearable_metric"]
+          recorded_at: string
+          synced_at?: string
+          user_id: string
+          value: number
+        }
+        Update: {
+          device_type?: Database["public"]["Enums"]["wearable_device"]
+          id?: string
+          metric_type?: Database["public"]["Enums"]["wearable_metric"]
+          recorded_at?: string
+          synced_at?: string
+          user_id?: string
+          value?: number
+        }
+        Relationships: []
+      }
       vault_podcasts: {
         Row: {
           apple_url: string | null
@@ -266,6 +461,16 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
+      measurement_source:
+        | "scale"
+        | "calipers"
+        | "bioimpedance"
+        | "dexa"
+        | "inbody"
+        | "bodpod"
+        | "navy_method"
+        | "visual_estimate"
+        | "other"
       resource_category: "physics" | "physiology" | "process"
       resource_type:
         | "youtube"
@@ -275,6 +480,25 @@ export type Database = {
         | "article"
         | "pdf"
       subscription_status: "trial" | "active" | "expired" | "cancelled"
+      wearable_device: "whoop" | "garmin" | "fitbit" | "apple_health"
+      wearable_metric:
+        | "recovery_score"
+        | "strain_score"
+        | "hrv"
+        | "resting_heart_rate"
+        | "sleep_score"
+        | "sleep_duration"
+        | "respiratory_rate"
+        | "steps"
+        | "active_minutes"
+        | "heart_rate_avg"
+        | "vo2_max"
+        | "training_load"
+        | "body_battery"
+        | "stress_level"
+        | "cardio_fitness"
+        | "stand_hours"
+        | "calories_burned"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -403,6 +627,17 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "moderator", "user"],
+      measurement_source: [
+        "scale",
+        "calipers",
+        "bioimpedance",
+        "dexa",
+        "inbody",
+        "bodpod",
+        "navy_method",
+        "visual_estimate",
+        "other",
+      ],
       resource_category: ["physics", "physiology", "process"],
       resource_type: [
         "youtube",
@@ -413,6 +648,26 @@ export const Constants = {
         "pdf",
       ],
       subscription_status: ["trial", "active", "expired", "cancelled"],
+      wearable_device: ["whoop", "garmin", "fitbit", "apple_health"],
+      wearable_metric: [
+        "recovery_score",
+        "strain_score",
+        "hrv",
+        "resting_heart_rate",
+        "sleep_score",
+        "sleep_duration",
+        "respiratory_rate",
+        "steps",
+        "active_minutes",
+        "heart_rate_avg",
+        "vo2_max",
+        "training_load",
+        "body_battery",
+        "stress_level",
+        "cardio_fitness",
+        "stand_hours",
+        "calories_burned",
+      ],
     },
   },
 } as const

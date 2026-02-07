@@ -13,11 +13,13 @@ import {
   Crown,
   Radio,
   Calculator,
-  Shield
+  Shield,
+  Activity
 } from "lucide-react";
 import { PodcastTab } from "@/components/vault/PodcastTab";
 import { LibraryTab } from "@/components/vault/LibraryTab";
 import { AdminPanel } from "@/components/vault/AdminPanel";
+import { ProgressTab } from "@/components/progress/ProgressTab";
 import { FoodDatabase } from "@/components/nutrition/FoodDatabase";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
@@ -84,10 +86,14 @@ export function VaultDashboard() {
 
         {/* Main tabs */}
         <Tabs defaultValue="library" className="space-y-6">
-          <TabsList className={`grid w-full max-w-2xl ${isAdmin ? 'grid-cols-6' : 'grid-cols-5'}`}>
+          <TabsList className={`grid w-full max-w-3xl ${isAdmin ? 'grid-cols-7' : 'grid-cols-6'}`}>
             <TabsTrigger value="library" className="flex items-center gap-2">
               <Library className="w-4 h-4" />
               <span className="hidden sm:inline">Library</span>
+            </TabsTrigger>
+            <TabsTrigger value="progress" className="flex items-center gap-2">
+              <Activity className="w-4 h-4" />
+              <span className="hidden sm:inline">Progress</span>
             </TabsTrigger>
             <TabsTrigger value="nutrition" className="flex items-center gap-2">
               <Calculator className="w-4 h-4" />
@@ -116,6 +122,11 @@ export function VaultDashboard() {
           {/* Resource Library */}
           <TabsContent value="library">
             <LibraryTab isPremiumMember={true} isAdmin={isAdmin} />
+          </TabsContent>
+
+          {/* Progress Tracking */}
+          <TabsContent value="progress">
+            <ProgressTab />
           </TabsContent>
 
           {/* Nutrition Tab */}
