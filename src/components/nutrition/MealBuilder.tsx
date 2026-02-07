@@ -158,12 +158,12 @@ export function MealBuilder() {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Totals Bar */}
-          <div className="grid grid-cols-4 gap-2 p-4 bg-muted/50 rounded-lg">
+          {/* Totals Bar - Mobile optimized */}
+          <div className="grid grid-cols-4 gap-1 sm:gap-2 p-3 sm:p-4 bg-muted/50 rounded-lg">
             <TotalStat icon={Flame} value={totals.calories} label="cal" color="text-orange-500" />
-            <TotalStat icon={Beef} value={Math.round(totals.protein * 10) / 10} label="g protein" color="text-primary" />
-            <TotalStat icon={Wheat} value={Math.round(totals.carbs * 10) / 10} label="g carbs" color="text-success" />
-            <TotalStat icon={Droplets} value={Math.round(totals.fats * 10) / 10} label="g fats" color="text-accent" />
+            <TotalStat icon={Beef} value={Math.round(totals.protein * 10) / 10} label="P" color="text-primary" />
+            <TotalStat icon={Wheat} value={Math.round(totals.carbs * 10) / 10} label="C" color="text-success" />
+            <TotalStat icon={Droplets} value={Math.round(totals.fats * 10) / 10} label="F" color="text-accent" />
           </div>
 
           {/* Food List */}
@@ -352,9 +352,9 @@ interface TotalStatProps {
 function TotalStat({ icon: Icon, value, label, color }: TotalStatProps) {
   return (
     <div className="text-center">
-      <Icon className={`w-4 h-4 mx-auto mb-1 ${color}`} />
-      <p className="text-xl font-bold font-mono">{value}</p>
-      <p className="text-xs text-muted-foreground">{label}</p>
+      <Icon className={`w-3 h-3 sm:w-4 sm:h-4 mx-auto mb-0.5 sm:mb-1 ${color}`} />
+      <p className="text-base sm:text-xl font-bold font-mono">{value}</p>
+      <p className="text-[10px] sm:text-xs text-muted-foreground">{label}</p>
     </div>
   );
 }
@@ -379,37 +379,49 @@ function MealFoodItem({ mealFood, onRemove, onUpdate }: MealFoodItemProps) {
   };
 
   return (
-    <div className="flex items-center gap-3 p-3 rounded-lg border bg-card">
-      {/* Food Info */}
-      <div className="flex-1 min-w-0">
-        <p className="font-medium truncate">{food.name}</p>
-        <p className="text-xs text-muted-foreground">{food.servingSize}</p>
+    <div className="flex flex-col gap-2 p-3 rounded-lg border bg-card">
+      {/* Top row: Food Info + Remove */}
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex-1 min-w-0">
+          <p className="font-medium text-sm truncate">{food.name}</p>
+          <p className="text-xs text-muted-foreground">{food.servingSize}</p>
+        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+          onClick={onRemove}
+        >
+          <X className="w-4 h-4" />
+        </Button>
       </div>
 
-      {/* Amount Controls */}
-      <div className="flex items-center gap-2">
-        <Button
-          variant="outline"
-          size="icon"
-          className="h-8 w-8"
-          onClick={() => handleAmountChange(amount - 0.5)}
-          disabled={amount <= 0.5}
-        >
-          <Minus className="w-3 h-3" />
-        </Button>
-        
-        <div className="flex items-center gap-1 min-w-[80px]">
+      {/* Bottom row: Amount Controls + Macros */}
+      <div className="flex items-center justify-between gap-2">
+        {/* Amount Controls - compact for mobile */}
+        <div className="flex items-center gap-1">
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-8 w-8 shrink-0"
+            onClick={() => handleAmountChange(amount - 0.5)}
+            disabled={amount <= 0.5}
+          >
+            <Minus className="w-3 h-3" />
+          </Button>
+          
           <Input
             type="number"
             value={amount}
             onChange={(e) => handleAmountChange(parseFloat(e.target.value) || 0.5)}
-            className="w-14 h-8 text-center text-sm"
+            className="w-12 h-8 text-center text-sm px-1"
             step={0.5}
             min={0.5}
             max={20}
           />
+          
           <Select value={unit} onValueChange={(v) => onUpdate(amount, v as MeasurementUnit)}>
-            <SelectTrigger className="w-16 h-8 text-xs">
+            <SelectTrigger className="w-14 h-8 text-xs px-2">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -423,34 +435,24 @@ function MealFoodItem({ mealFood, onRemove, onUpdate }: MealFoodItemProps) {
               })}
             </SelectContent>
           </Select>
+
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-8 w-8 shrink-0"
+            onClick={() => handleAmountChange(amount + 0.5)}
+            disabled={amount >= 20}
+          >
+            <Plus className="w-3 h-3" />
+          </Button>
         </div>
 
-        <Button
-          variant="outline"
-          size="icon"
-          className="h-8 w-8"
-          onClick={() => handleAmountChange(amount + 0.5)}
-          disabled={amount >= 20}
-        >
-          <Plus className="w-3 h-3" />
-        </Button>
+        {/* Calculated Macros - always visible */}
+        <div className="text-right shrink-0">
+          <p className="font-mono text-sm font-bold text-primary">{calculatedMacros.calories}</p>
+          <p className="text-[10px] text-muted-foreground">cal</p>
+        </div>
       </div>
-
-      {/* Calculated Macros */}
-      <div className="text-right min-w-[60px]">
-        <p className="font-mono text-sm font-medium">{calculatedMacros.calories}</p>
-        <p className="text-xs text-muted-foreground">cal</p>
-      </div>
-
-      {/* Remove Button */}
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-8 w-8 text-muted-foreground hover:text-destructive"
-        onClick={onRemove}
-      >
-        <X className="w-4 h-4" />
-      </Button>
     </div>
   );
 }
