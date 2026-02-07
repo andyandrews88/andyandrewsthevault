@@ -24,11 +24,11 @@ export function HeroSection() {
       <div className="relative z-10 container mx-auto px-6 text-center">
         <div className="animate-fade-in">
           {/* Prominent Logo */}
-          <div className="mb-8 flex justify-center">
+          <div className="mb-8 flex justify-center overflow-hidden px-4">
             <img 
               src={logo} 
               alt="Andy Andrews" 
-              className="h-28 md:h-40 lg:h-48 w-auto invert brightness-100 drop-shadow-[0_0_30px_hsl(var(--primary)/0.4)] animate-pulse-glow"
+              className="h-24 md:h-32 lg:h-40 w-auto max-w-full invert object-contain"
             />
           </div>
 
