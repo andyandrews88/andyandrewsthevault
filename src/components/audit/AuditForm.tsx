@@ -154,21 +154,21 @@ export function AuditForm() {
   };
 
   return (
-    <div className="min-h-screen pt-24 pb-12">
-      <div className="container mx-auto px-6 max-w-2xl">
-        {/* Progress header */}
-        <div className="mb-8">
-          <div className="flex justify-between items-center mb-4">
-            <Badge variant="data">
-              STEP {currentStep + 1} OF {steps.length}
+    <div className="min-h-screen pt-20 pb-8 md:pt-24 md:pb-12">
+      <div className="container mx-auto px-4 md:px-6 max-w-2xl">
+        {/* Progress header - simplified for mobile */}
+        <div className="mb-6 md:mb-8">
+          <div className="flex justify-between items-center mb-3">
+            <Badge variant="data" className="text-xs">
+              STEP {currentStep + 1}/{steps.length}
             </Badge>
             <span className="font-mono text-sm text-primary">{progress.toFixed(0)}%</span>
           </div>
-          <Progress value={progress} className="h-1" />
+          <Progress value={progress} className="h-1.5" />
         </div>
 
-        {/* Step indicators */}
-        <div className="flex justify-between mb-8">
+        {/* Step indicators - compact on mobile */}
+        <div className="flex justify-between mb-6 md:mb-8 gap-1">
           {steps.map((step, index) => {
             const Icon = step.icon;
             const isActive = index === currentStep;
@@ -177,39 +177,39 @@ export function AuditForm() {
             return (
               <div
                 key={step.id}
-                className={`flex flex-col items-center gap-2 ${
-                  isActive ? 'text-primary' : isCompleted ? 'text-success' : 'text-muted-foreground'
+                className={`flex flex-col items-center gap-1.5 flex-1 ${
+                  isActive ? 'text-primary' : isCompleted ? 'text-success' : 'text-muted-foreground/50'
                 }`}
               >
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center border ${
+                <div className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center border transition-colors ${
                   isActive ? 'border-primary bg-primary/10' :
-                  isCompleted ? 'border-success bg-success/10' : 'border-border'
+                  isCompleted ? 'border-success bg-success/10' : 'border-border/50'
                 }`}>
-                  <Icon className="w-4 h-4" />
+                  <Icon className="w-3.5 h-3.5 md:w-4 md:h-4" />
                 </div>
-                <span className="text-xs hidden sm:block">{step.title}</span>
+                <span className="text-[10px] md:text-xs text-center leading-tight hidden sm:block">{step.title}</span>
               </div>
             );
           })}
         </div>
 
         {/* Form card */}
-        <Card variant="elevated" className="mb-8">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+        <Card variant="elevated" className="mb-6 md:mb-8">
+          <CardHeader className="pb-4 md:pb-6">
+            <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
               {(() => {
                 const Icon = steps[currentStep].icon;
-                return <Icon className="w-5 h-5 text-primary" />;
+                return <Icon className="w-4 h-4 md:w-5 md:h-5 text-primary" />;
               })()}
               {steps[currentStep].title}
             </CardTitle>
-            <CardDescription>{steps[currentStep].description}</CardDescription>
+            <CardDescription className="text-sm">{steps[currentStep].description}</CardDescription>
           </CardHeader>
 
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-5 md:space-y-6">
             {/* Step 0: Biometrics */}
             {currentStep === 0 && (
-              <div className="grid gap-6">
+              <div className="grid gap-4 md:gap-6">
                 {renderInput('weight', 'Body Weight', '175', 'lbs')}
                 {renderInput('age', 'Age', '28', 'years')}
                 {renderInput('height', 'Height', '70', 'inches')}
@@ -218,7 +218,7 @@ export function AuditForm() {
 
             {/* Step 1: Big 4 Ratios */}
             {currentStep === 1 && (
-              <div className="grid gap-6 sm:grid-cols-2">
+              <div className="grid gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2">
                 {renderInput('backSquat', 'Back Squat 1RM', '315', 'lbs')}
                 {renderInput('frontSquat', 'Front Squat 1RM', '275', 'lbs')}
                 {renderInput('strictPress', 'Strict Press 1RM', '145', 'lbs')}
@@ -238,7 +238,7 @@ export function AuditForm() {
 
             {/* Step 3: Lifestyle Diagnostic */}
             {currentStep === 3 && (
-              <div className="space-y-8">
+              <div className="space-y-6 md:space-y-8">
                 {/* Sleep */}
                 <div className="space-y-2">
                   <Label className="text-sm text-muted-foreground">
@@ -263,7 +263,7 @@ export function AuditForm() {
                 </div>
 
                 {/* Protein */}
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <Label className="text-sm text-muted-foreground">
                     Do you consume at least 1.6g of protein per kg daily?
                   </Label>
@@ -273,26 +273,26 @@ export function AuditForm() {
                     onValueChange={(value) => {
                       if (value) updateData({ protein: value as AuditData['protein'] });
                     }}
-                    className="justify-start"
+                    className="justify-start flex-wrap gap-2"
                   >
                     <ToggleGroupItem
                       value="yes"
                       variant="outline"
-                      className={`font-mono px-6 ${data.protein === 'yes' ? 'bg-primary/20 border-primary text-primary' : ''} ${errors.protein ? 'border-destructive' : ''}`}
+                      className={`font-mono px-4 py-2 text-sm ${data.protein === 'yes' ? 'bg-primary/20 border-primary text-primary' : ''} ${errors.protein ? 'border-destructive' : ''}`}
                     >
                       Yes
                     </ToggleGroupItem>
                     <ToggleGroupItem
                       value="no"
                       variant="outline"
-                      className={`font-mono px-6 ${data.protein === 'no' ? 'bg-primary/20 border-primary text-primary' : ''} ${errors.protein ? 'border-destructive' : ''}`}
+                      className={`font-mono px-4 py-2 text-sm ${data.protein === 'no' ? 'bg-primary/20 border-primary text-primary' : ''} ${errors.protein ? 'border-destructive' : ''}`}
                     >
                       No
                     </ToggleGroupItem>
                     <ToggleGroupItem
                       value="unsure"
                       variant="outline"
-                      className={`font-mono px-6 ${data.protein === 'unsure' ? 'bg-primary/20 border-primary text-primary' : ''} ${errors.protein ? 'border-destructive' : ''}`}
+                      className={`font-mono px-4 py-2 text-sm ${data.protein === 'unsure' ? 'bg-primary/20 border-primary text-primary' : ''} ${errors.protein ? 'border-destructive' : ''}`}
                     >
                       Unsure
                     </ToggleGroupItem>
@@ -356,52 +356,52 @@ export function AuditForm() {
             {/* Step 4: Review */}
             {currentStep === 4 && (
               <div className="space-y-4">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="p-4 rounded-lg bg-secondary/50">
-                    <p className="text-xs text-muted-foreground mb-1">Weight</p>
-                    <p className="font-mono text-lg">{data.weight} lbs</p>
+                <div className="grid gap-3 md:gap-4 grid-cols-2">
+                  <div className="p-3 md:p-4 rounded-lg bg-secondary/50">
+                    <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5">Weight</p>
+                    <p className="font-mono text-base md:text-lg">{data.weight} lbs</p>
                   </div>
-                  <div className="p-4 rounded-lg bg-secondary/50">
-                    <p className="text-xs text-muted-foreground mb-1">Age</p>
-                    <p className="font-mono text-lg">{data.age} years</p>
+                  <div className="p-3 md:p-4 rounded-lg bg-secondary/50">
+                    <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5">Age</p>
+                    <p className="font-mono text-base md:text-lg">{data.age} years</p>
                   </div>
-                  <div className="p-4 rounded-lg bg-secondary/50">
-                    <p className="text-xs text-muted-foreground mb-1">Back Squat</p>
-                    <p className="font-mono text-lg">{data.backSquat} lbs</p>
+                  <div className="p-3 md:p-4 rounded-lg bg-secondary/50">
+                    <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5">Back Squat</p>
+                    <p className="font-mono text-base md:text-lg">{data.backSquat} lbs</p>
                   </div>
-                  <div className="p-4 rounded-lg bg-secondary/50">
-                    <p className="text-xs text-muted-foreground mb-1">Front Squat</p>
-                    <p className="font-mono text-lg">{data.frontSquat} lbs</p>
+                  <div className="p-3 md:p-4 rounded-lg bg-secondary/50">
+                    <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5">Front Squat</p>
+                    <p className="font-mono text-base md:text-lg">{data.frontSquat} lbs</p>
                   </div>
-                  <div className="p-4 rounded-lg bg-secondary/50">
-                    <p className="text-xs text-muted-foreground mb-1">Strict Press</p>
-                    <p className="font-mono text-lg">{data.strictPress} lbs</p>
+                  <div className="p-3 md:p-4 rounded-lg bg-secondary/50">
+                    <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5">Strict Press</p>
+                    <p className="font-mono text-base md:text-lg">{data.strictPress} lbs</p>
                   </div>
-                  <div className="p-4 rounded-lg bg-secondary/50">
-                    <p className="text-xs text-muted-foreground mb-1">Deadlift</p>
-                    <p className="font-mono text-lg">{data.deadlift} lbs</p>
+                  <div className="p-3 md:p-4 rounded-lg bg-secondary/50">
+                    <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5">Deadlift</p>
+                    <p className="font-mono text-base md:text-lg">{data.deadlift} lbs</p>
                   </div>
-                  <div className="p-4 rounded-lg bg-secondary/50">
-                    <p className="text-xs text-muted-foreground mb-1">1-Mile Run</p>
-                    <p className="font-mono text-lg">
+                  <div className="p-3 md:p-4 rounded-lg bg-secondary/50">
+                    <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5">1-Mile Run</p>
+                    <p className="font-mono text-base md:text-lg">
                       {data.mileRunTime ? `${Math.floor(data.mileRunTime / 60)}:${(data.mileRunTime % 60).toString().padStart(2, '0')}` : '-'}
                     </p>
                   </div>
-                  <div className="p-4 rounded-lg bg-secondary/50">
-                    <p className="text-xs text-muted-foreground mb-1">Sleep</p>
-                    <p className="font-mono text-lg">{data.sleep ? sleepLabels[data.sleep] : '-'}</p>
+                  <div className="p-3 md:p-4 rounded-lg bg-secondary/50">
+                    <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5">Sleep</p>
+                    <p className="font-mono text-base md:text-lg">{data.sleep ? sleepLabels[data.sleep] : '-'}</p>
                   </div>
-                  <div className="p-4 rounded-lg bg-secondary/50">
-                    <p className="text-xs text-muted-foreground mb-1">Protein Intake</p>
-                    <p className="font-mono text-lg capitalize">{data.protein || '-'}</p>
+                  <div className="p-3 md:p-4 rounded-lg bg-secondary/50">
+                    <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5">Protein</p>
+                    <p className="font-mono text-base md:text-lg capitalize">{data.protein || '-'}</p>
                   </div>
-                  <div className="p-4 rounded-lg bg-secondary/50">
-                    <p className="text-xs text-muted-foreground mb-1">Stress Level</p>
-                    <p className="font-mono text-lg">{data.stress}/10</p>
+                  <div className="p-3 md:p-4 rounded-lg bg-secondary/50">
+                    <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5">Stress</p>
+                    <p className="font-mono text-base md:text-lg">{data.stress}/10</p>
                   </div>
-                  <div className="p-4 rounded-lg bg-secondary/50 sm:col-span-2">
-                    <p className="text-xs text-muted-foreground mb-1">Training Experience</p>
-                    <p className="font-mono text-lg">{data.experience ? experienceLabels[data.experience] : '-'}</p>
+                  <div className="p-3 md:p-4 rounded-lg bg-secondary/50 col-span-2">
+                    <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5">Training Experience</p>
+                    <p className="font-mono text-base md:text-lg">{data.experience ? experienceLabels[data.experience] : '-'}</p>
                   </div>
                 </div>
               </div>
@@ -409,18 +409,20 @@ export function AuditForm() {
           </CardContent>
         </Card>
 
-        {/* Navigation buttons */}
-        <div className="flex justify-between">
+        {/* Navigation buttons - fixed at bottom on mobile */}
+        <div className="flex justify-between gap-3">
           <Button
             variant="outline"
             onClick={handleBack}
             disabled={currentStep === 0}
+            size="lg"
+            className="flex-1 md:flex-none"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Back
+            <span className="hidden sm:inline">Back</span>
           </Button>
-          <Button variant="hero" onClick={handleNext}>
-            {currentStep === steps.length - 1 ? 'Generate Report' : 'Continue'}
+          <Button variant="hero" onClick={handleNext} size="lg" className="flex-1 md:flex-none">
+            {currentStep === steps.length - 1 ? 'Generate' : 'Continue'}
             <ArrowRight className="w-4 h-4 ml-2" />
           </Button>
         </div>
