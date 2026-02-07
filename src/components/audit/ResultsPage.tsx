@@ -5,15 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer, Legend } from "recharts";
-import { AlertTriangle, CheckCircle, ArrowRight, RotateCcw, Lock } from "lucide-react";
+import { AlertTriangle, CheckCircle, ArrowRight, RotateCcw, Lock, Info, ExternalLink } from "lucide-react";
 import { Link } from "react-router-dom";
-
-const tierColors = {
-  foundation: 'text-muted-foreground',
-  intermediate: 'text-foreground',
-  performance: 'text-primary',
-  elite: 'text-accent',
-};
 
 const tierBadges = {
   foundation: 'outline' as const,
@@ -60,6 +53,23 @@ export function ResultsPage() {
             Your performance architecture has been analyzed
           </p>
         </div>
+
+        {/* Foundation Recommendation Advisory */}
+        {results.foundationRecommended && (
+          <Card variant="elevated" className="mb-8 border-accent/30 bg-accent/5">
+            <CardContent className="p-6">
+              <div className="flex items-start gap-4">
+                <Info className="w-6 h-6 text-accent flex-shrink-0 mt-0.5" />
+                <div>
+                  <h3 className="font-semibold text-accent mb-2">Foundation Track Recommended</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {results.foundationReason}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Overall score card */}
         <Card variant="data" className="mb-8">
@@ -186,6 +196,25 @@ export function ResultsPage() {
                     <p className="text-xs text-muted-foreground mb-1">RECOMMENDATION</p>
                     <p className="text-sm">{leak.recommendation}</p>
                   </div>
+                  
+                  {/* Resource Links */}
+                  {leak.resourceLinks && leak.resourceLinks.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-border/50">
+                      <p className="text-xs text-muted-foreground mb-2">RESOURCES</p>
+                      <div className="flex flex-wrap gap-2">
+                        {leak.resourceLinks.map((link, index) => (
+                          <a
+                            key={index}
+                            href={link.url}
+                            className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors"
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                            {link.title}
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </CardContent>
