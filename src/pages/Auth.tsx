@@ -56,7 +56,7 @@ export function AuthPage() {
           <div className="w-12 h-12 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-4">
             <Activity className="w-6 h-6 text-primary" />
           </div>
-          <h1 className="text-2xl font-bold">The Vault</h1>
+          <h1 className="text-2xl font-bold">Performance Architect</h1>
           <p className="text-muted-foreground text-sm mt-1">Access your performance dashboard</p>
         </div>
 
