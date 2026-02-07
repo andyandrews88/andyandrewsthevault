@@ -1,43 +1,101 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Activity, Lock, Mail, User, AlertCircle } from "lucide-react";
+import { Activity, Lock, Mail, User, CheckCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { useAuthStore } from "@/stores/authStore";
+import { z } from "zod";
+
+const emailSchema = z.string().email("Please enter a valid email address");
+const passwordSchema = z.string().min(8, "Password must be at least 8 characters");
 
 export function AuthPage() {
   const navigate = useNavigate();
-  const [isLoading, setIsLoading] = useState(false);
+  const { signIn, signUp, isAuthenticated, isLoading, initialize } = useAuthStore();
+  
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+
+  useEffect(() => {
+    initialize();
+  }, [initialize]);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate("/vault");
+    }
+  }, [isAuthenticated, navigate]);
+
+  const validateForm = () => {
+    const newErrors: { email?: string; password?: string } = {};
+    
+    const emailResult = emailSchema.safeParse(email);
+    if (!emailResult.success) {
+      newErrors.email = emailResult.error.errors[0].message;
+    }
+    
+    const passwordResult = passwordSchema.safeParse(password);
+    if (!passwordResult.success) {
+      newErrors.password = passwordResult.error.errors[0].message;
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
     
-    // Simulated auth - will be replaced with Supabase
-    setTimeout(() => {
-      setIsLoading(false);
-      toast.success("Signed in successfully");
-      navigate("/vault");
-    }, 1000);
+    if (!validateForm()) return;
+    
+    const { error } = await signIn(email, password);
+    
+    if (error) {
+      if (error.message.includes("Invalid login credentials")) {
+        toast.error("Invalid email or password");
+      } else if (error.message.includes("Email not confirmed")) {
+        toast.error("Please confirm your email before signing in");
+      } else {
+        toast.error(error.message);
+      }
+      return;
+    }
+    
+    toast.success("Welcome back!");
+    navigate("/vault");
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
     
-    // Simulated auth - will be replaced with Supabase
-    setTimeout(() => {
-      setIsLoading(false);
-      toast.success("Account created! Check your email to confirm.");
-    }, 1000);
+    if (!validateForm()) return;
+    
+    const { error } = await signUp(email, password, name);
+    
+    if (error) {
+      if (error.message.includes("already registered")) {
+        toast.error("This email is already registered. Please sign in instead.");
+      } else {
+        toast.error(error.message);
+      }
+      return;
+    }
+    
+    toast.success("Account created! Check your email to confirm, then sign in.");
   };
+
+  const trialBenefits = [
+    "Full access to The Vault content library",
+    "Performance training resources",
+    "Nutrition guides and tools",
+    "7 days completely free"
+  ];
 
   return (
     <div className="min-h-screen pt-24 pb-12 flex items-center justify-center">
@@ -57,81 +115,32 @@ export function AuthPage() {
             <Activity className="w-6 h-6 text-primary" />
           </div>
           <h1 className="text-2xl font-bold">Performance Architect</h1>
-          <p className="text-muted-foreground text-sm mt-1">Access your performance dashboard</p>
-        </div>
-
-        {/* Cloud notice */}
-        <div className="mb-6 p-4 rounded-lg border border-border bg-card/50">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-medium">Backend Not Connected</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Enable Lovable Cloud to activate authentication and data storage.
-              </p>
-            </div>
-          </div>
+          <p className="text-muted-foreground text-sm mt-1">Start your 7-day free trial</p>
         </div>
 
         <Card variant="elevated">
-          <Tabs defaultValue="signin">
+          <Tabs defaultValue="signup">
             <TabsList className="w-full grid grid-cols-2 mb-4">
+              <TabsTrigger value="signup">Start Trial</TabsTrigger>
               <TabsTrigger value="signin">Sign In</TabsTrigger>
-              <TabsTrigger value="signup">Sign Up</TabsTrigger>
             </TabsList>
-
-            <TabsContent value="signin">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-lg">Welcome back</CardTitle>
-                <CardDescription>Enter your credentials to access The Vault</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleSignIn} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="signin-email">Email</Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <Input
-                        id="signin-email"
-                        type="email"
-                        placeholder="andy@example.com"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        className="pl-10"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="signin-password">Password</Label>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <Input
-                        id="signin-password"
-                        type="password"
-                        placeholder="••••••••"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        className="pl-10"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <Button variant="hero" className="w-full" disabled={isLoading}>
-                    {isLoading ? "Signing in..." : "Sign In"}
-                  </Button>
-                </form>
-              </CardContent>
-            </TabsContent>
 
             <TabsContent value="signup">
               <CardHeader className="pb-4">
-                <CardTitle className="text-lg">Create account</CardTitle>
-                <CardDescription>Join The Vault for $49/month</CardDescription>
+                <CardTitle className="text-lg">Start Your Free Trial</CardTitle>
+                <CardDescription>7 days free, then $30/month. Cancel anytime.</CardDescription>
               </CardHeader>
               <CardContent>
+                {/* Trial benefits */}
+                <div className="mb-6 space-y-2">
+                  {trialBenefits.map((benefit, index) => (
+                    <div key={index} className="flex items-center gap-2 text-sm">
+                      <CheckCircle className="w-4 h-4 text-primary flex-shrink-0" />
+                      <span className="text-muted-foreground">{benefit}</span>
+                    </div>
+                  ))}
+                </div>
+
                 <form onSubmit={handleSignUp} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="signup-name">Full Name</Label>
@@ -144,7 +153,6 @@ export function AuthPage() {
                         value={name}
                         onChange={(e) => setName(e.target.value)}
                         className="pl-10"
-                        required
                       />
                     </div>
                   </div>
@@ -158,11 +166,17 @@ export function AuthPage() {
                         type="email"
                         placeholder="andy@example.com"
                         value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        className="pl-10"
+                        onChange={(e) => {
+                          setEmail(e.target.value);
+                          setErrors(prev => ({ ...prev, email: undefined }));
+                        }}
+                        className={`pl-10 ${errors.email ? 'border-destructive' : ''}`}
                         required
                       />
                     </div>
+                    {errors.email && (
+                      <p className="text-sm text-destructive">{errors.email}</p>
+                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -174,21 +188,85 @@ export function AuthPage() {
                         type="password"
                         placeholder="••••••••"
                         value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        className="pl-10"
+                        onChange={(e) => {
+                          setPassword(e.target.value);
+                          setErrors(prev => ({ ...prev, password: undefined }));
+                        }}
+                        className={`pl-10 ${errors.password ? 'border-destructive' : ''}`}
                         minLength={8}
                         required
                       />
                     </div>
+                    {errors.password && (
+                      <p className="text-sm text-destructive">{errors.password}</p>
+                    )}
                   </div>
 
                   <Button variant="hero" className="w-full" disabled={isLoading}>
-                    {isLoading ? "Creating account..." : "Create Account"}
+                    {isLoading ? "Creating account..." : "Start Free Trial"}
                   </Button>
 
                   <p className="text-xs text-muted-foreground text-center">
                     By signing up, you agree to our Terms and Privacy Policy
                   </p>
+                </form>
+              </CardContent>
+            </TabsContent>
+
+            <TabsContent value="signin">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg">Welcome back</CardTitle>
+                <CardDescription>Enter your credentials to access your account</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSignIn} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="signin-email">Email</Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="signin-email"
+                        type="email"
+                        placeholder="andy@example.com"
+                        value={email}
+                        onChange={(e) => {
+                          setEmail(e.target.value);
+                          setErrors(prev => ({ ...prev, email: undefined }));
+                        }}
+                        className={`pl-10 ${errors.email ? 'border-destructive' : ''}`}
+                        required
+                      />
+                    </div>
+                    {errors.email && (
+                      <p className="text-sm text-destructive">{errors.email}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="signin-password">Password</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="signin-password"
+                        type="password"
+                        placeholder="••••••••"
+                        value={password}
+                        onChange={(e) => {
+                          setPassword(e.target.value);
+                          setErrors(prev => ({ ...prev, password: undefined }));
+                        }}
+                        className={`pl-10 ${errors.password ? 'border-destructive' : ''}`}
+                        required
+                      />
+                    </div>
+                    {errors.password && (
+                      <p className="text-sm text-destructive">{errors.password}</p>
+                    )}
+                  </div>
+
+                  <Button variant="hero" className="w-full" disabled={isLoading}>
+                    {isLoading ? "Signing in..." : "Sign In"}
+                  </Button>
                 </form>
               </CardContent>
             </TabsContent>
