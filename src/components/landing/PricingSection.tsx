@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Check, Lock } from "lucide-react";
-
+import { Link } from "react-router-dom";
 
 export function PricingSection() {
   const features = [
@@ -67,12 +67,12 @@ export function PricingSection() {
             </CardContent>
 
             <CardFooter className="flex-col gap-3">
-              <a href="https://buy.stripe.com/6oU6oHa8VaojfAt1AFenS0F" className="w-full" target="_blank" rel="noopener noreferrer">
+              <Link to="/auth" className="w-full">
                 <Button variant="hero" size="lg" className="w-full">
                   <Lock className="w-4 h-4 mr-2" />
                   Start Free Trial
                 </Button>
-              </a>
+              </Link>
               <p className="text-xs text-muted-foreground text-center">
                 7 days free, then $30/month. Cancel anytime.
               </p>
