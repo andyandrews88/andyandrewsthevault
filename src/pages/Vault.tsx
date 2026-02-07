@@ -13,8 +13,10 @@ import {
   Send,
   ExternalLink,
   Lock,
-  Crown
+  Crown,
+  Radio
 } from "lucide-react";
+import { PodcastTab } from "@/components/vault/PodcastTab";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 
@@ -75,10 +77,14 @@ export function VaultDashboard() {
 
         {/* Main tabs */}
         <Tabs defaultValue="library" className="space-y-6">
-          <TabsList className="grid grid-cols-3 w-full max-w-md">
+          <TabsList className="grid grid-cols-4 w-full max-w-lg">
             <TabsTrigger value="library" className="flex items-center gap-2">
               <Library className="w-4 h-4" />
               <span className="hidden sm:inline">Library</span>
+            </TabsTrigger>
+            <TabsTrigger value="podcast" className="flex items-center gap-2">
+              <Radio className="w-4 h-4" />
+              <span className="hidden sm:inline">Podcast</span>
             </TabsTrigger>
             <TabsTrigger value="community" className="flex items-center gap-2">
               <Users className="w-4 h-4" />
@@ -120,6 +126,11 @@ export function VaultDashboard() {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Podcast Tab */}
+          <TabsContent value="podcast">
+            <PodcastTab />
           </TabsContent>
 
           {/* Community Hub */}
