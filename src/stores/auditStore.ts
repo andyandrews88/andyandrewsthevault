@@ -14,6 +14,17 @@ export interface AuditData {
   
   // Engine Check
   mileRunTime: number; // in seconds
+  
+  // Lifestyle Diagnostic
+  sleep: '<6' | '6-7' | '7-8' | '8+';
+  protein: 'yes' | 'no' | 'unsure';
+  stress: number; // 1-10 scale
+  experience: '<1' | '1-3' | '3-5' | '5+';
+}
+
+export interface ResourceLink {
+  title: string;
+  url: string;
 }
 
 export interface Leak {
@@ -23,6 +34,7 @@ export interface Leak {
   severity: 'warning' | 'critical';
   metric: string;
   recommendation: string;
+  resourceLinks?: ResourceLink[];
 }
 
 export interface AuditResults {
@@ -37,6 +49,8 @@ export interface AuditResults {
   };
   tier: 'foundation' | 'intermediate' | 'performance' | 'elite';
   overallScore: number;
+  foundationRecommended?: boolean;
+  foundationReason?: string;
 }
 
 interface AuditStore {
@@ -106,6 +120,22 @@ function detectLeaks(data: AuditData): Leak[] {
     });
   }
 
+  // Systemic Recovery Leak: Sleep <6 AND Stress >8
+  if (data.sleep === '<6' && data.stress > 8) {
+    leaks.push({
+      id: 'systemic-recovery',
+      title: 'Systemic Recovery Leak',
+      description: `Sleep deprivation (<6hrs) combined with high stress (${data.stress}/10) is compromising recovery capacity`,
+      severity: data.stress >= 9 ? 'critical' : 'warning',
+      metric: `Sleep: <6h | Stress: ${data.stress}/10`,
+      recommendation: 'Prioritize sleep hygiene and stress management before increasing training volume. Without adequate recovery, adaptation is compromised regardless of training quality.',
+      resourceLinks: [
+        { title: 'Recovery Protocol', url: '#recovery' },
+        { title: 'Stress Management Guide', url: '#stress-management' }
+      ]
+    });
+  }
+
   return leaks;
 }
 
@@ -126,7 +156,12 @@ function calculateScores(data: AuditData): AuditResults['scores'] {
   };
 }
 
-function determineTier(scores: AuditResults['scores']): AuditResults['tier'] {
+function determineTier(scores: AuditResults['scores'], experience?: AuditData['experience']): AuditResults['tier'] {
+  // Foundation override for beginners regardless of scores
+  if (experience === '<1') {
+    return 'foundation';
+  }
+  
   const avg = Object.values(scores).reduce((a, b) => a + b, 0) / 5;
   if (avg >= 85) return 'elite';
   if (avg >= 70) return 'performance';
@@ -157,8 +192,14 @@ export const useAuditStore = create<AuditStore>((set, get) => ({
     
     const leaks = detectLeaks(fullData);
     const scores = calculateScores(fullData);
-    const tier = determineTier(scores);
+    const tier = determineTier(scores, fullData.experience);
     const overallScore = Math.round(Object.values(scores).reduce((a, b) => a + b, 0) / 5);
+
+    // Check for foundation recommendation due to experience
+    const foundationRecommended = fullData.experience === '<1';
+    const foundationReason = foundationRecommended 
+      ? 'With less than 1 year of consistent training, the Foundation track ensures long-term structural integrity and prevents injury.'
+      : undefined;
 
     set({
       results: {
@@ -167,6 +208,8 @@ export const useAuditStore = create<AuditStore>((set, get) => ({
         scores,
         tier,
         overallScore,
+        foundationRecommended,
+        foundationReason,
       }
     });
   },

@@ -5,16 +5,34 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { useAuditStore } from "@/stores/auditStore";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { useAuditStore, AuditData } from "@/stores/auditStore";
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, ArrowLeft, User, Dumbbell, Timer, CheckCircle } from "lucide-react";
+import { ArrowRight, ArrowLeft, User, Dumbbell, Timer, CheckCircle, Heart } from "lucide-react";
 
 const steps = [
   { id: 'biometrics', title: 'Biometrics', icon: User, description: 'Basic measurements' },
   { id: 'strength', title: 'The Big 4', icon: Dumbbell, description: 'Strength ratios' },
   { id: 'engine', title: 'Engine Check', icon: Timer, description: 'Aerobic capacity' },
+  { id: 'lifestyle', title: 'Lifestyle', icon: Heart, description: 'Recovery factors' },
   { id: 'review', title: 'Review', icon: CheckCircle, description: 'Confirm data' },
 ];
+
+const sleepLabels: Record<AuditData['sleep'], string> = {
+  '<6': '< 6 hours',
+  '6-7': '6-7 hours',
+  '7-8': '7-8 hours',
+  '8+': '8+ hours',
+};
+
+const experienceLabels: Record<AuditData['experience'], string> = {
+  '<1': '< 1 year',
+  '1-3': '1-3 years',
+  '3-5': '3-5 years',
+  '5+': '5+ years',
+};
 
 export function AuditForm() {
   const navigate = useNavigate();
@@ -37,6 +55,11 @@ export function AuditForm() {
       if (!data.deadlift || data.deadlift <= 0) newErrors.deadlift = 'Required';
     } else if (currentStep === 2) {
       if (!data.mileRunTime || data.mileRunTime <= 0) newErrors.mileRunTime = 'Required';
+    } else if (currentStep === 3) {
+      if (!data.sleep) newErrors.sleep = 'Required';
+      if (!data.protein) newErrors.protein = 'Required';
+      if (!data.stress) newErrors.stress = 'Required';
+      if (!data.experience) newErrors.experience = 'Required';
     }
 
     setErrors(newErrors);
@@ -213,8 +236,125 @@ export function AuditForm() {
               </div>
             )}
 
-            {/* Step 3: Review */}
+            {/* Step 3: Lifestyle Diagnostic */}
             {currentStep === 3 && (
+              <div className="space-y-8">
+                {/* Sleep */}
+                <div className="space-y-2">
+                  <Label className="text-sm text-muted-foreground">
+                    Average hours of sleep per night?
+                  </Label>
+                  <Select
+                    value={data.sleep || ''}
+                    onValueChange={(value) => updateData({ sleep: value as AuditData['sleep'] })}
+                  >
+                    <SelectTrigger className={`font-mono ${errors.sleep ? 'border-destructive' : ''}`}>
+                      <SelectValue placeholder="Select hours" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-card border-border">
+                      {(Object.keys(sleepLabels) as AuditData['sleep'][]).map((key) => (
+                        <SelectItem key={key} value={key} className="font-mono">
+                          {sleepLabels[key]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {errors.sleep && <p className="text-xs text-destructive">{errors.sleep}</p>}
+                </div>
+
+                {/* Protein */}
+                <div className="space-y-2">
+                  <Label className="text-sm text-muted-foreground">
+                    Do you consume at least 1.6g of protein per kg daily?
+                  </Label>
+                  <ToggleGroup
+                    type="single"
+                    value={data.protein || ''}
+                    onValueChange={(value) => {
+                      if (value) updateData({ protein: value as AuditData['protein'] });
+                    }}
+                    className="justify-start"
+                  >
+                    <ToggleGroupItem
+                      value="yes"
+                      variant="outline"
+                      className={`font-mono px-6 ${data.protein === 'yes' ? 'bg-primary/20 border-primary text-primary' : ''} ${errors.protein ? 'border-destructive' : ''}`}
+                    >
+                      Yes
+                    </ToggleGroupItem>
+                    <ToggleGroupItem
+                      value="no"
+                      variant="outline"
+                      className={`font-mono px-6 ${data.protein === 'no' ? 'bg-primary/20 border-primary text-primary' : ''} ${errors.protein ? 'border-destructive' : ''}`}
+                    >
+                      No
+                    </ToggleGroupItem>
+                    <ToggleGroupItem
+                      value="unsure"
+                      variant="outline"
+                      className={`font-mono px-6 ${data.protein === 'unsure' ? 'bg-primary/20 border-primary text-primary' : ''} ${errors.protein ? 'border-destructive' : ''}`}
+                    >
+                      Unsure
+                    </ToggleGroupItem>
+                  </ToggleGroup>
+                  {errors.protein && <p className="text-xs text-destructive">{errors.protein}</p>}
+                </div>
+
+                {/* Stress */}
+                <div className="space-y-4">
+                  <Label className="text-sm text-muted-foreground">
+                    Current non-training stress level (Work/Life)?
+                  </Label>
+                  <div className="space-y-3">
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Low</span>
+                      <span className="font-mono text-primary text-base">{data.stress || 5}</span>
+                      <span>High</span>
+                    </div>
+                    <Slider
+                      value={[data.stress || 5]}
+                      onValueChange={([value]) => updateData({ stress: value })}
+                      min={1}
+                      max={10}
+                      step={1}
+                      className={errors.stress ? 'border-destructive' : ''}
+                    />
+                    <div className="flex justify-between text-xs text-muted-foreground font-mono">
+                      <span>1</span>
+                      <span>5</span>
+                      <span>10</span>
+                    </div>
+                  </div>
+                  {errors.stress && <p className="text-xs text-destructive">{errors.stress}</p>}
+                </div>
+
+                {/* Experience */}
+                <div className="space-y-2">
+                  <Label className="text-sm text-muted-foreground">
+                    Years of consistent strength training (3+ days/week)?
+                  </Label>
+                  <Select
+                    value={data.experience || ''}
+                    onValueChange={(value) => updateData({ experience: value as AuditData['experience'] })}
+                  >
+                    <SelectTrigger className={`font-mono ${errors.experience ? 'border-destructive' : ''}`}>
+                      <SelectValue placeholder="Select years" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-card border-border">
+                      {(Object.keys(experienceLabels) as AuditData['experience'][]).map((key) => (
+                        <SelectItem key={key} value={key} className="font-mono">
+                          {experienceLabels[key]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {errors.experience && <p className="text-xs text-destructive">{errors.experience}</p>}
+                </div>
+              </div>
+            )}
+
+            {/* Step 4: Review */}
+            {currentStep === 4 && (
               <div className="space-y-4">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="p-4 rounded-lg bg-secondary/50">
@@ -241,11 +381,27 @@ export function AuditForm() {
                     <p className="text-xs text-muted-foreground mb-1">Deadlift</p>
                     <p className="font-mono text-lg">{data.deadlift} lbs</p>
                   </div>
-                  <div className="p-4 rounded-lg bg-secondary/50 sm:col-span-2">
+                  <div className="p-4 rounded-lg bg-secondary/50">
                     <p className="text-xs text-muted-foreground mb-1">1-Mile Run</p>
                     <p className="font-mono text-lg">
                       {data.mileRunTime ? `${Math.floor(data.mileRunTime / 60)}:${(data.mileRunTime % 60).toString().padStart(2, '0')}` : '-'}
                     </p>
+                  </div>
+                  <div className="p-4 rounded-lg bg-secondary/50">
+                    <p className="text-xs text-muted-foreground mb-1">Sleep</p>
+                    <p className="font-mono text-lg">{data.sleep ? sleepLabels[data.sleep] : '-'}</p>
+                  </div>
+                  <div className="p-4 rounded-lg bg-secondary/50">
+                    <p className="text-xs text-muted-foreground mb-1">Protein Intake</p>
+                    <p className="font-mono text-lg capitalize">{data.protein || '-'}</p>
+                  </div>
+                  <div className="p-4 rounded-lg bg-secondary/50">
+                    <p className="text-xs text-muted-foreground mb-1">Stress Level</p>
+                    <p className="font-mono text-lg">{data.stress}/10</p>
+                  </div>
+                  <div className="p-4 rounded-lg bg-secondary/50 sm:col-span-2">
+                    <p className="text-xs text-muted-foreground mb-1">Training Experience</p>
+                    <p className="font-mono text-lg">{data.experience ? experienceLabels[data.experience] : '-'}</p>
                   </div>
                 </div>
               </div>
