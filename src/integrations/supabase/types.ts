@@ -14,6 +14,96 @@ export type Database = {
   }
   public: {
     Tables: {
+      user_audit_data: {
+        Row: {
+          created_at: string
+          data: Json | null
+          id: string
+          results: Json | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          data?: Json | null
+          id?: string
+          results?: Json | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          data?: Json | null
+          id?: string
+          results?: Json | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_meals: {
+        Row: {
+          created_at: string
+          foods: Json
+          id: string
+          name: string
+          totals: Json
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          foods?: Json
+          id?: string
+          name: string
+          totals?: Json
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          foods?: Json
+          id?: string
+          name?: string
+          totals?: Json
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_nutrition_data: {
+        Row: {
+          activity: Json | null
+          biometrics: Json | null
+          created_at: string
+          dietary: Json | null
+          goals: Json | null
+          id: string
+          results: Json | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          activity?: Json | null
+          biometrics?: Json | null
+          created_at?: string
+          dietary?: Json | null
+          goals?: Json | null
+          id?: string
+          results?: Json | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          activity?: Json | null
+          biometrics?: Json | null
+          created_at?: string
+          dietary?: Json | null
+          goals?: Json | null
+          id?: string
+          results?: Json | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_subscriptions: {
         Row: {
           created_at: string
