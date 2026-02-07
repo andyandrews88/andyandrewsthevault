@@ -6,6 +6,7 @@ import { useNutritionStore } from '@/stores/nutritionStore';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Calculator, RotateCcw } from 'lucide-react';
+import logo from '@/assets/logo.png';
 
 export default function Nutrition() {
   const { results, reset } = useNutritionStore();
@@ -26,8 +27,13 @@ export default function Nutrition() {
       
       <main className="pt-24 pb-12">
         <div className="container mx-auto px-6 max-w-4xl">
-          {/* Header */}
+          {/* Header with Logo */}
           <div className="text-center mb-8">
+            <img 
+              src={logo} 
+              alt="Andy Andrews" 
+              className="h-16 md:h-24 w-auto invert brightness-100 mx-auto mb-4 drop-shadow-[0_0_20px_hsl(var(--primary)/0.3)]"
+            />
             <Badge variant="elite" className="mb-4">THE FUEL SYSTEM</Badge>
             <h1 className="text-3xl md:text-4xl font-bold mb-3">
               Engineering-Grade Nutrition Calculator

@@ -23,7 +23,7 @@ export function Navbar() {
           <img 
             src={logo} 
             alt="Andy Andrews" 
-            className="h-14 w-auto invert brightness-100 hover:brightness-125 transition-all"
+            className="h-16 md:h-20 w-auto invert brightness-100 hover:brightness-125 transition-all drop-shadow-[0_0_15px_hsl(var(--primary)/0.3)]"
           />
         </Link>
 
