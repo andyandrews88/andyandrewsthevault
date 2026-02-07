@@ -143,7 +143,8 @@ export function FoodDatabase({ targetMacros, onAddFood }: FoodDatabaseProps) {
               key={food.id}
               food={food}
               onAdd={(servings, unit) => handleAddFood(food, servings, unit)}
-              interactive={displayUnit !== 'default'}
+              showAddButton={true}
+              interactive={true}
             />
           ))}
         </div>

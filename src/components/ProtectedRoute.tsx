@@ -1,7 +1,5 @@
-import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuthStore } from "@/stores/authStore";
-import { TrialExpiredModal } from "./TrialExpiredModal";
 import { Loader2 } from "lucide-react";
 
 interface ProtectedRouteProps {
@@ -13,20 +11,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     isAuthenticated, 
     isLoading, 
     isInitialized,
-    isTrialActive, 
-    hasActiveSubscription,
-    subscription
   } = useAuthStore();
-  
-  const [showTrialExpiredModal, setShowTrialExpiredModal] = useState(false);
-
-  useEffect(() => {
-    // Check if trial has expired and user doesn't have active subscription
-    if (isInitialized && isAuthenticated && subscription) {
-      const needsSubscription = !isTrialActive && !hasActiveSubscription;
-      setShowTrialExpiredModal(needsSubscription);
-    }
-  }, [isInitialized, isAuthenticated, subscription, isTrialActive, hasActiveSubscription]);
 
   // Show loading state while initializing
   if (!isInitialized || isLoading) {
@@ -45,21 +30,6 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     return <Navigate to="/auth" replace />;
   }
 
-  // Show trial expired modal if needed
-  if (showTrialExpiredModal) {
-    return (
-      <>
-        <div className="min-h-screen bg-background opacity-50 pointer-events-none">
-          {children}
-        </div>
-        <TrialExpiredModal 
-          open={showTrialExpiredModal} 
-          onOpenChange={setShowTrialExpiredModal} 
-        />
-      </>
-    );
-  }
-
-  // User has access - either trial active or has subscription
+  // User has full access - no payment gates
   return <>{children}</>;
 }

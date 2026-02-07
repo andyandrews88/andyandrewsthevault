@@ -80,32 +80,53 @@ export function BarcodeScanner({ onProductScanned }: BarcodeScannerProps) {
     }
   }, [onProductScanned]);
 
+  // CRITICAL: Camera access must be called directly from click handler for permission to work
   const startScanner = async () => {
     setError(null);
-    setIsScanning(true);
-
+    
     try {
-      const html5QrCode = new Html5Qrcode(scannerContainerId);
-      scannerRef.current = html5QrCode;
+      // Request camera permission directly in click handler context
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: 'environment' } 
+      });
+      // Stop the test stream immediately - html5-qrcode will request its own
+      stream.getTracks().forEach(track => track.stop());
+      
+      setIsScanning(true);
+      
+      // Small delay to ensure DOM is ready
+      setTimeout(async () => {
+        try {
+          const html5QrCode = new Html5Qrcode(scannerContainerId);
+          scannerRef.current = html5QrCode;
 
-      await html5QrCode.start(
-        { facingMode: 'environment' },
-        {
-          fps: 10,
-          qrbox: { width: 250, height: 100 },
-        },
-        async (decodedText) => {
-          // Barcode detected
-          await stopScanner();
-          handleBarcodeLookup(decodedText);
-        },
-        () => {
-          // QR code scanning ongoing
+          await html5QrCode.start(
+            { facingMode: 'environment' },
+            {
+              fps: 10,
+              qrbox: { width: 250, height: 100 },
+            },
+            async (decodedText) => {
+              await stopScanner();
+              handleBarcodeLookup(decodedText);
+            },
+            () => {}
+          );
+        } catch (err) {
+          console.error('Failed to start scanner:', err);
+          setError('Scanner initialization failed. Try entering the barcode manually.');
+          setIsScanning(false);
         }
-      );
-    } catch (err) {
-      console.error('Failed to start scanner:', err);
-      setError('Unable to access camera. Please ensure camera permissions are granted or enter the barcode manually.');
+      }, 100);
+    } catch (err: any) {
+      console.error('Camera access denied:', err);
+      if (err.name === 'NotAllowedError') {
+        setError('Camera access denied. Please grant camera permissions in your browser settings and try again.');
+      } else if (err.name === 'NotFoundError') {
+        setError('No camera found. Please enter the barcode manually.');
+      } else {
+        setError('Unable to access camera. Please enter the barcode manually.');
+      }
       setIsScanning(false);
     }
   };

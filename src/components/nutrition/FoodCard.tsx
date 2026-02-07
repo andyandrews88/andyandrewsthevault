@@ -64,9 +64,14 @@ export function FoodCard({ food, onAdd, showAddButton = true, interactive = fals
         fats: food.fats,
       };
 
-  const handleAdd = () => {
+  const handleAdd = (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (onAdd) {
       onAdd(amount, unit);
+      // Provide visual feedback
+      const button = e.currentTarget as HTMLButtonElement;
+      button.classList.add('scale-90');
+      setTimeout(() => button.classList.remove('scale-90'), 100);
     }
   };
 
@@ -119,15 +124,15 @@ export function FoodCard({ food, onAdd, showAddButton = true, interactive = fals
             )}
           </div>
 
-          {/* Quick Add Button */}
+          {/* Quick Add Button - Always interactive */}
           {onAdd && showAddButton && (
             <Button
-              variant="ghost"
+              variant="default"
               size="icon"
-              className="h-8 w-8 shrink-0"
+              className="h-9 w-9 shrink-0 transition-transform active:scale-90"
               onClick={handleAdd}
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-5 h-5" />
             </Button>
           )}
         </div>
