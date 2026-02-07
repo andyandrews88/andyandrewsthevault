@@ -1,251 +1,329 @@
 
 
-# The Vault - Premium Engineering-Grade Resource Hub
+# Comprehensive Nutrition Calculator - "The Fuel System"
 
 ## Overview
 
-This plan transforms the existing Vault implementation into a comprehensive, engineering-grade Knowledge Hub that productizes Andy Andrews' expertise. The current foundation is solid - we'll enhance it with a dynamic content system, tighter audit-to-resource mapping, and a premium member experience.
+Build an engineering-grade nutrition calculator that integrates seamlessly into The Vault ecosystem. This will be the most comprehensive macro calculator available, combining scientific formulas, personalized recommendations, meal planning, and a curated food database - all presented in the Industrial-Elite aesthetic.
 
 ---
 
-## Current State Analysis
+## Calculator Architecture
 
-**What's Already Built:**
-- Vault dashboard with 4 tabs (Library, Podcast, Community, Tracks)
-- Structural Integrity Audit with leak detection logic
-- Results page with radar charts and leak recommendations
-- Auth page (simulated, no backend)
-- Industrial-Elite dark mode aesthetic
-- HPA Podcast integration with Apple Podcasts links
+### Core Calculations
 
-**What Needs Enhancement:**
-- Dynamic content system supporting multiple media types
-- Category tagging system (Physics, Physiology, Process)
-- Audit-to-resource intelligent mapping
-- Full Archive for premium members
-- Secure authentication with subscription management
+The calculator will implement multiple BMR formulas and let users compare results:
 
----
+| Formula | Use Case |
+|---------|----------|
+| Mifflin-St Jeor | Most accurate for general population (default) |
+| Harris-Benedict (Revised) | Classic formula, good baseline |
+| Katch-McArdle | Best when body fat % is known |
+| Cunningham | Athletes with known lean body mass |
 
-## Implementation Architecture
-
-### Phase 1: Dynamic Knowledge Bank
-
-**Content Type System:**
-The resource library will support multiple embed types with a unified card interface.
-
-| Content Type | Source | Display |
-|--------------|--------|---------|
-| Video | YouTube/Vimeo | Embedded player in modal |
-| Podcast | Spotify/Apple | Embedded player widget |
-| Article | Markdown | Rendered content view |
-| PDF | Stored file | Download/viewer |
-
-**Category Tagging System:**
+**Activity Multipliers:**
 
 ```text
-Categories:
-- PHYSICS: Biomechanics, movement patterns, force production
-- PHYSIOLOGY: Energy systems, recovery, adaptation
-- PROCESS: Programming, periodization, lifestyle
+Sedentary (desk job, little exercise)      = BMR x 1.2
+Lightly Active (1-3 days/week)             = BMR x 1.375
+Moderately Active (3-5 days/week)          = BMR x 1.55
+Very Active (6-7 days/week)                = BMR x 1.725
+Extremely Active (2x/day, physical job)    = BMR x 1.9
 ```
 
-Each resource gets tagged with a primary category plus optional "leak mapping" tags that connect to audit results.
+**Goal Modifiers:**
 
-**New Resource Data Structure:**
 ```text
-{
-  id: string,
-  title: string,
-  description: string,
-  type: 'youtube' | 'vimeo' | 'spotify' | 'apple_podcast' | 'article' | 'pdf',
-  embedUrl?: string,
-  content?: string (markdown for articles),
-  category: 'physics' | 'physiology' | 'process',
-  leakTags: string[] (e.g., ['aerobic-power', 'thoracic-core']),
-  duration?: string,
-  isPremium: boolean,
-  createdAt: string
-}
+Aggressive Cut    = TDEE - 750 (1.5 lb/week loss)
+Moderate Cut      = TDEE - 500 (1 lb/week loss)
+Conservative Cut  = TDEE - 250 (0.5 lb/week loss)
+Maintenance       = TDEE
+Lean Bulk         = TDEE + 250
+Standard Bulk     = TDEE + 500
+Aggressive Bulk   = TDEE + 750
 ```
-
-### Phase 2: Audit-to-Resource Mapping
-
-**Intelligent Recommendations:**
-When users complete the audit, the results page will display personalized resource recommendations based on their detected leaks.
-
-| Leak Type | Recommended Resources |
-|-----------|----------------------|
-| Aerobic Power | Zone 2 Protocol (PDF), Aerobic Power podcast episodes |
-| Thoracic/Core Stability | Core Stability Series (Video), Front Rack Mobility (Video) |
-| Pressing Strength | Pressing Progression (Video), Overhead Strength article |
-| Posterior Chain | Deadlift Position Guide (PDF), Hip Hinge Mastery (Video) |
-| Systemic Recovery | Recovery Protocol (Article), Stress Management podcast |
-
-The results page will show a "Recommended for You" section with 3-5 targeted resources based on leak analysis.
-
-### Phase 3: Enhanced Library Interface
-
-**Redesigned Library Tab:**
-- Category filter tabs (All / Physics / Physiology / Process)
-- Content type filter (Video / Podcast / Article)
-- Search functionality
-- Card grid with type-specific icons and badges
-- Premium content lock indicator for non-members
-- Modal viewer for embedded content
-
-**Content Card Design:**
-```text
-+----------------------------------+
-| [Category Badge]        [Type]   |
-|                                  |
-| Title                            |
-| Description (2 lines max)        |
-|                                  |
-| Duration: 12:34    [Premium 🔒]  |
-+----------------------------------+
-```
-
-### Phase 4: Premium Member Experience
-
-**Membership Tiers:**
-```text
-FREE (Audit Users):
-- Structural Integrity Audit access
-- 3 sample resources per category
-- Results with recommendations (locked)
-
-VAULT MEMBER ($49/mo):
-- Full Archive: All resources unlocked
-- The Roadmap: CoachRx track links
-- Community Hub: Full access
-- 1-on-1 coaching application (if tier qualifies)
-```
-
-**The Full Archive Section:**
-New tab or section showing complete resource count and categorized deep-dives.
-
-**The Roadmap Section:**
-Enhanced Tracks tab with:
-- Direct CoachRx links for Foundation and Performance
-- Track recommendation based on audit tier
-- Progress tracking placeholder (for future)
-
-### Phase 5: Backend Requirements (Lovable Cloud)
-
-**To fully implement, the following needs enabling:**
-
-1. **Authentication (Supabase Auth)**
-   - Email/password sign-in
-   - Email confirmation flow
-   - Session management
-
-2. **Database Tables**
-   ```text
-   resources:
-     - id, title, description, type, embed_url, content
-     - category, leak_tags, duration, is_premium, created_at
-   
-   user_profiles:
-     - id, user_id (FK), display_name, avatar_url
-     - subscription_status, subscription_tier
-   
-   community_posts:
-     - id, user_id, content, created_at
-   
-   audit_results:
-     - id, user_id, data (JSONB), created_at
-   ```
-
-3. **Stripe Integration**
-   - $49/mo subscription product
-   - Webhook for subscription status updates
-   - Customer portal for management
 
 ---
 
-## Files to Create/Modify
+## Data Input Flow (Multi-Step Form)
 
-| File | Action | Purpose |
-|------|--------|---------|
-| `src/types/resources.ts` | Create | Type definitions for resources, categories |
-| `src/data/resources.ts` | Create | Mock resource data with full content |
-| `src/components/vault/LibraryTab.tsx` | Create | Redesigned library with filters |
-| `src/components/vault/ResourceCard.tsx` | Create | Unified content card component |
-| `src/components/vault/ResourceModal.tsx` | Create | Modal for viewing embedded content |
-| `src/components/vault/CategoryFilter.tsx` | Create | Filter UI for categories |
-| `src/components/audit/ResultsPage.tsx` | Modify | Add recommended resources section |
-| `src/pages/Vault.tsx` | Modify | Update to use new library component |
-| `src/stores/auditStore.ts` | Modify | Add resource mapping logic |
+### Step 1: Biometrics
+- Weight (lbs/kg toggle)
+- Height (inches/cm toggle)
+- Age
+- Biological Sex (affects formula)
+- Body Fat % (optional - enables Katch-McArdle)
 
----
+### Step 2: Activity Assessment
+- Base Activity Level (sedentary to extremely active)
+- Training Days per Week
+- Training Style (strength, cardio, hybrid, CrossFit)
+- Job Activity Level (seated, standing, physical labor)
 
-## UI/UX Enhancements
+### Step 3: Goals
+- Primary Goal (fat loss, maintenance, muscle gain, recomposition, performance)
+- Rate of Change (aggressive, moderate, conservative)
+- Timeline Preference (optional)
 
-**Visual Hierarchy:**
-- Category badges use distinct colors:
-  - Physics: Primary cyan (`badge variant="data"`)
-  - Physiology: Success green (`badge variant="success"`)
-  - Process: Accent gold (`badge variant="elite"`)
-
-**Content Type Indicators:**
-- YouTube/Vimeo: Play icon with red/blue accent
-- Spotify: Green audio wave icon
-- Apple Podcast: Purple podcast icon
-- Article: FileText icon
-- PDF: Download icon
-
-**Premium Lock State:**
-- Greyed overlay with lock icon
-- "Join The Vault to unlock" tooltip
-- Clicking routes to /auth
+### Step 4: Dietary Preferences
+- Diet Type (standard, keto, low-carb, high-carb, zone, custom)
+- Protein Priority (minimum, moderate, high, maximum)
+- Food Restrictions (vegetarian, vegan, dairy-free, gluten-free)
+- Meal Frequency (2-6 meals per day)
 
 ---
 
-## Sample Resource Data
+## Results Dashboard
+
+### Primary Output Display
 
 ```text
-Resources to include:
++--------------------------------------------------+
+|  DAILY FUEL TARGETS                              |
+|                                                  |
+|  Calories: 2,847                                 |
+|  ----------------------------------------        |
+|  Protein:   214g (30%)   |   856 kcal           |
+|  Carbs:     320g (45%)   | 1,280 kcal           |
+|  Fats:       79g (25%)   |   711 kcal           |
++--------------------------------------------------+
+```
 
-PHYSICS (Movement Blueprints):
-- Back Squat Mechanics (YouTube)
-- Front Rack Mobility (Vimeo)
-- Deadlift Position Guide (PDF)
-- Hip Hinge Mastery (YouTube)
+### Advanced Metrics Displayed
 
-PHYSIOLOGY (Engine & Recovery):
-- Zone 2 Protocol (PDF + Article)
-- Aerobic Power Deep-Dive (Podcast)
-- Recovery Protocol (Article)
-- Stress Management Guide (Podcast)
+| Metric | Description |
+|--------|-------------|
+| BMR | Basal Metabolic Rate |
+| TDEE | Total Daily Energy Expenditure |
+| Target Calories | TDEE adjusted for goal |
+| Protein (g/lb) | Grams per pound of bodyweight |
+| Lean Mass Protein | Grams per pound of lean mass |
+| Fiber Target | Minimum daily fiber recommendation |
+| Water Intake | Hydration recommendation |
+| Meal Breakdown | Calories/macros per meal |
 
-PROCESS (Programming & Lifestyle):
-- Periodization Principles (Article)
-- Decision Fatigue & Nutrition (Podcast)
-- Foundation Track Overview (Video)
-- Performance Track Strategy (Video)
+### Visualization Components
+- Macro pie chart (protein/carbs/fats breakdown)
+- Weekly calorie trend visualization
+- Comparison view (show all formula results)
+
+---
+
+## Protein Source Database
+
+### Curated Food Database (50+ items)
+
+**Lean Proteins:**
+
+| Food | Serving | Protein | Calories | Notes |
+|------|---------|---------|----------|-------|
+| Chicken Breast | 4 oz | 26g | 120 | Go-to lean protein |
+| Ground Turkey 93/7 | 4 oz | 22g | 150 | Versatile option |
+| Egg Whites | 4 large | 14g | 68 | Pure protein |
+| Tilapia | 4 oz | 23g | 110 | Budget-friendly fish |
+| Shrimp | 4 oz | 24g | 112 | Quick-cooking |
+
+**Whole Proteins:**
+
+| Food | Serving | Protein | Calories | Notes |
+|------|---------|---------|----------|-------|
+| Whole Eggs | 3 large | 18g | 210 | Complete amino profile |
+| Salmon | 4 oz | 25g | 200 | Omega-3 rich |
+| Ribeye Steak | 4 oz | 23g | 290 | High satiety |
+| Ground Beef 80/20 | 4 oz | 20g | 280 | Flavor and fat |
+
+**Dairy/Vegetarian:**
+
+| Food | Serving | Protein | Calories | Notes |
+|------|---------|---------|----------|-------|
+| Greek Yogurt 0% | 1 cup | 23g | 130 | Probiotic benefits |
+| Cottage Cheese 2% | 1 cup | 25g | 180 | Casein-rich |
+| Whey Protein | 1 scoop | 25g | 120 | Fast absorption |
+| Casein Protein | 1 scoop | 24g | 120 | Slow release |
+| Tofu (firm) | 4 oz | 10g | 90 | Plant-based complete |
+| Tempeh | 4 oz | 20g | 190 | Fermented soy |
+
+**Carbohydrate Sources:**
+
+| Food | Serving | Carbs | Fiber | Calories |
+|------|---------|-------|-------|----------|
+| White Rice | 1 cup cooked | 45g | 0.6g | 205 |
+| Brown Rice | 1 cup cooked | 45g | 3.5g | 215 |
+| Oats | 1 cup cooked | 27g | 4g | 160 |
+| Sweet Potato | 1 medium | 26g | 4g | 115 |
+| Banana | 1 medium | 27g | 3g | 105 |
+
+**Healthy Fats:**
+
+| Food | Serving | Fat | Calories | Notes |
+|------|---------|-----|----------|-------|
+| Avocado | 1/2 medium | 15g | 160 | Monounsaturated |
+| Olive Oil | 1 tbsp | 14g | 120 | EVOO preferred |
+| Almonds | 1 oz (23) | 14g | 160 | Vitamin E source |
+| Peanut Butter | 2 tbsp | 16g | 190 | Natural only |
+
+---
+
+## Meal Plan Generator
+
+### Sample Day Builder
+
+Based on calculated macros and meal frequency, generate a template day:
+
+```text
+SAMPLE DAY - 2,847 Calories | 214g P | 320g C | 79g F
+
+MEAL 1 - Breakfast (712 cal)
+- 4 whole eggs (280 cal, 24g P, 2g C, 20g F)
+- 1 cup oatmeal cooked (160 cal, 5g P, 27g C, 3g F)
+- 1 banana (105 cal, 1g P, 27g C, 0g F)
+- 1 tbsp peanut butter (95 cal, 4g P, 3g C, 8g F)
+
+MEAL 2 - Lunch (712 cal)
+- 6 oz chicken breast (180 cal, 39g P, 0g C, 2g F)
+- 1.5 cups white rice (308 cal, 7g P, 68g C, 1g F)
+- 1 cup broccoli (55 cal, 4g P, 10g C, 0g F)
+- 1/2 avocado (160 cal, 2g P, 9g C, 15g F)
+
+MEAL 3 - Pre-Workout (475 cal)
+- 1.5 scoops whey protein (180 cal, 38g P, 3g C, 2g F)
+- 1 cup rice cakes (295 cal, 5g P, 65g C, 1g F)
+
+MEAL 4 - Post-Workout/Dinner (712 cal)
+- 6 oz salmon (300 cal, 38g P, 0g C, 16g F)
+- 1 large sweet potato (180 cal, 4g P, 41g C, 0g F)
+- 2 cups mixed vegetables (100 cal, 5g P, 20g C, 0g F)
+- 1 tbsp olive oil (120 cal, 0g P, 0g C, 14g F)
+
+MEAL 5 - Pre-Bed (236 cal)
+- 1 cup cottage cheese 2% (180 cal, 25g P, 8g C, 5g F)
+- 10 almonds (56 cal, 2g P, 2g C, 5g F)
+```
+
+### Recipe Recommendations
+
+Link to curated high-protein recipes organized by:
+- Meal type (breakfast, lunch, dinner, snacks)
+- Prep time (under 15 min, 15-30 min, 30+ min)
+- Protein content per serving
+- Diet compatibility (keto, vegetarian, etc.)
+
+---
+
+## Integration Points
+
+### Audit Integration
+- Use weight from audit data if available
+- Pre-fill biometrics from existing audit results
+- Protein intake question in audit links to calculator
+
+### Vault Integration
+- New "Nutrition" tab alongside Library, Podcast, Community, Tracks
+- Food database searchable in Vault
+- Premium recipes and meal plans for members
+
+### Results Page Integration
+- If "protein: unsure" in audit, recommend the calculator
+- Link from Systemic Recovery leak to nutrition resources
+
+---
+
+## Files to Create
+
+| File | Purpose |
+|------|---------|
+| `src/types/nutrition.ts` | Type definitions for nutrition data, foods, meals |
+| `src/data/foodDatabase.ts` | Curated food database with macros |
+| `src/data/recipes.ts` | Sample recipe data |
+| `src/stores/nutritionStore.ts` | Zustand store for calculator state |
+| `src/components/nutrition/NutritionCalculator.tsx` | Main calculator component (multi-step form) |
+| `src/components/nutrition/NutritionResults.tsx` | Results display with charts |
+| `src/components/nutrition/MacroChart.tsx` | Pie chart for macro breakdown |
+| `src/components/nutrition/FoodDatabase.tsx` | Searchable food list |
+| `src/components/nutrition/MealPlanGenerator.tsx` | Sample day builder |
+| `src/components/nutrition/FoodCard.tsx` | Individual food item display |
+| `src/pages/Nutrition.tsx` | Standalone nutrition calculator page |
+
+## Files to Modify
+
+| File | Changes |
+|------|---------|
+| `src/App.tsx` | Add /nutrition route |
+| `src/pages/Vault.tsx` | Add Nutrition tab to TabsList |
+| `src/components/layout/Navbar.tsx` | Add Nutrition link to nav |
+
+---
+
+## UI/UX Design
+
+### Visual Style
+- Maintain Industrial-Elite dark mode aesthetic
+- Use monospace fonts for all numerical data
+- Primary cyan for protein, success green for carbs, accent gold for fats
+- Card-based layout matching existing Vault components
+
+### Form Experience
+- Multi-step wizard similar to Audit form
+- Progress indicator at top
+- Real-time calculation preview as user inputs data
+- Unit toggles (metric/imperial) persist across session
+
+### Results Display
+- Large, prominent macro display with percentages
+- Interactive pie chart with hover states
+- Collapsible sections for advanced metrics
+- Export/print functionality placeholder
+
+### Mobile Optimization
+- Responsive grid layouts
+- Touch-friendly sliders for activity level
+- Stacked card layout on small screens
+
+---
+
+## Calculator Formulas Reference
+
+### Mifflin-St Jeor (Default)
+```text
+Men:    BMR = (10 x weight in kg) + (6.25 x height in cm) - (5 x age) + 5
+Women:  BMR = (10 x weight in kg) + (6.25 x height in cm) - (5 x age) - 161
+```
+
+### Katch-McArdle (Requires Body Fat %)
+```text
+BMR = 370 + (21.6 x Lean Body Mass in kg)
+LBM = Weight x (1 - Body Fat %)
+```
+
+### Protein Recommendations by Goal
+```text
+Fat Loss:           1.0 - 1.2g per lb bodyweight
+Maintenance:        0.8 - 1.0g per lb bodyweight
+Muscle Gain:        1.0 - 1.2g per lb bodyweight
+High Protein Focus: 1.2 - 1.5g per lb bodyweight
+```
+
+### Macro Splits by Diet Type
+```text
+Standard:    30% P / 40% C / 30% F
+High Carb:   25% P / 50% C / 25% F
+Low Carb:    35% P / 25% C / 40% F
+Keto:        30% P / 5% C  / 65% F
+Zone:        30% P / 40% C / 30% F
 ```
 
 ---
 
 ## Implementation Order
 
-1. **Create type definitions and mock data** - Establish the content structure
-2. **Build ResourceCard component** - Unified card with type detection
-3. **Build ResourceModal component** - Embedded viewer for videos/podcasts
-4. **Create LibraryTab with filters** - Category and type filtering
-5. **Update Vault.tsx** - Integrate new library
-6. **Update ResultsPage.tsx** - Add personalized recommendations
-7. **Add premium lock states** - Visual indicators for non-members
-
----
-
-## Technical Notes
-
-- Embedded content uses iframe with responsive aspect ratio (16:9 for video, custom for podcasts)
-- Spotify embeds use `https://open.spotify.com/embed/episode/{id}`
-- Apple Podcast embeds use native links (no embed API) - open in new tab
-- YouTube embeds use `https://www.youtube.com/embed/{id}`
-- Markdown articles rendered with basic styling (no external library needed)
-- All mock data can be migrated to Supabase database when backend is enabled
+1. Create type definitions and Zustand store
+2. Build food database with macro data
+3. Create multi-step calculator form
+4. Implement BMR/TDEE calculation logic
+5. Build results display with charts
+6. Add food database search component
+7. Create meal plan generator
+8. Add /nutrition route and navigation
+9. Integrate Nutrition tab into Vault
+10. Connect audit store for pre-filled data
 
