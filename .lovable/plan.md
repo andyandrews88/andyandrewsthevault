@@ -1,119 +1,71 @@
 
 
-# Enhanced Nutrition System - User-Friendly Upgrades
+# Free User Authentication with Data Persistence
 
 ## Overview
-Transform the existing nutrition calculator into a more interactive, client-friendly experience with three major features:
-
-1. **Unit Conversion Toggle** - Switch between grams, ounces, cups, tablespoons, etc.
-2. **Custom Meal Builder** - Drag-and-drop foods to build meals and see real-time calorie totals
-3. **Barcode Scanner** - Scan products at the supermarket to get instant nutrition info
+Add user profiles and authentication so clients can create an account, log in, and have their data (meals, nutrition calculations, audit results) automatically saved and restored when they return. Everything stays completely free - no payment references at all.
 
 ---
 
-## Feature 1: Multi-Unit Measurement System
+## What Users Will Experience
 
-### How It Works
-- Add a unit selector next to each food item (grams, ounces, cups, tablespoons, pieces)
-- Users can toggle between metric (grams) and imperial (ounces) globally
-- Food quantities update automatically when switching units
-- Serving sizes become adjustable sliders or inputs
-
-### User Experience
-```text
-+------------------------------------------+
-|  Chicken Breast                          |
-|  [  4  ] [ oz ▼ ]     = 120 cal         |
-|           - grams                        |
-|           - ounces                       |
-|           - pieces                       |
-+------------------------------------------+
-```
-
-### Unit Conversion Reference
-| Unit | Conversion |
-|------|------------|
-| 1 oz | 28.35 grams |
-| 1 cup | ~240 grams (varies by food density) |
-| 1 tbsp | ~15 grams |
-| 1 tsp | ~5 grams |
+1. **Sign Up / Sign In** - Simple email + password registration (free)
+2. **Data Syncs to Cloud** - Saved meals, nutrition settings, and audit results persist
+3. **Log Out / Log Back In** - Everything is exactly where they left it
+4. **Works Across Devices** - Sign in from phone or computer, same data
 
 ---
 
-## Feature 2: Custom Meal Builder
+## Changes Summary
 
-### How It Works
-- A new "Build Your Meal" tab in the nutrition results section
-- Users search and add foods from the database to their meal
-- Each food shows adjustable servings with real-time macro updates
-- Running totals update instantly as foods are added/removed
-- Save meals for quick access later
+### 1. Update Auth Page (Remove Payment References)
+The existing auth page mentions "7-day free trial" and "$30/month". Update to reflect free access.
 
-### User Interface Flow
-```text
-+--------------------------------------------------+
-|  MY CUSTOM MEAL                    Total: 650 cal|
-|  ------------------------------------------------|
-|  + Chicken Breast (6 oz)    180 cal   39g P      |
-|  + White Rice (1 cup)       205 cal   4g P       |
-|  + Broccoli (1 cup)         31 cal    3g P       |
-|  + Olive Oil (1 tbsp)       120 cal   0g P       |
-|  ------------------------------------------------|
-|  TOTALS: 536 cal | 46g P | 48g C | 14g F         |
-|  ------------------------------------------------|
-|  [Search foods...]                    [Save Meal]|
-+--------------------------------------------------+
-```
+**File:** `src/pages/Auth.tsx`
+- Change "Start Trial" tab to "Create Account"
+- Remove trial benefits mentioning "7 days free"
+- Update button text from "Start Free Trial" to "Create Account"
+- Remove any payment-related copy
 
-### Data Storage
-- Meals stored in browser local storage (zustand persist)
-- Optional: Save to database for logged-in users (future enhancement)
+### 2. Simplify Auth Store
+Remove subscription and payment-related code since the app is free.
 
----
+**File:** `src/stores/authStore.ts`
+- Remove Stripe URL constant
+- Remove subscription state and fetching
+- Remove trial-related computed values
+- Keep core auth functions (signIn, signUp, signOut, initialize)
 
-## Feature 3: Barcode Scanner
+### 3. Add Auth Route Back to App
+Re-add the /auth route so users can access the login page.
 
-### How It Works
-1. User clicks "Scan Barcode" button
-2. Camera opens using device camera (mobile or webcam)
-3. Barcode is detected and read
-4. Product info fetched from Open Food Facts API (free, no API key required)
-5. Nutrition data displayed and can be added to meal
+**File:** `src/App.tsx`
+- Import AuthPageWrapper
+- Add `/auth` route
 
-### Technology Stack
-- **react-barcode-scanner** - Camera-based barcode detection
-- **Open Food Facts API** - Free product database with nutrition data
-  - Endpoint: `https://world.openfoodfacts.org/api/v2/product/{barcode}`
-  - No authentication required for read access
+### 4. Add User Navigation to Navbar
+Add sign in/sign out buttons to the navbar.
 
-### Scanner UI
-```text
-+----------------------------------+
-|  [Camera Preview Window]         |
-|                                  |
-|      Point camera at barcode     |
-|                                  |
-+----------------------------------+
-|  Or enter barcode manually:      |
-|  [_______________] [Look Up]     |
-+----------------------------------+
+**File:** `src/components/layout/Navbar.tsx`
+- Show "Sign In" button when logged out
+- Show user menu with "Sign Out" when logged in
+- Initialize auth on app load
 
-After scan:
-+----------------------------------+
-|  PRODUCT FOUND                   |
-|  Cheerios (General Mills)        |
-|  Serving: 1 cup (39g)           |
-|  --------------------------------|
-|  140 cal | 3g P | 29g C | 2g F  |
-|  --------------------------------|
-|  [Add to My Meal] [Scan Another] |
-+----------------------------------+
-```
+### 5. Create User Data Tables
+Create database tables to store user data that currently lives only in local storage.
 
-### Error Handling
-- Product not found: Allow manual entry
-- Camera not available: Show manual barcode input field
-- API offline: Show error with retry option
+**New Tables:**
+- `user_nutrition_data` - Stores nutrition calculator inputs and results
+- `user_meals` - Stores saved meals from the meal builder  
+- `user_audit_data` - Stores audit results
+
+### 6. Update Stores to Sync with Database
+Modify the Zustand stores to save/load data from the database when a user is logged in.
+
+**Files to Update:**
+- `src/stores/nutritionStore.ts` - Add cloud sync for nutrition data
+- `src/stores/mealBuilderStore.ts` - Add cloud sync for saved meals
+- `src/stores/auditStore.ts` - Add cloud sync for audit results
 
 ---
 
@@ -121,86 +73,103 @@ After scan:
 
 | File | Purpose |
 |------|---------|
-| `src/components/nutrition/MealBuilder.tsx` | Custom meal builder with add/remove foods |
-| `src/components/nutrition/BarcodeScanner.tsx` | Camera scanner + Open Food Facts integration |
-| `src/components/nutrition/UnitConverter.tsx` | Unit selection dropdown component |
-| `src/components/nutrition/ScannedFoodCard.tsx` | Display card for scanned products |
-| `src/stores/mealBuilderStore.ts` | Zustand store for custom meals |
-| `src/lib/openFoodFacts.ts` | API client for Open Food Facts |
-| `src/lib/unitConversions.ts` | Unit conversion utilities |
+| `src/hooks/useUserDataSync.ts` | Hook to sync local data with database on login |
 
 ## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/components/nutrition/FoodCard.tsx` | Add unit selector, adjustable serving input |
-| `src/components/nutrition/FoodDatabase.tsx` | Add unit toggle, integrate meal builder |
-| `src/components/nutrition/NutritionResults.tsx` | Add "Build Meal" tab, integrate scanner |
-| `src/types/nutrition.ts` | Add types for units, scanned products, custom meals |
-| `package.json` | Add react-barcode-scanner dependency |
+| `src/App.tsx` | Add /auth route back |
+| `src/pages/Auth.tsx` | Remove payment/trial language, make it free signup |
+| `src/stores/authStore.ts` | Remove subscription logic, simplify to basic auth |
+| `src/components/layout/Navbar.tsx` | Add Sign In/Out buttons + user menu |
+| `src/stores/nutritionStore.ts` | Add database sync when user logged in |
+| `src/stores/mealBuilderStore.ts` | Add database sync when user logged in |
+| `src/stores/auditStore.ts` | Add database sync when user logged in |
 
 ---
 
-## Technical Details
+## Database Structure
 
-### Unit Conversion System
-- Foods will store a base unit (grams) and available alternative units
-- Conversion factors defined per food category (liquids vs solids vs pieces)
-- User preference for default unit system stored in nutrition store
+### user_nutrition_data
+Stores the nutrition calculator inputs and results per user.
 
-### Meal Builder Store Structure
-```text
-mealBuilderStore:
-  - currentMeal: { foods: [...], totals: {...} }
-  - savedMeals: [{ name, foods, totals, createdAt }]
-  - addFood(food, servings)
-  - removeFood(foodId)
-  - updateServings(foodId, servings)
-  - saveMeal(name)
-  - loadMeal(mealId)
-  - clearCurrentMeal()
-```
+| Column | Type | Description |
+|--------|------|-------------|
+| id | uuid | Primary key |
+| user_id | uuid | References auth.users |
+| biometrics | jsonb | Weight, height, age, sex, body fat |
+| activity | jsonb | Activity level, training days, style |
+| goals | jsonb | Primary goal, rate of change |
+| dietary | jsonb | Diet type, restrictions, meal frequency |
+| results | jsonb | Calculated nutrition results |
+| updated_at | timestamp | Last update time |
 
-### Open Food Facts API Response Handling
-The API returns detailed product data. We'll extract:
-- Product name
-- Serving size
-- Calories (energy-kcal_100g)
-- Protein (proteins_100g)
-- Carbs (carbohydrates_100g)
-- Fat (fat_100g)
-- Fiber (fiber_100g)
+### user_meals
+Stores saved meals from the meal builder.
 
----
+| Column | Type | Description |
+|--------|------|-------------|
+| id | uuid | Primary key |
+| user_id | uuid | References auth.users |
+| name | text | Meal name |
+| foods | jsonb | Array of foods with amounts/units |
+| totals | jsonb | Calorie and macro totals |
+| created_at | timestamp | When meal was saved |
 
-## Implementation Order
+### user_audit_data
+Stores audit results.
 
-1. **Phase 1: Unit Conversions** (Foundation)
-   - Create unit conversion utilities
-   - Update FoodCard with unit selector
-   - Add global unit preference toggle
-
-2. **Phase 2: Meal Builder** (Core Feature)
-   - Create mealBuilderStore
-   - Build MealBuilder component
-   - Integrate with NutritionResults page
-   - Add save/load functionality
-
-3. **Phase 3: Barcode Scanner** (Advanced Feature)
-   - Install barcode scanner library
-   - Create Open Food Facts API client
-   - Build scanner component with camera
-   - Add manual barcode entry fallback
-   - Integrate scanned foods with meal builder
+| Column | Type | Description |
+|--------|------|-------------|
+| id | uuid | Primary key |
+| user_id | uuid | References auth.users |
+| data | jsonb | Full audit data (biometrics, lifts, etc) |
+| results | jsonb | Calculated results (leaks, scores, tier) |
+| updated_at | timestamp | Last update time |
 
 ---
 
-## Mobile Optimization
+## How Data Sync Works
 
-Following the existing mobile UX guidelines:
-- Large touch targets for unit selectors (48px minimum)
-- Full-width buttons on mobile for scanner
-- Compact food cards in meal builder
-- Bottom sheet for scanner on mobile devices
-- Clear visual feedback when foods are added
+1. **On Login:**
+   - Fetch user's saved data from database
+   - Merge with local storage (prefer database if exists)
+   - Update Zustand stores with fetched data
+
+2. **On Data Change:**
+   - If user is logged in, save to database in background
+   - Also keep in local storage as backup
+
+3. **On Logout:**
+   - Clear local state
+   - Data remains safe in database for next login
+
+---
+
+## Security (RLS Policies)
+
+All tables will have Row-Level Security enabled:
+- Users can only read/write their own data
+- No access to other users' data
+- Uses `auth.uid() = user_id` for all policies
+
+---
+
+## Technical Implementation Details
+
+### Auth Initialization
+The auth store will initialize on app load via App.tsx, setting up the auth state listener before rendering routes.
+
+### Data Sync Hook
+A custom hook `useUserDataSync` will:
+- Listen for auth state changes
+- On login: fetch and hydrate stores with user data
+- On data changes: debounce and save to database
+- Handle offline scenarios gracefully (fall back to local storage)
+
+### Optimistic Updates
+- UI updates immediately from local state
+- Database sync happens in background
+- Errors are logged but don't block the UI
 
