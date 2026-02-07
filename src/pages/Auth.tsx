@@ -90,11 +90,11 @@ export function AuthPage() {
     toast.success("Account created! Check your email to confirm, then sign in.");
   };
 
-  const trialBenefits = [
-    "Full access to The Vault content library",
-    "Performance training resources",
-    "Nutrition guides and tools",
-    "7 days completely free"
+  const accountBenefits = [
+    "Save your nutrition data across devices",
+    "Track your meals and progress over time",
+    "Access your audit results anywhere",
+    "100% free - no payment required"
   ];
 
   return (
@@ -115,25 +115,25 @@ export function AuthPage() {
             <Activity className="w-6 h-6 text-primary" />
           </div>
           <h1 className="text-2xl font-bold">Performance Architect</h1>
-          <p className="text-muted-foreground text-sm mt-1">Start your 7-day free trial</p>
+          <p className="text-muted-foreground text-sm mt-1">Create your free account</p>
         </div>
 
         <Card variant="elevated">
           <Tabs defaultValue="signup">
             <TabsList className="w-full grid grid-cols-2 mb-4">
-              <TabsTrigger value="signup">Start Trial</TabsTrigger>
+              <TabsTrigger value="signup">Create Account</TabsTrigger>
               <TabsTrigger value="signin">Sign In</TabsTrigger>
             </TabsList>
 
             <TabsContent value="signup">
               <CardHeader className="pb-4">
-                <CardTitle className="text-lg">Start Your Free Trial</CardTitle>
-                <CardDescription>7 days free, then $30/month. Cancel anytime.</CardDescription>
+                <CardTitle className="text-lg">Create Your Account</CardTitle>
+                <CardDescription>Join free and save your progress</CardDescription>
               </CardHeader>
               <CardContent>
-                {/* Trial benefits */}
+                {/* Account benefits */}
                 <div className="mb-6 space-y-2">
-                  {trialBenefits.map((benefit, index) => (
+                  {accountBenefits.map((benefit, index) => (
                     <div key={index} className="flex items-center gap-2 text-sm">
                       <CheckCircle className="w-4 h-4 text-primary flex-shrink-0" />
                       <span className="text-muted-foreground">{benefit}</span>
@@ -203,7 +203,7 @@ export function AuthPage() {
                   </div>
 
                   <Button variant="hero" className="w-full" disabled={isLoading}>
-                    {isLoading ? "Creating account..." : "Start Free Trial"}
+                    {isLoading ? "Creating account..." : "Create Account"}
                   </Button>
 
                   <p className="text-xs text-muted-foreground text-center">

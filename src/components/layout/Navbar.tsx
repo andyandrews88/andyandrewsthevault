@@ -1,11 +1,22 @@
-import { Link, useLocation } from "react-router-dom";
-import { Menu, X } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Menu, X, User, LogOut } from "lucide-react";
 import { useState } from "react";
 import logo from "@/assets/logo.png";
+import { useAuthStore } from "@/stores/authStore";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { toast } from "sonner";
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { isAuthenticated, user, signOut, isLoading } = useAuthStore();
 
   const navLinks = [
     { href: "/", label: "Home" },
@@ -13,6 +24,12 @@ export function Navbar() {
     { href: "/nutrition", label: "Nutrition" },
     { href: "/vault", label: "The Vault" },
   ];
+
+  const handleSignOut = async () => {
+    await signOut();
+    toast.success("Signed out successfully");
+    navigate("/");
+  };
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 glass">
@@ -41,6 +58,35 @@ export function Navbar() {
               {link.label}
             </Link>
           ))}
+          
+          {/* Auth buttons */}
+          {isAuthenticated ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2">
+                  <User className="w-4 h-4" />
+                  <span className="max-w-[100px] truncate">
+                    {user?.email?.split('@')[0] || 'Account'}
+                  </span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleSignOut} className="gap-2 cursor-pointer">
+                  <LogOut className="w-4 h-4" />
+                  Sign Out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <Button 
+              variant="default" 
+              size="sm" 
+              onClick={() => navigate('/auth')}
+              disabled={isLoading}
+            >
+              Sign In
+            </Button>
+          )}
         </div>
 
         {/* Mobile menu button */}
@@ -70,6 +116,30 @@ export function Navbar() {
                 {link.label}
               </Link>
             ))}
+            
+            {/* Mobile auth button */}
+            <div className="pt-2 border-t border-border mt-2">
+              {isAuthenticated ? (
+                <button
+                  onClick={() => {
+                    handleSignOut();
+                    setIsOpen(false);
+                  }}
+                  className="flex items-center gap-2 py-3 px-4 rounded-lg text-base text-muted-foreground hover:text-foreground hover:bg-muted/50 w-full"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Sign Out
+                </button>
+              ) : (
+                <Link
+                  to="/auth"
+                  className="block py-3 px-4 rounded-lg text-base bg-primary text-primary-foreground text-center"
+                  onClick={() => setIsOpen(false)}
+                >
+                  Sign In
+                </Link>
+              )}
+            </div>
           </div>
         </div>
       )}
