@@ -11,12 +11,15 @@ import {
   Send,
   ExternalLink,
   Crown,
-  Radio
+  Radio,
+  Calculator
 } from "lucide-react";
 import { PodcastTab } from "@/components/vault/PodcastTab";
 import { LibraryTab } from "@/components/vault/LibraryTab";
+import { FoodDatabase } from "@/components/nutrition/FoodDatabase";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
+import { Link } from "react-router-dom";
 
 // Mock community posts
 const communityPosts = [
@@ -65,10 +68,14 @@ export function VaultDashboard() {
 
         {/* Main tabs */}
         <Tabs defaultValue="library" className="space-y-6">
-          <TabsList className="grid grid-cols-4 w-full max-w-lg">
+          <TabsList className="grid grid-cols-5 w-full max-w-2xl">
             <TabsTrigger value="library" className="flex items-center gap-2">
               <Library className="w-4 h-4" />
               <span className="hidden sm:inline">Library</span>
+            </TabsTrigger>
+            <TabsTrigger value="nutrition" className="flex items-center gap-2">
+              <Calculator className="w-4 h-4" />
+              <span className="hidden sm:inline">Nutrition</span>
             </TabsTrigger>
             <TabsTrigger value="podcast" className="flex items-center gap-2">
               <Radio className="w-4 h-4" />
@@ -87,6 +94,32 @@ export function VaultDashboard() {
           {/* Resource Library */}
           <TabsContent value="library">
             <LibraryTab isPremiumMember={true} />
+          </TabsContent>
+
+          {/* Nutrition Tab */}
+          <TabsContent value="nutrition">
+            <div className="space-y-6">
+              <Card variant="elevated">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Calculator className="w-5 h-5 text-primary" />
+                    The Fuel System
+                  </CardTitle>
+                  <CardDescription>
+                    Engineering-grade nutrition calculator with 50+ curated foods
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Link to="/nutrition">
+                    <Button variant="hero" className="w-full sm:w-auto">
+                      Open Full Calculator
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+              
+              <FoodDatabase />
+            </div>
           </TabsContent>
 
           {/* Podcast Tab */}
