@@ -1,105 +1,127 @@
 
+# 7-Day Free Trial Subscription System
 
-# Fix: Nutrition Calculator Unit Conversion Bug
-
-## Problem Identified
-
-The calculator produces extreme caloric intake values because **metric unit conversion is broken**. When users select metric units (kg/cm), the raw values are stored directly but the calculation engine treats them as imperial (lbs/inches).
-
-### Example of the Bug
-
-If a user enters:
-- Weight: 80 kg, Height: 180 cm (metric toggle ON)
-
-The calculator incorrectly interprets this as:
-- 80 lbs converted to 36.3 kg (extremely underweight)
-- 180 inches converted to 457 cm (15 feet tall)
-
-This produces a wildly inflated BMR and therefore extreme calorie targets (often 4,000-6,000+ calories).
+## Overview
+Implement a complete trial-based subscription system where users sign up for a free 7-day trial with full Vault access. After the trial expires, they are redirected to the Stripe payment link to continue their subscription.
 
 ---
 
-## Root Cause
-
-In `NutritionCalculator.tsx`, the `BiometricsStep` component saves user input directly without converting to internal units:
-
-```typescript
-// Current (broken):
-onChange={(e) => onChange({ weight: parseFloat(e.target.value) || undefined })}
-
-// The toInternalUnits() function exists but is never called
-```
-
-The `toInternalUnits()` utility in `nutritionStore.ts` is defined but never used.
-
----
-
-## Solution
-
-### Option A: Convert on Input (Recommended)
-
-Convert metric values to imperial when storing, and convert back for display. This keeps the internal data model consistent.
-
-**Changes to `NutritionCalculator.tsx`:**
-
-1. Import the conversion utility from the store
-2. When unit system is metric, convert kg to lbs and cm to inches before saving
-3. When displaying, convert internal lbs/inches back to kg/cm for metric users
-
-### Option B: Convert at Calculation Time
-
-Keep raw values in store and convert during calculation based on the stored `unitSystem` flag.
-
-**Recommendation:** Option A is cleaner and follows the documented intent ("Always stored in lbs/inches internally").
-
----
-
-## Implementation Details
-
-### Files to Modify
-
-| File | Changes |
-|------|---------|
-| `src/components/nutrition/NutritionCalculator.tsx` | Add unit conversion on weight/height input and display |
-
-### Code Changes
-
-**BiometricsStep component:**
-
-1. Add helper functions to convert display values to internal and vice versa
-2. Modify weight input:
-   - On change: if metric, convert kg to lbs before saving
-   - On display: if metric, convert stored lbs to kg for the input value
-3. Modify height input:
-   - On change: if metric, convert cm to inches before saving
-   - On display: if metric, convert stored inches to cm for the input value
-
-### Conversion Formulas
+## User Flow
 
 ```text
-Input (metric to internal):
-  weight: kg * 2.20462 = lbs
-  height: cm / 2.54 = inches
-
-Display (internal to metric):
-  weight: lbs / 2.20462 = kg
-  height: inches * 2.54 = cm
++-------------------+     +------------------+     +-------------------+
+|   Home Page       |     |   Auth Page      |     |   Vault Access    |
+|   "Start Free     | --> |   Sign Up with   | --> |   Full access     |
+|    Trial" button  |     |   email/password |     |   for 7 days      |
++-------------------+     +------------------+     +-------------------+
+                                                           |
+                                                           v
+                                                  +-------------------+
+                                                  |  After 7 days:    |
+                                                  |  Redirect to      |
+                                                  |  Stripe payment   |
+                                                  +-------------------+
 ```
 
 ---
 
-## Validation
+## What You Need to Do First
 
-After the fix, expected results for a 180 lb, 70 inch (5'10"), 30-year-old male:
-- BMR (Mifflin-St Jeor): ~1,800 calories
-- TDEE (Moderately Active): ~2,800 calories
-- These are realistic values for the demographic
+Before I can implement this, you'll need to enable Supabase/Lovable Cloud:
+- This is required to store user accounts and track trial start dates
+- It will create a database to manage user subscriptions
+- Without it, we cannot persist user data between sessions
 
 ---
 
-## Technical Notes
+## Implementation Steps
 
-- The existing `toInternalUnits` and `toDisplayUnits` functions in `nutritionStore.ts` can be imported and reused
-- Round displayed metric values to 1 decimal place for cleaner UX
-- Ensure body fat percentage is not affected (it's already unit-agnostic)
+### Step 1: Enable Supabase
+- Set up Lovable Cloud to get authentication and database capabilities
 
+### Step 2: Create Database Table
+Create a `user_subscriptions` table to track:
+- User ID
+- Trial start date
+- Subscription status (trial, active, expired)
+- Stripe customer ID (for future payment integration)
+
+### Step 3: Update Auth Page
+- Update messaging to emphasize "7-day free trial" and "$30/month after trial"
+- Connect sign-up form to Supabase authentication
+- Automatically create subscription record with trial start date on sign-up
+- Add proper error handling and input validation
+
+### Step 4: Create Auth Context/Store
+- Create an authentication store to manage user session globally
+- Track logged-in state across the app
+- Calculate trial status (active, expired) based on trial start date
+
+### Step 5: Protect Vault Access
+- Add trial expiration check when accessing `/vault`
+- If trial expired and not subscribed:
+  - Show a modal explaining trial has ended
+  - Redirect to Stripe payment link: `https://buy.stripe.com/6oU6oHa8VaojfAt1AFenS0F`
+- If trial active: Allow full access with countdown showing days remaining
+
+### Step 6: Update Navbar
+- Show user email/name when logged in
+- Replace "Sign In/Get Started" with "My Account" or "Sign Out"
+- Add visual indicator of trial status
+
+---
+
+## Database Schema
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | uuid | Primary key |
+| user_id | uuid | Reference to auth.users |
+| trial_started_at | timestamp | When the 7-day trial began |
+| subscription_status | enum | 'trial', 'active', 'expired', 'cancelled' |
+| stripe_customer_id | text | For future Stripe webhook integration |
+| created_at | timestamp | Record creation time |
+
+---
+
+## Technical Details
+
+### Trial Calculation Logic
+```text
+Trial Active = (current_date - trial_started_at) < 7 days
+Days Remaining = 7 - (current_date - trial_started_at)
+```
+
+### Protected Route Logic
+```text
+1. Check if user is authenticated
+2. If not authenticated → redirect to /auth
+3. If authenticated, check subscription status:
+   - If 'trial' → check if still within 7 days
+   - If trial expired → redirect to Stripe payment link
+   - If 'active' → allow full access
+```
+
+---
+
+## Files to Create/Modify
+
+| File | Action | Purpose |
+|------|--------|---------|
+| src/lib/supabase.ts | Create | Supabase client configuration |
+| src/stores/authStore.ts | Create | Global auth state management with Zustand |
+| src/pages/Auth.tsx | Modify | Connect to real Supabase auth, update messaging |
+| src/components/ProtectedRoute.tsx | Create | Wrapper component for trial/subscription checks |
+| src/pages/VaultPage.tsx | Modify | Wrap with ProtectedRoute |
+| src/components/layout/Navbar.tsx | Modify | Show auth state and trial countdown |
+| src/components/TrialExpiredModal.tsx | Create | Modal shown when trial expires |
+
+---
+
+## Next Steps
+
+To proceed, please enable Supabase/Lovable Cloud. Once enabled, I'll implement the complete system including:
+1. Database migration for the subscriptions table
+2. Authentication with email/password
+3. Trial tracking and expiration logic
+4. Protected routes with Stripe redirect
