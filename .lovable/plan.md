@@ -1,71 +1,101 @@
 
 
-# Free User Authentication with Data Persistence
+# Superadmin System for Andy Andrews
 
 ## Overview
-Add user profiles and authentication so clients can create an account, log in, and have their data (meals, nutrition calculations, audit results) automatically saved and restored when they return. Everything stays completely free - no payment references at all.
+Set you up as the superadmin with full control over all Vault content. You'll be able to edit titles, descriptions, URLs, upload PDFs, and manage all resources directly from the app - no code changes needed.
 
 ---
 
-## What Users Will Experience
+## What You'll Be Able To Do
 
-1. **Sign Up / Sign In** - Simple email + password registration (free)
-2. **Data Syncs to Cloud** - Saved meals, nutrition settings, and audit results persist
-3. **Log Out / Log Back In** - Everything is exactly where they left it
-4. **Works Across Devices** - Sign in from phone or computer, same data
+- Edit any resource (title, description, URL, category, duration)
+- Upload new PDFs directly from the app
+- Add new videos, podcasts, and articles
+- Delete any resource
+- Manage podcast episodes
+- See an "Admin" badge next to your name
+- Access an Admin Panel in the Vault
 
 ---
 
-## Changes Summary
+## How It Works
 
-### 1. Update Auth Page (Remove Payment References)
-The existing auth page mentions "7-day free trial" and "$30/month". Update to reflect free access.
+### 1. Superadmin Recognition
+When you log in with **andyandrewscf@gmail.com**, the app will:
+- Check your role in a secure database table
+- Show admin controls on all resource cards (Edit/Delete buttons)
+- Display an "Admin Panel" tab in the Vault
+- Show a crown/admin badge on your profile
 
-**File:** `src/pages/Auth.tsx`
-- Change "Start Trial" tab to "Create Account"
-- Remove trial benefits mentioning "7 days free"
-- Update button text from "Start Free Trial" to "Create Account"
-- Remove any payment-related copy
+### 2. Inline Editing
+Every resource card in the Library will show:
+- **Edit button** - Opens a form to change title, description, URL, etc.
+- **Delete button** - Removes the resource (with confirmation)
 
-### 2. Simplify Auth Store
-Remove subscription and payment-related code since the app is free.
+### 3. Admin Panel
+A new tab in the Vault just for you:
+- **Add New Resource** - Create videos, articles, PDFs, podcasts
+- **Upload PDFs** - Drag-and-drop file upload
+- **Manage All Resources** - Table view with quick actions
+- **Manage Podcast Episodes** - Add/edit/remove episodes
 
-**File:** `src/stores/authStore.ts`
-- Remove Stripe URL constant
-- Remove subscription state and fetching
-- Remove trial-related computed values
-- Keep core auth functions (signIn, signUp, signOut, initialize)
+---
 
-### 3. Add Auth Route Back to App
-Re-add the /auth route so users can access the login page.
+## User Interface Preview
 
-**File:** `src/App.tsx`
-- Import AuthPageWrapper
-- Add `/auth` route
+```text
++--------------------------------------------------+
+|  LIBRARY TAB (Admin View)                        |
+|--------------------------------------------------|
+|  [+ Add Resource]                    [Admin Panel]|
+|                                                  |
+|  +----------------+  +----------------+          |
+|  | Back Squat     |  | Zone 2 Protocol|          |
+|  | Mechanics      |  |                |          |
+|  | [Edit] [Delete]|  | [Edit] [Delete]|          |
+|  +----------------+  +----------------+          |
++--------------------------------------------------+
 
-### 4. Add User Navigation to Navbar
-Add sign in/sign out buttons to the navbar.
++--------------------------------------------------+
+|  ADMIN PANEL TAB                                 |
+|--------------------------------------------------|
+|  Quick Add:                                      |
+|  [Video] [PDF] [Article] [Podcast]              |
+|                                                  |
+|  +----------------------------------------------+|
+|  | Title           | Type    | Category | Actions|
+|  |-----------------|---------|----------|--------|
+|  | Back Squat...   | Video   | Physics  | Edit   |
+|  | Zone 2 Protocol | PDF     | Physio   | Edit   |
+|  +----------------------------------------------+|
++--------------------------------------------------+
+```
 
-**File:** `src/components/layout/Navbar.tsx`
-- Show "Sign In" button when logged out
-- Show user menu with "Sign Out" when logged in
-- Initialize auth on app load
+---
 
-### 5. Create User Data Tables
-Create database tables to store user data that currently lives only in local storage.
+## Database Changes
 
-**New Tables:**
-- `user_nutrition_data` - Stores nutrition calculator inputs and results
-- `user_meals` - Stores saved meals from the meal builder  
-- `user_audit_data` - Stores audit results
+### New Tables
 
-### 6. Update Stores to Sync with Database
-Modify the Zustand stores to save/load data from the database when a user is logged in.
+| Table | Purpose |
+|-------|---------|
+| `user_roles` | Stores admin/user roles securely |
+| `vault_resources` | All Vault resources (replaces static file) |
+| `vault_podcasts` | Podcast episodes (editable) |
 
-**Files to Update:**
-- `src/stores/nutritionStore.ts` - Add cloud sync for nutrition data
-- `src/stores/mealBuilderStore.ts` - Add cloud sync for saved meals
-- `src/stores/auditStore.ts` - Add cloud sync for audit results
+### Storage Bucket
+
+| Bucket | Purpose |
+|--------|---------|
+| `vault-files` | PDF uploads and resource files |
+
+### Security
+
+- Roles stored in separate `user_roles` table (not on profile)
+- Admin check uses secure database function
+- RLS policies ensure only admins can edit resources
+- Regular users can only view resources
 
 ---
 
@@ -73,103 +103,108 @@ Modify the Zustand stores to save/load data from the database when a user is log
 
 | File | Purpose |
 |------|---------|
-| `src/hooks/useUserDataSync.ts` | Hook to sync local data with database on login |
+| `src/stores/adminStore.ts` | Admin state management |
+| `src/hooks/useAdminCheck.ts` | Hook to check if user is admin |
+| `src/components/vault/AdminPanel.tsx` | Admin dashboard |
+| `src/components/vault/ResourceEditor.tsx` | Edit resource form |
+| `src/components/vault/ResourceUploader.tsx` | PDF/file upload component |
+| `src/components/vault/PodcastEditor.tsx` | Edit podcast episodes |
 
 ## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/App.tsx` | Add /auth route back |
-| `src/pages/Auth.tsx` | Remove payment/trial language, make it free signup |
-| `src/stores/authStore.ts` | Remove subscription logic, simplify to basic auth |
-| `src/components/layout/Navbar.tsx` | Add Sign In/Out buttons + user menu |
-| `src/stores/nutritionStore.ts` | Add database sync when user logged in |
-| `src/stores/mealBuilderStore.ts` | Add database sync when user logged in |
-| `src/stores/auditStore.ts` | Add database sync when user logged in |
+| `src/pages/Vault.tsx` | Add Admin Panel tab, pass isAdmin prop |
+| `src/components/vault/LibraryTab.tsx` | Add edit/delete buttons for admin |
+| `src/components/vault/ResourceCard.tsx` | Show admin actions |
+| `src/components/vault/PodcastTab.tsx` | Add admin editing |
+| `src/stores/authStore.ts` | Add isAdmin state |
+| `src/types/resources.ts` | Add database ID field |
 
 ---
 
-## Database Structure
+## Technical Implementation
 
-### user_nutrition_data
-Stores the nutrition calculator inputs and results per user.
+### User Roles Table
+```text
+user_roles:
+  - id (uuid)
+  - user_id (uuid, references auth.users)
+  - role (enum: 'admin', 'moderator', 'user')
+  - unique constraint on (user_id, role)
+```
 
-| Column | Type | Description |
-|--------|------|-------------|
-| id | uuid | Primary key |
-| user_id | uuid | References auth.users |
-| biometrics | jsonb | Weight, height, age, sex, body fat |
-| activity | jsonb | Activity level, training days, style |
-| goals | jsonb | Primary goal, rate of change |
-| dietary | jsonb | Diet type, restrictions, meal frequency |
-| results | jsonb | Calculated nutrition results |
-| updated_at | timestamp | Last update time |
+### Secure Role Check Function
+A database function `has_role(user_id, role)` will:
+- Check if user has specified role
+- Run with SECURITY DEFINER to bypass RLS
+- Prevent recursive policy issues
 
-### user_meals
-Stores saved meals from the meal builder.
+### Vault Resources Table
+```text
+vault_resources:
+  - id (uuid)
+  - title (text)
+  - description (text)
+  - type (enum: youtube, vimeo, spotify, apple_podcast, article, pdf)
+  - category (enum: physics, physiology, process)
+  - embed_url (text)
+  - content (text, for articles)
+  - leak_tags (text[])
+  - duration (text)
+  - pages (integer)
+  - is_premium (boolean)
+  - file_path (text, for uploaded PDFs)
+  - created_at (timestamp)
+  - updated_at (timestamp)
+```
 
-| Column | Type | Description |
-|--------|------|-------------|
-| id | uuid | Primary key |
-| user_id | uuid | References auth.users |
-| name | text | Meal name |
-| foods | jsonb | Array of foods with amounts/units |
-| totals | jsonb | Calorie and macro totals |
-| created_at | timestamp | When meal was saved |
-
-### user_audit_data
-Stores audit results.
-
-| Column | Type | Description |
-|--------|------|-------------|
-| id | uuid | Primary key |
-| user_id | uuid | References auth.users |
-| data | jsonb | Full audit data (biometrics, lifts, etc) |
-| results | jsonb | Calculated results (leaks, scores, tier) |
-| updated_at | timestamp | Last update time |
-
----
-
-## How Data Sync Works
-
-1. **On Login:**
-   - Fetch user's saved data from database
-   - Merge with local storage (prefer database if exists)
-   - Update Zustand stores with fetched data
-
-2. **On Data Change:**
-   - If user is logged in, save to database in background
-   - Also keep in local storage as backup
-
-3. **On Logout:**
-   - Clear local state
-   - Data remains safe in database for next login
+### Storage Setup
+- Create `vault-files` bucket for PDF uploads
+- RLS: Only admins can upload/delete
+- Public read access for all files
 
 ---
 
-## Security (RLS Policies)
+## Seeding Your Admin Account
 
-All tables will have Row-Level Security enabled:
-- Users can only read/write their own data
-- No access to other users' data
-- Uses `auth.uid() = user_id` for all policies
+After you sign up or sign in with **andyandrewscf@gmail.com**, a database migration will:
+1. Look up your user ID
+2. Insert a row in `user_roles` with role = 'admin'
+
+This is a one-time setup - you'll automatically be recognized as admin on all future logins.
 
 ---
 
-## Technical Implementation Details
+## Implementation Order
 
-### Auth Initialization
-The auth store will initialize on app load via App.tsx, setting up the auth state listener before rendering routes.
+1. **Phase 1: Database Setup**
+   - Create user_roles table with RLS
+   - Create has_role() security function
+   - Create vault_resources table
+   - Create vault_podcasts table
+   - Create vault-files storage bucket
+   - Seed existing resources from static file
 
-### Data Sync Hook
-A custom hook `useUserDataSync` will:
-- Listen for auth state changes
-- On login: fetch and hydrate stores with user data
-- On data changes: debounce and save to database
-- Handle offline scenarios gracefully (fall back to local storage)
+2. **Phase 2: Admin Detection**
+   - Add isAdmin to authStore
+   - Create useAdminCheck hook
+   - Add admin badge to navbar
 
-### Optimistic Updates
-- UI updates immediately from local state
-- Database sync happens in background
-- Errors are logged but don't block the UI
+3. **Phase 3: Resource Management**
+   - Create ResourceEditor component
+   - Add edit/delete buttons to ResourceCard
+   - Update LibraryTab to fetch from database
+   - Implement save/delete functions
+
+4. **Phase 4: Admin Panel**
+   - Create AdminPanel component
+   - Add file upload for PDFs
+   - Create PodcastEditor component
+   - Add Admin tab to Vault
+
+---
+
+## Note on Your Email
+I noticed you typed `andyandrewscf@gmailcom` - I'll use `andyandrewscf@gmail.com` (with the dot before "com"). Let me know if this needs to be different!
 
