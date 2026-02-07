@@ -48,10 +48,13 @@ export function PricingSection() {
             </CardHeader>
 
             <CardContent className="text-center py-8">
-              <div className="mb-8">
-                <span className="text-5xl font-bold font-mono text-gradient-primary">$49</span>
+              <div className="mb-2">
+                <span className="text-5xl font-bold font-mono text-gradient-primary">$30</span>
                 <span className="text-muted-foreground">/month</span>
               </div>
+              <p className="text-sm text-primary font-medium mb-8">
+                Start with a 7-day free trial
+              </p>
 
               <ul className="space-y-3 text-left">
                 {features.map((feature, index) => (
@@ -67,11 +70,11 @@ export function PricingSection() {
               <Link to="/auth" className="w-full">
                 <Button variant="hero" size="lg" className="w-full">
                   <Lock className="w-4 h-4 mr-2" />
-                  Join The Vault
+                  Start Free Trial
                 </Button>
               </Link>
               <p className="text-xs text-muted-foreground text-center">
-                Cancel anytime. No long-term commitment required.
+                7 days free, then $30/month. Cancel anytime.
               </p>
             </CardFooter>
           </Card>
