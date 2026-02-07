@@ -20,11 +20,13 @@ import {
   ChevronRight,
   Info,
   Lightbulb,
+  UtensilsCrossed,
 } from 'lucide-react';
 import { useNutritionStore } from '@/stores/nutritionStore';
 import { MacroChart } from './MacroChart';
 import { MealPlanGenerator } from './MealPlanGenerator';
 import { FoodDatabase } from './FoodDatabase';
+import { MealBuilder } from './MealBuilder';
 
 export function NutritionResults({ onRecalculate }: { onRecalculate: () => void }) {
   const { results, biometrics, goals } = useNutritionStore();
@@ -102,15 +104,19 @@ export function NutritionResults({ onRecalculate }: { onRecalculate: () => void 
       </Card>
 
       {/* Tabs for Additional Info */}
-      <Tabs defaultValue="metrics" className="space-y-4">
-        <TabsList className="grid grid-cols-4 w-full max-w-lg">
+      <Tabs defaultValue="builder" className="space-y-4">
+        <TabsList className="grid grid-cols-5 w-full max-w-2xl">
+          <TabsTrigger value="builder" className="gap-1">
+            <UtensilsCrossed className="w-4 h-4" />
+            <span className="hidden sm:inline">Build Meal</span>
+          </TabsTrigger>
           <TabsTrigger value="metrics" className="gap-1">
             <Activity className="w-4 h-4" />
             <span className="hidden sm:inline">Metrics</span>
           </TabsTrigger>
           <TabsTrigger value="meals" className="gap-1">
             <Target className="w-4 h-4" />
-            <span className="hidden sm:inline">Meals</span>
+            <span className="hidden sm:inline">Plans</span>
           </TabsTrigger>
           <TabsTrigger value="foods" className="gap-1">
             <Beef className="w-4 h-4" />
@@ -121,6 +127,11 @@ export function NutritionResults({ onRecalculate }: { onRecalculate: () => void 
             <span className="hidden sm:inline">Tips</span>
           </TabsTrigger>
         </TabsList>
+
+        {/* Meal Builder Tab */}
+        <TabsContent value="builder">
+          <MealBuilder />
+        </TabsContent>
 
         {/* Advanced Metrics Tab */}
         <TabsContent value="metrics">

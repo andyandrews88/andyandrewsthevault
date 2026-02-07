@@ -2,11 +2,21 @@ import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Search, Beef, Wheat, Droplets, Plus } from 'lucide-react';
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Search, Beef, Wheat, Droplets, Plus, Scale } from 'lucide-react';
 import { foodDatabase, getCategoryLabel, searchFoods, getFoodsByCategory } from '@/data/foodDatabase';
 import { FoodItem, FoodCategory, MacroBreakdown } from '@/types/nutrition';
 import { FoodCard } from './FoodCard';
+import { useMealBuilderStore } from '@/stores/mealBuilderStore';
+import { MeasurementUnit } from '@/lib/unitConversions';
 
 interface FoodDatabaseProps {
   targetMacros?: MacroBreakdown;
@@ -27,6 +37,9 @@ const CATEGORY_TABS: { value: 'all' | FoodCategory; label: string }[] = [
 export function FoodDatabase({ targetMacros, onAddFood }: FoodDatabaseProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<'all' | FoodCategory>('all');
+  const [displayUnit, setDisplayUnit] = useState<'default' | 'metric' | 'imperial'>('default');
+  
+  const { addFood } = useMealBuilderStore();
 
   const filteredFoods = useMemo(() => {
     let foods = foodDatabase;
@@ -45,16 +58,45 @@ export function FoodDatabase({ targetMacros, onAddFood }: FoodDatabaseProps) {
   // Calculate how much protein is still needed
   const proteinNeeded = targetMacros ? targetMacros.protein : null;
 
+  const handleAddFood = (food: FoodItem, servings: number, unit?: MeasurementUnit) => {
+    // Add to meal builder
+    addFood(food, servings, unit || 'piece');
+    
+    // Also call legacy handler if provided
+    if (onAddFood) {
+      onAddFood(food, servings);
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Beef className="w-5 h-5 text-primary" />
-          Food Database
-        </CardTitle>
-        <CardDescription>
-          50+ curated foods with accurate macros. Search or browse by category.
-        </CardDescription>
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Beef className="w-5 h-5 text-primary" />
+              Food Database
+            </CardTitle>
+            <CardDescription>
+              50+ curated foods with accurate macros. Search or browse by category.
+            </CardDescription>
+          </div>
+          
+          {/* Unit System Toggle */}
+          <div className="flex items-center gap-2">
+            <Scale className="w-4 h-4 text-muted-foreground" />
+            <Select value={displayUnit} onValueChange={(v) => setDisplayUnit(v as typeof displayUnit)}>
+              <SelectTrigger className="w-28 h-8 text-xs">
+                <SelectValue placeholder="Units" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="default">Default</SelectItem>
+                <SelectItem value="metric">Metric (g)</SelectItem>
+                <SelectItem value="imperial">Imperial (oz)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Search */}
@@ -100,7 +142,8 @@ export function FoodDatabase({ targetMacros, onAddFood }: FoodDatabaseProps) {
             <FoodCard
               key={food.id}
               food={food}
-              onAdd={onAddFood ? (servings) => onAddFood(food, servings) : undefined}
+              onAdd={(servings, unit) => handleAddFood(food, servings, unit)}
+              interactive={displayUnit !== 'default'}
             />
           ))}
         </div>
