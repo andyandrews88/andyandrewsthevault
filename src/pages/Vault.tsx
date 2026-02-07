@@ -12,15 +12,18 @@ import {
   ExternalLink,
   Crown,
   Radio,
-  Calculator
+  Calculator,
+  Shield
 } from "lucide-react";
 import { PodcastTab } from "@/components/vault/PodcastTab";
 import { LibraryTab } from "@/components/vault/LibraryTab";
+import { AdminPanel } from "@/components/vault/AdminPanel";
 import { FoodDatabase } from "@/components/nutrition/FoodDatabase";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Link } from "react-router-dom";
 import logo from "@/assets/logo.png";
+import { useAdminCheck } from "@/hooks/useAdminCheck";
 
 // Mock community posts
 const communityPosts = [
@@ -50,6 +53,7 @@ const communityPosts = [
 
 export function VaultDashboard() {
   const [newPost, setNewPost] = useState("");
+  const { isAdmin, isLoading: isAdminLoading } = useAdminCheck();
 
   return (
     <div className="min-h-screen pt-24 pb-12">
@@ -61,7 +65,15 @@ export function VaultDashboard() {
             alt="Andy Andrews" 
             className="h-20 md:h-28 w-auto invert brightness-100 mb-4 drop-shadow-[0_0_20px_hsl(var(--primary)/0.3)]"
           />
-          <Badge variant="elite" className="mb-2">VAULT MEMBER</Badge>
+          <div className="flex items-center gap-2 mb-2">
+            <Badge variant="elite">VAULT MEMBER</Badge>
+            {isAdmin && (
+              <Badge variant="default" className="flex items-center gap-1">
+                <Shield className="w-3 h-3" />
+                ADMIN
+              </Badge>
+            )}
+          </div>
           <h1 className="text-2xl md:text-3xl font-bold">Welcome to The Vault</h1>
           <p className="text-muted-foreground mb-4">Your performance architecture command center</p>
           <Button variant="elite">
@@ -72,7 +84,7 @@ export function VaultDashboard() {
 
         {/* Main tabs */}
         <Tabs defaultValue="library" className="space-y-6">
-          <TabsList className="grid grid-cols-5 w-full max-w-2xl">
+          <TabsList className={`grid w-full max-w-2xl ${isAdmin ? 'grid-cols-6' : 'grid-cols-5'}`}>
             <TabsTrigger value="library" className="flex items-center gap-2">
               <Library className="w-4 h-4" />
               <span className="hidden sm:inline">Library</span>
@@ -93,11 +105,17 @@ export function VaultDashboard() {
               <Target className="w-4 h-4" />
               <span className="hidden sm:inline">Tracks</span>
             </TabsTrigger>
+            {isAdmin && (
+              <TabsTrigger value="admin" className="flex items-center gap-2">
+                <Shield className="w-4 h-4" />
+                <span className="hidden sm:inline">Admin</span>
+              </TabsTrigger>
+            )}
           </TabsList>
 
           {/* Resource Library */}
           <TabsContent value="library">
-            <LibraryTab isPremiumMember={true} />
+            <LibraryTab isPremiumMember={true} isAdmin={isAdmin} />
           </TabsContent>
 
           {/* Nutrition Tab */}
@@ -259,6 +277,13 @@ export function VaultDashboard() {
               </div>
             </Card>
           </TabsContent>
+
+          {/* Admin Panel - Only visible to admins */}
+          {isAdmin && (
+            <TabsContent value="admin">
+              <AdminPanel />
+            </TabsContent>
+          )}
         </Tabs>
       </div>
     </div>

@@ -1,40 +1,80 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, BookOpen } from "lucide-react";
-import { resources as allResources } from "@/data/resources";
+import { Button } from "@/components/ui/button";
+import { Search, BookOpen, Plus, RefreshCw } from "lucide-react";
+import { resources as staticResources } from "@/data/resources";
 import { Resource, ResourceCategory, ResourceType } from "@/types/resources";
 import { ResourceCard } from "./ResourceCard";
 import { ResourceModal } from "./ResourceModal";
 import { CategoryFilter } from "./CategoryFilter";
+import { ResourceEditor } from "./ResourceEditor";
+import { fetchResources, createResource, updateResource, deleteResource, dbToResource } from "@/lib/vaultService";
+import { VaultResource, ResourceFormData } from "@/types/vaultResources";
+import { toast } from "sonner";
 
 interface LibraryTabProps {
   isPremiumMember?: boolean;
+  isAdmin?: boolean;
 }
 
-export function LibraryTab({ isPremiumMember = false }: LibraryTabProps) {
+export function LibraryTab({ isPremiumMember = false, isAdmin = false }: LibraryTabProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<ResourceCategory | 'all'>('all');
   const [selectedType, setSelectedType] = useState<ResourceType | 'all'>('all');
   const [selectedResource, setSelectedResource] = useState<Resource | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  // Database resources
+  const [dbResources, setDbResources] = useState<VaultResource[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [useDatabase, setUseDatabase] = useState(true);
+  
+  // Admin editing
+  const [editingResource, setEditingResource] = useState<VaultResource | null>(null);
+  const [isEditorOpen, setIsEditorOpen] = useState(false);
+
+  // Load resources from database
+  useEffect(() => {
+    loadResources();
+  }, []);
+
+  async function loadResources() {
+    setIsLoading(true);
+    try {
+      const data = await fetchResources();
+      setDbResources(data);
+      setUseDatabase(true);
+    } catch (error) {
+      console.error('Error loading resources from database:', error);
+      // Fall back to static resources
+      setUseDatabase(false);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  // Convert and merge resources
+  const allResources: Resource[] = useMemo(() => {
+    if (useDatabase && dbResources.length > 0) {
+      return dbResources.map(dbToResource);
+    }
+    return staticResources;
+  }, [dbResources, useDatabase]);
 
   // Filter resources based on search, category, and type
   const filteredResources = useMemo(() => {
     return allResources.filter((resource) => {
-      // Search filter
       const matchesSearch = 
         searchQuery === "" ||
         resource.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         resource.description.toLowerCase().includes(searchQuery.toLowerCase());
 
-      // Category filter
       const matchesCategory = 
         selectedCategory === 'all' || 
         resource.category === selectedCategory;
 
-      // Type filter (group youtube/vimeo as video, spotify/apple_podcast as podcast)
       const matchesType = 
         selectedType === 'all' ||
         resource.type === selectedType ||
@@ -43,15 +83,13 @@ export function LibraryTab({ isPremiumMember = false }: LibraryTabProps) {
 
       return matchesSearch && matchesCategory && matchesType;
     });
-  }, [searchQuery, selectedCategory, selectedType]);
+  }, [allResources, searchQuery, selectedCategory, selectedType]);
 
   const handleResourceClick = (resource: Resource) => {
     if (!isPremiumMember && resource.isPremium) {
-      // Optionally redirect to auth or show upgrade prompt
       return;
     }
     
-    // Apple podcasts open externally, don't show modal
     if (resource.type === 'apple_podcast') {
       window.open(resource.embedUrl, '_blank');
       return;
@@ -66,7 +104,45 @@ export function LibraryTab({ isPremiumMember = false }: LibraryTabProps) {
     setSelectedResource(null);
   };
 
-  // Stats
+  // Admin handlers
+  const handleEdit = (resource: Resource) => {
+    const dbResource = dbResources.find(r => r.id === resource.id);
+    if (dbResource) {
+      setEditingResource(dbResource);
+      setIsEditorOpen(true);
+    }
+  };
+
+  const handleDelete = async (resource: Resource) => {
+    if (!confirm(`Delete "${resource.title}"?`)) return;
+    
+    try {
+      await deleteResource(resource.id);
+      toast.success('Resource deleted');
+      loadResources();
+    } catch (error) {
+      console.error('Error deleting resource:', error);
+      toast.error('Failed to delete resource');
+    }
+  };
+
+  const handleSaveResource = async (data: ResourceFormData) => {
+    try {
+      if (editingResource) {
+        await updateResource(editingResource.id, data);
+        toast.success('Resource updated');
+      } else {
+        await createResource(data);
+        toast.success('Resource created');
+      }
+      loadResources();
+    } catch (error) {
+      console.error('Error saving resource:', error);
+      toast.error('Failed to save resource');
+      throw error;
+    }
+  };
+
   const totalResources = allResources.length;
   const freeResources = allResources.filter(r => !r.isPremium).length;
 
@@ -82,24 +158,48 @@ export function LibraryTab({ isPremiumMember = false }: LibraryTabProps) {
               </CardTitle>
               <CardDescription>
                 {totalResources} resources • {freeResources} free samples
+                {isLoading && ' • Loading...'}
               </CardDescription>
             </div>
             
-            {/* Search */}
-            <div className="relative w-full md:w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Search resources..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9"
-              />
+            <div className="flex items-center gap-2">
+              {isAdmin && (
+                <>
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      setEditingResource(null);
+                      setIsEditorOpen(true);
+                    }}
+                  >
+                    <Plus className="w-4 h-4 mr-1" />
+                    Add
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={loadResources}
+                    disabled={isLoading}
+                  >
+                    <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+                  </Button>
+                </>
+              )}
+              
+              <div className="relative w-full md:w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search resources..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
             </div>
           </div>
         </CardHeader>
         
         <CardContent className="space-y-6">
-          {/* Filters */}
           <CategoryFilter
             selectedCategory={selectedCategory}
             selectedType={selectedType}
@@ -107,14 +207,17 @@ export function LibraryTab({ isPremiumMember = false }: LibraryTabProps) {
             onTypeChange={setSelectedType}
           />
 
-          {/* Results count */}
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="text-xs">
               {filteredResources.length} {filteredResources.length === 1 ? 'result' : 'results'}
             </Badge>
+            {!useDatabase && dbResources.length === 0 && (
+              <Badge variant="secondary" className="text-xs">
+                Using demo data
+              </Badge>
+            )}
           </div>
 
-          {/* Resource Grid */}
           {filteredResources.length > 0 ? (
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredResources.map((resource) => (
@@ -123,6 +226,9 @@ export function LibraryTab({ isPremiumMember = false }: LibraryTabProps) {
                   resource={resource}
                   onClick={() => handleResourceClick(resource)}
                   isLocked={!isPremiumMember && resource.isPremium}
+                  isAdmin={isAdmin}
+                  onEdit={() => handleEdit(resource)}
+                  onDelete={() => handleDelete(resource)}
                 />
               ))}
             </div>
@@ -134,12 +240,23 @@ export function LibraryTab({ isPremiumMember = false }: LibraryTabProps) {
         </CardContent>
       </Card>
 
-      {/* Resource Modal */}
       <ResourceModal
         resource={selectedResource}
         isOpen={isModalOpen}
         onClose={handleCloseModal}
       />
+
+      {isAdmin && (
+        <ResourceEditor
+          resource={editingResource}
+          isOpen={isEditorOpen}
+          onClose={() => {
+            setIsEditorOpen(false);
+            setEditingResource(null);
+          }}
+          onSave={handleSaveResource}
+        />
+      )}
     </>
   );
 }

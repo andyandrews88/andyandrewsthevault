@@ -1,19 +1,25 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Resource, categoryLabels, typeLabels } from "@/types/resources";
+import { Button } from "@/components/ui/button";
+import { Resource, categoryLabels } from "@/types/resources";
 import { 
   Play, 
   FileText, 
   Headphones, 
   Download, 
   Lock,
-  ExternalLink
+  ExternalLink,
+  Pencil,
+  Trash2
 } from "lucide-react";
 
 interface ResourceCardProps {
   resource: Resource;
   onClick: () => void;
   isLocked?: boolean;
+  isAdmin?: boolean;
+  onEdit?: () => void;
+  onDelete?: () => void;
 }
 
 const categoryVariants: Record<string, 'data' | 'success' | 'elite'> = {
@@ -31,7 +37,14 @@ const typeIcons: Record<string, React.ReactNode> = {
   pdf: <Download className="w-4 h-4" />,
 };
 
-export function ResourceCard({ resource, onClick, isLocked = false }: ResourceCardProps) {
+export function ResourceCard({ 
+  resource, 
+  onClick, 
+  isLocked = false, 
+  isAdmin = false,
+  onEdit,
+  onDelete 
+}: ResourceCardProps) {
   const categoryVariant = categoryVariants[resource.category] || 'data';
   const typeIcon = typeIcons[resource.type] || <FileText className="w-4 h-4" />;
   
@@ -45,12 +58,44 @@ export function ResourceCard({ resource, onClick, isLocked = false }: ResourceCa
     }
   };
 
+  const handleEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onEdit?.();
+  };
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onDelete?.();
+  };
+
   return (
     <Card 
       variant="interactive" 
       className={`p-4 relative ${isLocked ? 'opacity-75' : ''}`}
       onClick={handleClick}
     >
+      {/* Admin actions */}
+      {isAdmin && (
+        <div className="absolute top-2 right-2 flex gap-1 z-10">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={handleEdit}
+          >
+            <Pencil className="w-3 h-3" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-destructive hover:text-destructive"
+            onClick={handleDelete}
+          >
+            <Trash2 className="w-3 h-3" />
+          </Button>
+        </div>
+      )}
+
       {/* Header row with badges */}
       <div className="flex items-center justify-between mb-3">
         <Badge variant={categoryVariant} className="text-xs">
