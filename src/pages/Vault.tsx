@@ -7,28 +7,16 @@ import {
   Users, 
   Target, 
   Star,
-  Play,
-  FileText,
   MessageSquare,
   Send,
   ExternalLink,
-  Lock,
   Crown,
   Radio
 } from "lucide-react";
 import { PodcastTab } from "@/components/vault/PodcastTab";
+import { LibraryTab } from "@/components/vault/LibraryTab";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
-
-// Mock data for resources
-const resources = [
-  { id: 1, title: "Back Squat Mechanics", type: "video", category: "Movement Blueprint", duration: "12:34" },
-  { id: 2, title: "Front Rack Mobility", type: "video", category: "Movement Blueprint", duration: "8:22" },
-  { id: 3, title: "Deadlift Position Guide", type: "pdf", category: "Movement Blueprint", pages: 15 },
-  { id: 4, title: "Pressing Progression", type: "video", category: "Movement Blueprint", duration: "15:45" },
-  { id: 5, title: "Zone 2 Protocol", type: "pdf", category: "Engine Development", pages: 8 },
-  { id: 6, title: "Core Stability Series", type: "video", category: "Movement Blueprint", duration: "22:10" },
-];
 
 // Mock community posts
 const communityPosts = [
@@ -98,34 +86,7 @@ export function VaultDashboard() {
 
           {/* Resource Library */}
           <TabsContent value="library">
-            <Card variant="elevated">
-              <CardHeader>
-                <CardTitle>Movement Blueprints</CardTitle>
-                <CardDescription>Video tutorials and PDF guides for optimal movement patterns</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {resources.map((resource) => (
-                    <Card key={resource.id} variant="interactive" className="p-4">
-                      <div className="flex items-start gap-3">
-                        <div className={`p-2 rounded-lg ${
-                          resource.type === 'video' ? 'bg-primary/10 text-primary' : 'bg-accent/10 text-accent'
-                        }`}>
-                          {resource.type === 'video' ? <Play className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-medium text-sm truncate">{resource.title}</h4>
-                          <p className="text-xs text-muted-foreground">{resource.category}</p>
-                          <p className="text-xs text-muted-foreground mt-1 font-mono">
-                            {resource.type === 'video' ? resource.duration : `${resource.pages} pages`}
-                          </p>
-                        </div>
-                      </div>
-                    </Card>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+            <LibraryTab isPremiumMember={true} />
           </TabsContent>
 
           {/* Podcast Tab */}
