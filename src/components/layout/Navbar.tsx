@@ -1,7 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { Link, useLocation } from "react-router-dom";
-import { Activity, Menu, X } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { useState } from "react";
+import logo from "@/assets/logo.png";
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -17,11 +18,12 @@ export function Navbar() {
     <header className="fixed top-0 left-0 right-0 z-50 glass">
       <nav className="container mx-auto px-6 h-16 flex items-center justify-between">
         {/* Logo */}
-        <Link to="/" className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded bg-primary/10 flex items-center justify-center border border-primary/20">
-            <Activity className="w-4 h-4 text-primary" />
-          </div>
-          <span className="font-semibold tracking-tight">The Vault</span>
+        <Link to="/" className="flex items-center">
+          <img 
+            src={logo} 
+            alt="Andy Andrews" 
+            className="h-10 w-auto invert"
+          />
         </Link>
 
         {/* Desktop nav */}
