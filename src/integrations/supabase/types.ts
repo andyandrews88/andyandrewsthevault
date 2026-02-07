@@ -104,6 +104,27 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_subscriptions: {
         Row: {
           created_at: string
@@ -134,14 +155,125 @@ export type Database = {
         }
         Relationships: []
       }
+      vault_podcasts: {
+        Row: {
+          apple_url: string | null
+          created_at: string
+          description: string
+          duration: string | null
+          episode_number: number | null
+          id: string
+          is_premium: boolean
+          published_at: string | null
+          spotify_url: string | null
+          title: string
+          updated_at: string
+          youtube_url: string | null
+        }
+        Insert: {
+          apple_url?: string | null
+          created_at?: string
+          description: string
+          duration?: string | null
+          episode_number?: number | null
+          id?: string
+          is_premium?: boolean
+          published_at?: string | null
+          spotify_url?: string | null
+          title: string
+          updated_at?: string
+          youtube_url?: string | null
+        }
+        Update: {
+          apple_url?: string | null
+          created_at?: string
+          description?: string
+          duration?: string | null
+          episode_number?: number | null
+          id?: string
+          is_premium?: boolean
+          published_at?: string | null
+          spotify_url?: string | null
+          title?: string
+          updated_at?: string
+          youtube_url?: string | null
+        }
+        Relationships: []
+      }
+      vault_resources: {
+        Row: {
+          category: Database["public"]["Enums"]["resource_category"]
+          content: string | null
+          created_at: string
+          description: string
+          duration: string | null
+          embed_url: string | null
+          file_path: string | null
+          id: string
+          is_premium: boolean
+          leak_tags: string[] | null
+          pages: number | null
+          title: string
+          type: Database["public"]["Enums"]["resource_type"]
+          updated_at: string
+        }
+        Insert: {
+          category: Database["public"]["Enums"]["resource_category"]
+          content?: string | null
+          created_at?: string
+          description: string
+          duration?: string | null
+          embed_url?: string | null
+          file_path?: string | null
+          id?: string
+          is_premium?: boolean
+          leak_tags?: string[] | null
+          pages?: number | null
+          title: string
+          type: Database["public"]["Enums"]["resource_type"]
+          updated_at?: string
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["resource_category"]
+          content?: string | null
+          created_at?: string
+          description?: string
+          duration?: string | null
+          embed_url?: string | null
+          file_path?: string | null
+          id?: string
+          is_premium?: boolean
+          leak_tags?: string[] | null
+          pages?: number | null
+          title?: string
+          type?: Database["public"]["Enums"]["resource_type"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
+      app_role: "admin" | "moderator" | "user"
+      resource_category: "physics" | "physiology" | "process"
+      resource_type:
+        | "youtube"
+        | "vimeo"
+        | "spotify"
+        | "apple_podcast"
+        | "article"
+        | "pdf"
       subscription_status: "trial" | "active" | "expired" | "cancelled"
     }
     CompositeTypes: {
@@ -270,6 +402,16 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      app_role: ["admin", "moderator", "user"],
+      resource_category: ["physics", "physiology", "process"],
+      resource_type: [
+        "youtube",
+        "vimeo",
+        "spotify",
+        "apple_podcast",
+        "article",
+        "pdf",
+      ],
       subscription_status: ["trial", "active", "expired", "cancelled"],
     },
   },
