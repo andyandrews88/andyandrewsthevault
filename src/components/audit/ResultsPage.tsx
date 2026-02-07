@@ -1,13 +1,14 @@
 import { useAuditStore } from "@/stores/auditStore";
 import { useNavigate } from "react-router-dom";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer, Legend } from "recharts";
 import { AlertTriangle, CheckCircle, ArrowRight, RotateCcw, Lock, Info, ExternalLink } from "lucide-react";
 import { Link } from "react-router-dom";
-
+import { getRecommendedResources } from "@/data/resources";
+import { RecommendedResources } from "./RecommendedResources";
 const tierBadges = {
   foundation: 'outline' as const,
   intermediate: 'secondary' as const,
@@ -18,6 +19,13 @@ const tierBadges = {
 export function ResultsPage() {
   const navigate = useNavigate();
   const { results, reset } = useAuditStore();
+
+  // Get personalized resource recommendations based on detected leaks
+  const recommendedResources = useMemo(() => {
+    if (!results) return [];
+    const leakIds = results.leaks.map(leak => leak.id);
+    return getRecommendedResources(leakIds);
+  }, [results]);
 
   useEffect(() => {
     if (!results) {
@@ -217,6 +225,24 @@ export function ResultsPage() {
                   )}
                 </div>
               ))}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Recommended Resources Section */}
+        {recommendedResources.length > 0 && (
+          <Card variant="elevated" className="mb-8">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CheckCircle className="w-5 h-5 text-primary" />
+                Targeted Resources
+              </CardTitle>
+              <CardDescription>
+                Content mapped to your specific performance leaks
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <RecommendedResources resources={recommendedResources} />
             </CardContent>
           </Card>
         )}
