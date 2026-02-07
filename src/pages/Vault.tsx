@@ -20,6 +20,7 @@ import { FoodDatabase } from "@/components/nutrition/FoodDatabase";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Link } from "react-router-dom";
+import logo from "@/assets/logo.png";
 
 // Mock community posts
 const communityPosts = [
@@ -53,13 +54,16 @@ export function VaultDashboard() {
   return (
     <div className="min-h-screen pt-24 pb-12">
       <div className="container mx-auto px-6 max-w-6xl">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-          <div>
-            <Badge variant="elite" className="mb-2">VAULT MEMBER</Badge>
-            <h1 className="text-2xl md:text-3xl font-bold">Welcome to The Vault</h1>
-            <p className="text-muted-foreground">Your performance architecture command center</p>
-          </div>
+        {/* Header with Logo */}
+        <div className="flex flex-col items-center text-center mb-8">
+          <img 
+            src={logo} 
+            alt="Andy Andrews" 
+            className="h-20 md:h-28 w-auto invert brightness-100 mb-4 drop-shadow-[0_0_20px_hsl(var(--primary)/0.3)]"
+          />
+          <Badge variant="elite" className="mb-2">VAULT MEMBER</Badge>
+          <h1 className="text-2xl md:text-3xl font-bold">Welcome to The Vault</h1>
+          <p className="text-muted-foreground mb-4">Your performance architecture command center</p>
           <Button variant="elite">
             <Crown className="w-4 h-4 mr-2" />
             Apply for 1-on-1 Coaching

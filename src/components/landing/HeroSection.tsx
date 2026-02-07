@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowRight, Activity } from "lucide-react";
 import { Link } from "react-router-dom";
+import logo from "@/assets/logo.png";
 
 export function HeroSection() {
   return (
@@ -22,25 +23,30 @@ export function HeroSection() {
 
       <div className="relative z-10 container mx-auto px-6 text-center">
         <div className="animate-fade-in">
+          {/* Prominent Logo */}
+          <div className="mb-8 flex justify-center">
+            <img 
+              src={logo} 
+              alt="Andy Andrews" 
+              className="h-28 md:h-40 lg:h-48 w-auto invert brightness-100 drop-shadow-[0_0_30px_hsl(var(--primary)/0.4)] animate-pulse-glow"
+            />
+          </div>
+
           {/* Status badge */}
-          <Badge variant="data" className="mb-8 animate-pulse-glow">
+          <Badge variant="data" className="mb-6 animate-pulse-glow">
             <Activity className="w-3 h-3 mr-1" />
             SYSTEM ONLINE
           </Badge>
 
           {/* Main headline */}
-          <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold tracking-tight mb-6">
+          <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6">
             <span className="text-gradient-primary data-glow">Performance</span>
             <br />
             <span className="text-foreground">Architecture.</span>
           </h1>
 
           {/* Sub-headline */}
-          <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-4">
-            By <span className="text-foreground font-medium">Andy Andrews</span>
-          </p>
-          
-          <p className="text-sm md:text-base text-muted-foreground max-w-xl mx-auto mb-12">
+          <p className="text-sm md:text-base text-muted-foreground max-w-xl mx-auto mb-10">
             6-Time Fittest Man in Sri Lanka & CrossFit Games Athlete
           </p>
 
