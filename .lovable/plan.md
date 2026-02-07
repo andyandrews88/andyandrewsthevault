@@ -1,109 +1,85 @@
 
-# Lifestyle Diagnostic Section Implementation
+# HPA Training Podcast Integration
 
 ## Overview
-Add a new step to the Audit flow that collects lifestyle data (Sleep, Protein, Stress, Experience) and integrates it into the leak detection logic for the Structural Integrity Report.
+Add a dedicated **Podcast** tab to The Vault dashboard, showcasing the HPA Training Podcast with featured episodes, a direct link to Apple Podcasts, and topic-based filtering.
 
 ---
 
-## Current Flow (4 Steps)
-1. Biometrics (Weight, Age, Height)
-2. The Big 4 (Strength lifts)
-3. Engine Check (Mile run time)
-4. Review (Confirm data)
+## Current Vault Structure (3 Tabs)
+1. Library - Movement Blueprints
+2. Community - Text-based feed
+3. Tracks - Foundation/Performance programs
 
-## New Flow (5 Steps)
-1. Biometrics (Weight, Age, Height)
-2. The Big 4 (Strength lifts)
-3. Engine Check (Mile run time)
-4. **Lifestyle Diagnostic** (NEW - Sleep, Protein, Stress, Experience)
-5. Review (Confirm data)
+## New Vault Structure (4 Tabs)
+1. Library - Movement Blueprints
+2. **Podcast** (NEW) - HPA Training Podcast episodes
+3. Community - Text-based feed
+4. Tracks - Foundation/Performance programs
 
 ---
 
-## Changes
+## Podcast Tab Design
 
-### 1. Update Data Model (`auditStore.ts`)
+### Header Section
+- Podcast title: "HPA Training Podcast"
+- Tagline: "Health, Performance & Aesthetics"
+- Episode count badge: "27 EPISODES"
+- "Listen on Apple Podcasts" button linking to the full podcast page
 
-Add new lifestyle fields to `AuditData` interface:
+### Featured Episode Card
+- Highlight the latest episode ("We are rebranding" - Jan 30, 2025)
+- Large play icon with episode duration
+- Direct link to Apple Podcasts episode
 
-```text
-// Lifestyle Diagnostic
-sleep: '<6' | '6-7' | '7-8' | '8+';
-protein: 'yes' | 'no' | 'unsure';
-stress: number;        // 1-10 scale
-experience: '<1' | '1-3' | '3-5' | '5+';
-```
+### Episode Grid
+Curated selection of episodes organized by topic relevance to The Vault:
 
-### 2. Add New Logic Gates (`auditStore.ts`)
+| Episode | Duration | Topic Category |
+|---------|----------|----------------|
+| Secret to Motivation | 20 min | Mindset |
+| Tracking the Right Metrics | 14 min | Data & Progress |
+| Decision Fatigue & Food Prep | 10 min | Nutrition |
+| How to Make Progress in the Gym | 10 min | Training |
+| The Goldilocks Zone | 2 min | Training |
+| Worlds Best Program | 9 min | Onboarding |
 
-**Systemic Recovery Leak:**
-- Condition: `sleep === '<6' AND stress > 8`
-- Severity: Critical if both conditions are extreme, Warning otherwise
-- Links to Recovery/Stress Management resources
-
-**Foundation Track Override:**
-- Condition: `experience === '<1'`
-- Effect: Override tier recommendation to suggest "Foundation" track regardless of physical metrics
-- Add advisory note in results
-
-### 3. Update Audit Form (`AuditForm.tsx`)
-
-Add new step with 4 minimalist, data-focused inputs:
-
-| Question | Input Type | Options |
-|----------|------------|---------|
-| Average hours of sleep per night? | Dropdown | <6, 6-7, 7-8, 8+ |
-| 1.6g protein per kg daily? | Toggle Group | Yes / No / Unsure |
-| Non-training stress level? | Slider | 1-10 with visual indicators |
-| Years of consistent training? | Dropdown | <1, 1-3, 3-5, 5+ |
-
-Update step array:
-- Add `lifestyle` step with `Heart` icon between Engine Check and Review
-- Update validation to include lifestyle fields
-- Update Review step to display lifestyle data
-
-### 4. Update Results Display (`ResultsPage.tsx`)
-
-- Display new "Systemic Recovery Leak" in the leaks section when triggered
-- Add resource links section for Recovery and Stress Management content
-- Show "Foundation Track Recommended" advisory for beginners (<1 year experience)
-- Include placeholder links for Andy's articles/podcasts
+### Episode Card Design
+Each card includes:
+- Headphone/podcast icon (using Lucide `Headphones` or `Mic` icon)
+- Episode title
+- Duration in monospace font
+- Category badge
+- External link to Apple Podcasts episode
 
 ---
 
 ## Technical Details
 
-### New Leak Object Structure
+### Mock Data Structure
 ```text
-{
-  id: 'systemic-recovery',
-  title: 'Systemic Recovery Leak',
-  description: 'Sleep deprivation (<6hrs) combined with high stress (>8/10) is compromising recovery capacity',
-  severity: 'critical' | 'warning',
-  metric: 'Sleep: <6h | Stress: 9/10',
-  recommendation: 'Prioritize sleep hygiene and stress management before increasing training volume...',
-  resourceLinks: [
-    { title: 'Recovery Protocol', url: '#' },
-    { title: 'Stress Management Guide', url: '#' }
-  ]
-}
+const podcastEpisodes = [
+  {
+    id: 1,
+    title: "We are rebranding",
+    description: "Welcome to HPA Podcast - reimagined for Health, Performance & Aesthetics",
+    duration: "3 min",
+    date: "01/30/2025",
+    category: "Announcement",
+    url: "https://podcasts.apple.com/us/podcast/we-are-rebranding/id1538797196?i=1000687131996",
+    featured: true
+  },
+  // ... more episodes
+];
 ```
 
-### Foundation Override Logic
-```text
-if (experience === '<1') {
-  // Add advisory to results
-  results.foundationRecommended = true;
-  results.foundationReason = 'With less than 1 year of consistent training, 
-    the Foundation track ensures long-term structural integrity';
-}
-```
+### New Icons Required
+- `Headphones` or `Mic` from lucide-react for podcast episodes
+- `Radio` for the tab icon
 
-### UI Components Used
-- `Select` component for dropdowns (Sleep, Experience)
-- `ToggleGroup` for Yes/No/Unsure (Protein)
-- `Slider` component for stress level (1-10)
+### UI Components
+- Existing `Card`, `Badge`, `Button` components
+- New tab in `TabsList` with 4 columns instead of 3
 
 ---
 
@@ -111,17 +87,22 @@ if (experience === '<1') {
 
 | File | Changes |
 |------|---------|
-| `src/stores/auditStore.ts` | Add lifestyle fields to interface, add new logic gates, update tier logic |
-| `src/components/audit/AuditForm.tsx` | Add lifestyle step, update steps array, add validation, update review display |
-| `src/components/audit/ResultsPage.tsx` | Display new leak type, add resource links, show Foundation recommendation |
+| `src/pages/Vault.tsx` | Add podcast episodes data, add Podcast tab trigger, add Podcast TabsContent with episode grid and Apple Podcasts link |
 
 ---
 
 ## Visual Design Notes
 
-The Lifestyle Diagnostic step will maintain the existing "Industrial-Elite" dark mode aesthetic:
-- Clean, minimal layout with clear labels
-- Monospace font for data values
-- Slider with numeric indicator showing current value
-- Dropdowns with solid background (not transparent)
-- Toggle buttons with clear active/inactive states
+- Maintain "Industrial-Elite" dark mode aesthetic
+- Featured episode gets a larger card with accent border
+- Episode cards use the same interactive card style as resources
+- Duration displayed in monospace font for data consistency
+- External links open in new tab with `ExternalLink` icon
+- Category badges use existing badge variants
+
+---
+
+## Key Links
+
+- Main Podcast: `https://podcasts.apple.com/us/podcast/hpa-training-podcast/id1538797196`
+- Individual episodes link directly to their Apple Podcasts pages
