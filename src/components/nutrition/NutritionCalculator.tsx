@@ -18,7 +18,7 @@ import {
   Utensils,
   Info
 } from 'lucide-react';
-import { useNutritionStore } from '@/stores/nutritionStore';
+import { useNutritionStore, toInternalUnits, toDisplayUnits } from '@/stores/nutritionStore';
 import { 
   Sex, 
   ActivityLevel, 
@@ -218,6 +218,36 @@ interface BiometricsStepProps {
 
 function BiometricsStep({ data, onChange }: BiometricsStepProps) {
   const isMetric = data.unitSystem === 'metric';
+  
+  // Convert internal units (lbs/inches) to display units based on unit system
+  const displayWeight = data.weight 
+    ? (isMetric ? Math.round(toDisplayUnits(data.weight, 'weight', 'metric') * 10) / 10 : data.weight)
+    : '';
+  const displayHeight = data.height 
+    ? (isMetric ? Math.round(toDisplayUnits(data.height, 'height', 'metric') * 10) / 10 : data.height)
+    : '';
+
+  // Handle weight input - convert to internal units (lbs) if metric
+  const handleWeightChange = (value: string) => {
+    const numValue = parseFloat(value);
+    if (!numValue) {
+      onChange({ weight: undefined });
+      return;
+    }
+    const internalValue = isMetric ? toInternalUnits(numValue, 'weight', 'metric') : numValue;
+    onChange({ weight: internalValue });
+  };
+
+  // Handle height input - convert to internal units (inches) if metric
+  const handleHeightChange = (value: string) => {
+    const numValue = parseFloat(value);
+    if (!numValue) {
+      onChange({ height: undefined });
+      return;
+    }
+    const internalValue = isMetric ? toInternalUnits(numValue, 'height', 'metric') : numValue;
+    onChange({ height: internalValue });
+  };
 
   return (
     <div className="space-y-6">
@@ -239,8 +269,8 @@ function BiometricsStep({ data, onChange }: BiometricsStepProps) {
             id="weight"
             type="number"
             placeholder={isMetric ? '80' : '175'}
-            value={data.weight || ''}
-            onChange={(e) => onChange({ weight: parseFloat(e.target.value) || undefined })}
+            value={displayWeight}
+            onChange={(e) => handleWeightChange(e.target.value)}
             className="font-mono"
           />
         </div>
@@ -252,13 +282,13 @@ function BiometricsStep({ data, onChange }: BiometricsStepProps) {
             id="height"
             type="number"
             placeholder={isMetric ? '180' : '70'}
-            value={data.height || ''}
-            onChange={(e) => onChange({ height: parseFloat(e.target.value) || undefined })}
+            value={displayHeight}
+            onChange={(e) => handleHeightChange(e.target.value)}
             className="font-mono"
           />
           {!isMetric && data.height && (
             <p className="text-xs text-muted-foreground">
-              {Math.floor(data.height / 12)}'{data.height % 12}"
+              {Math.floor(data.height / 12)}'{Math.round(data.height % 12)}"
             </p>
           )}
         </div>
