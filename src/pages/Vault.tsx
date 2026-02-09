@@ -12,12 +12,14 @@ import {
   Radio,
   Calculator,
   Shield,
-  Activity
+  Activity,
+  Dumbbell
 } from "lucide-react";
 import { PodcastTab } from "@/components/vault/PodcastTab";
 import { LibraryTab } from "@/components/vault/LibraryTab";
 import { AdminPanel } from "@/components/vault/AdminPanel";
 import { ProgressTab } from "@/components/progress/ProgressTab";
+import { WorkoutTab } from "@/components/workout/WorkoutTab";
 import { FoodDatabase } from "@/components/nutrition/FoodDatabase";
 import { CommunityFeed } from "@/components/community/CommunityFeed";
 import { Link } from "react-router-dom";
@@ -66,6 +68,10 @@ export function VaultDashboard() {
                 <Activity className="w-4 h-4" />
                 <span className="text-xs sm:text-sm">Progress</span>
               </TabsTrigger>
+              <TabsTrigger value="workouts" className="flex items-center gap-2 px-3 py-2.5 whitespace-nowrap">
+                <Dumbbell className="w-4 h-4" />
+                <span className="text-xs sm:text-sm">Workouts</span>
+              </TabsTrigger>
               <TabsTrigger value="nutrition" className="flex items-center gap-2 px-3 py-2.5 whitespace-nowrap">
                 <Calculator className="w-4 h-4" />
                 <span className="text-xs sm:text-sm">Nutrition</span>
@@ -99,6 +105,11 @@ export function VaultDashboard() {
           {/* Progress Tracking */}
           <TabsContent value="progress">
             <ProgressTab />
+          </TabsContent>
+
+          {/* Workouts Tab */}
+          <TabsContent value="workouts">
+            <WorkoutTab />
           </TabsContent>
 
           {/* Nutrition Tab */}
