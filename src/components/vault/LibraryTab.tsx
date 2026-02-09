@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Search, BookOpen, Plus, RefreshCw } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { resources as staticResources } from "@/data/resources";
 import { Resource, ResourceCategory, ResourceType } from "@/types/resources";
 import { ResourceCard } from "./ResourceCard";
@@ -145,6 +146,43 @@ export function LibraryTab({ isPremiumMember = false, isAdmin = false }: Library
 
   const totalResources = allResources.length;
   const freeResources = allResources.filter(r => !r.isPremium).length;
+
+  // Show loading skeleton during initial fetch to prevent filtering on empty data
+  if (isLoading && dbResources.length === 0) {
+    return (
+      <>
+        <div className="text-center mb-6">
+          <Badge variant="elite" className="mb-3">KNOWLEDGE BANK</Badge>
+          <h2 className="text-xl md:text-2xl font-bold mb-2">Training & Education Resources</h2>
+          <p className="text-muted-foreground text-sm md:text-base max-w-xl mx-auto">
+            Access curated videos, articles, and guides covering training techniques, nutrition strategies, and lifestyle optimization.
+          </p>
+        </div>
+
+        <Card variant="elevated">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BookOpen className="w-5 h-5" />
+              Knowledge Bank
+            </CardTitle>
+            <CardDescription>Loading resources...</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[...Array(6)].map((_, i) => (
+                <Card key={i} className="p-4">
+                  <Skeleton className="h-4 w-20 mb-3" />
+                  <Skeleton className="h-4 w-full mb-2" />
+                  <Skeleton className="h-3 w-3/4 mb-3" />
+                  <Skeleton className="h-3 w-1/2" />
+                </Card>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </>
+    );
+  }
 
   return (
     <>
