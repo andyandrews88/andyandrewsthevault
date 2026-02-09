@@ -163,7 +163,7 @@ export interface FoodItem {
 
 // ============= Recipe Types =============
 
-export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack' | 'pre_workout' | 'post_workout';
+export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack' | 'pre_workout' | 'post_workout' | 'smoothie' | 'bowl';
 export type PrepTime = 'under_15' | '15_to_30' | 'over_30';
 
 export interface RecipeIngredient {
