@@ -1,74 +1,145 @@
 
 
-# Redesign Home Page: Tell the Story of The Vault
+# Lifestyle Check-In & Central Dashboard
 
 ## Overview
 
-Replace the current generic "Performance Architect" landing page with a compelling narrative that explains **what The Vault actually is, why it exists, and the philosophy behind it**. The current page reads like a corporate landing page for a coaching service. The new version will feel personal, purposeful, and clear about what users are getting.
+Two interconnected features:
 
-## Current Problems
+1. **Daily Lifestyle Check-In** -- A quick daily questionnaire (Sleep, Stress, Energy, Drive) that builds a readiness profile over time
+2. **Central Dashboard** -- A unified overview that pulls training, nutrition, lifestyle, and body composition data into one view with a weekly summary
 
-- The hero section says "The Vault" and "Performance Architecture" but never explains what it is
-- The "Meet Andy" section talks about credentials but not the **why** behind the project
-- There's no mention of the actual tools: training logs, nutrition tracking, knowledge bank, progress tracking
-- It feels like a sales page rather than an invitation into a free resource
+---
 
-## New Page Structure
+## Part 1: Daily Lifestyle Check-In
 
-The page will flow in 3 sections:
+### How It Works
 
-### Section 1: Hero (Revised)
-Keep the logo, badge, and visual effects. Replace the tagline and subtitle with copy that immediately communicates the core idea:
+Each day, the user answers 4 questions on a 1-5 scale (or 1-10 if you prefer):
 
-**Headline:** "One Place. Everything You Need."
+| Metric | Question | Scale |
+|--------|----------|-------|
+| Sleep Quality | "How well did you sleep last night?" | 1-5 (Poor to Excellent) |
+| Stress Level | "How is your stress level today?" | 1-5 (Very High to Very Low) -- inverted so 5 = good |
+| Energy Level | "How is your energy right now?" | 1-5 (Depleted to Charged) |
+| Drive | "How motivated and excited do you feel today?" | 1-5 (Flat to Fired Up) |
 
-**Subtext:** A single sentence capturing the philosophy -- stop juggling five apps to manage your health. The Vault is your training, nutrition, and lifestyle hub, built on first principles and completely free.
+Optional: A free-text notes field for context ("bad night's sleep", "big presentation", etc.)
 
-Keep the two CTA buttons (Begin Structural Audit / Access The Vault). Remove the stats bar (1,247+ athletes, 94% leak detection, 6x champion) -- these feel like marketing filler and don't tell users what the app does.
+The scores combine into a **Readiness Score** (average of 4 metrics, displayed as a percentage out of 100). This gives users an at-a-glance sense of how prepared they are to train and perform.
 
-### Section 2: What Is The Vault (New Section - replaces MeetAndySection)
-A new `WhyTheVault` section with two halves:
+### Database
 
-**Left side -- The Philosophy (personal narrative):**
-A candid, first-person-flavored explanation blending Andy's voice with editorial perspective:
+New table: `user_daily_checkins`
 
-- The frustration of needing separate apps for nutrition, sleep, training, and progress
-- The belief that health and performance should be tracked from **one central place**, built on first principles -- not trends
-- The vision of a "second brain" where a decade of coaching knowledge lives as a free, open resource for anyone who needs it
-- The ethos: simplicity over complexity, principles over fads
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid | PK |
+| user_id | uuid | FK to auth |
+| check_date | date | One entry per day |
+| sleep_score | integer | 1-5 |
+| stress_score | integer | 1-5 (inverted: 5 = low stress) |
+| energy_score | integer | 1-5 |
+| drive_score | integer | 1-5 |
+| notes | text | Optional |
+| created_at | timestamptz | Default now() |
 
-**Right side -- What's Inside (feature cards):**
-Replace the abstract "Precision Diagnostics / Evidence-Based Protocols / Structured Progression" cards with concrete descriptions of what the app actually contains:
+Unique constraint on (user_id, check_date) so users can only submit one check-in per day (but can update it).
 
-1. **Training Log** -- Log workouts, track PRs, visualise volume and strength trends
-2. **Nutrition Tracker** -- Calculate macros, scan barcodes, plan meals from 50+ recipes
-3. **Knowledge Bank** -- A free library of curated resources on training, nutrition, and lifestyle
-4. **Progress Tracking** -- Track bodyweight, body composition, and measurements over time
-5. **Structural Audit** -- A diagnostic tool that finds gaps in your training, nutrition, and recovery
+RLS: Users can only CRUD their own rows.
 
-### Section 3: Footer
-Keep as-is, just update the year from 2024 to 2026.
+### UI Components
+
+- `src/components/lifestyle/DailyCheckin.tsx` -- The check-in form with slider/button inputs for each metric. Shows today's scores if already submitted, with option to edit.
+- `src/components/lifestyle/ReadinessChart.tsx` -- A line chart showing readiness score over the past 7-30 days using Recharts.
+- `src/components/lifestyle/LifestyleTab.tsx` -- Container tab combining the check-in form + trend chart.
+
+### Vault Integration
+
+Add a new "Lifestyle" tab to the Vault between Progress and Workouts:
+
+```
+Library | Progress | Lifestyle | Workouts | Podcast | Community | Tracks
+```
+
+---
+
+## Part 2: Central Dashboard
+
+### What It Shows
+
+The dashboard becomes the **default tab** in the Vault, replacing the current "Library" default. It gives a real-time snapshot of the user's day and week.
+
+### Dashboard Layout
+
+**Today's Snapshot (top row of cards):**
+
+| Card | Data Source | What It Shows |
+|------|------------|---------------|
+| Readiness Score | `user_daily_checkins` | Today's readiness % with the 4 sub-scores |
+| Training | `workouts` table | Today's workout (if any), or last workout date + total volume |
+| Nutrition | `mealBuilderStore` | Today's calories/macros consumed vs targets |
+| Body Comp | `user_body_entries` | Latest weight + trend arrow (up/down vs last entry) |
+
+**Weekly Review (below snapshot):**
+
+A summary section that aggregates the past 7 days:
+
+- **Training**: Workouts completed, total volume, any new PRs
+- **Nutrition**: Average daily calories vs target, average protein intake
+- **Lifestyle**: Average readiness score, trend (improving/declining), lowest day flagged
+- **Body Comp**: Weight change over the week
+
+This generates a short text write-up summarising the week. The write-up is computed client-side from the data -- no AI needed. It follows a template like:
+
+> "This week you completed 4 workouts with a total volume of 45,200 lbs. Your average readiness score was 78%, trending up from last week. Nutrition averaged 2,340 cal/day against your 2,500 target (94% adherence). Bodyweight moved from 185.2 to 184.8 lbs. Focus area: your stress scores dipped mid-week -- consider adding a recovery session."
+
+### UI Components
+
+- `src/components/dashboard/VaultDashboard.tsx` -- The main dashboard container
+- `src/components/dashboard/TodaySnapshot.tsx` -- The 4-card top row
+- `src/components/dashboard/WeeklyReview.tsx` -- The weekly aggregation + text summary
+- `src/stores/dashboardStore.ts` -- Zustand store that fetches and aggregates data from workouts, body entries, check-ins, and nutrition
+
+### Vault Tab Update
+
+Add "Dashboard" as the first tab and make it the default:
+
+```
+Dashboard | Library | Progress | Lifestyle | Workouts | Podcast | Community | Tracks
+```
+
+---
+
+## Files to Create
+
+| File | Purpose |
+|------|---------|
+| `src/components/lifestyle/DailyCheckin.tsx` | Check-in form with 4 metrics |
+| `src/components/lifestyle/ReadinessChart.tsx` | 7-30 day readiness trend line chart |
+| `src/components/lifestyle/LifestyleTab.tsx` | Container for check-in + chart |
+| `src/components/dashboard/VaultDashboard.tsx` | Central dashboard layout |
+| `src/components/dashboard/TodaySnapshot.tsx` | Today's 4 summary cards |
+| `src/components/dashboard/WeeklyReview.tsx` | Weekly aggregation + generated write-up |
+| `src/stores/dashboardStore.ts` | Data aggregation store |
 
 ## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/components/landing/HeroSection.tsx` | Update headline, subtext, remove stats bar |
-| `src/components/landing/MeetAndySection.tsx` | Full rewrite into "Why The Vault" section with philosophy narrative + feature cards |
-| `src/components/landing/Footer.tsx` | Update copyright year to 2026 |
+| `src/pages/Vault.tsx` | Add Dashboard and Lifestyle tabs, reorder tabs, set Dashboard as default |
 
-## Detailed Copy Direction
+## Database Migration
 
-### Hero Subtext (draft)
-> "Stop juggling five different apps. The Vault brings your training, nutrition, and lifestyle into one place -- built on first principles, powered by a decade of coaching experience, and free for everyone."
+One new table (`user_daily_checkins`) with RLS policies for user-scoped CRUD.
 
-### Philosophy Section (draft tone)
-> "I built The Vault because I was tired of the fragmentation. One app for calories. Another for workouts. A spreadsheet for body comp. A notes app for everything I've learned coaching athletes for over a decade. None of them talked to each other, and none of them were built the way I think about performance -- from first principles, not trends.
->
-> The Vault is my answer to that. It's a centralised system where you can track your training, dial in your nutrition, and monitor your progress -- all in one place, without the noise. But it's also something else: my second brain. Every piece of knowledge I've gathered as a coach -- the frameworks, the protocols, the lessons learned from working with hundreds of athletes -- lives here as a free resource. No gatekeeping. No paywall on the basics.
->
-> This isn't finished. It never will be. I'm building this as a living system that grows with the community that uses it."
+---
 
-### Feature Cards
-Each card will have an icon, title, and one-line description that maps directly to a real feature in the app. No abstract marketing language -- just what's there and what it does.
+## Implementation Order
+
+1. Create the database table with RLS
+2. Build the Daily Check-in form and readiness chart (Lifestyle tab)
+3. Build the Dashboard store that aggregates cross-feature data
+4. Build the Dashboard components (Today's Snapshot + Weekly Review)
+5. Wire both new tabs into the Vault
 
