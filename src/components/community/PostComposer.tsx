@@ -11,6 +11,8 @@ interface PostComposerProps {
   onSuccess?: () => void;
 }
 
+const MAX_CONTENT_LENGTH = 5000;
+
 export function PostComposer({ parentId, placeholder, onSuccess }: PostComposerProps) {
   const [content, setContent] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -18,7 +20,7 @@ export function PostComposer({ parentId, placeholder, onSuccess }: PostComposerP
   const { user } = useAuthStore();
 
   const handleSubmit = async () => {
-    if (!content.trim() || !user) return;
+    if (!content.trim() || !user || content.length > MAX_CONTENT_LENGTH) return;
 
     setIsSubmitting(true);
     try {
@@ -48,25 +50,35 @@ export function PostComposer({ parentId, placeholder, onSuccess }: PostComposerP
     );
   }
 
+  const isOverLimit = content.length > MAX_CONTENT_LENGTH;
+
   return (
-    <div className="flex gap-3">
-      <Textarea
-        placeholder={placeholder || 'Share your progress or ask a question...'}
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
-        onKeyDown={handleKeyDown}
-        className="flex-1 min-h-[80px] resize-none"
-        disabled={isSubmitting}
-      />
-      <Button
-        variant="default"
-        size="icon"
-        onClick={handleSubmit}
-        disabled={!content.trim() || isSubmitting}
-        className="self-end"
-      >
-        <Send className="w-4 h-4" />
-      </Button>
+    <div className="space-y-2">
+      <div className="flex gap-3">
+        <Textarea
+          placeholder={placeholder || 'Share your progress or ask a question...'}
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          onKeyDown={handleKeyDown}
+          className={`flex-1 min-h-[80px] resize-none ${isOverLimit ? 'border-destructive' : ''}`}
+          disabled={isSubmitting}
+          maxLength={MAX_CONTENT_LENGTH + 100} // Allow slight overage for UX, but validation blocks submit
+        />
+        <Button
+          variant="default"
+          size="icon"
+          onClick={handleSubmit}
+          disabled={!content.trim() || isSubmitting || isOverLimit}
+          className="self-end"
+        >
+          <Send className="w-4 h-4" />
+        </Button>
+      </div>
+      {content.length > MAX_CONTENT_LENGTH * 0.9 && (
+        <p className={`text-xs ${isOverLimit ? 'text-destructive' : 'text-muted-foreground'}`}>
+          {content.length}/{MAX_CONTENT_LENGTH} characters
+        </p>
+      )}
     </div>
   );
 }
