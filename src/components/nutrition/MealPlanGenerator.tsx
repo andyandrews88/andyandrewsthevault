@@ -1,6 +1,6 @@
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Utensils, 
@@ -12,8 +12,9 @@ import {
   BookOpen,
   Flame
 } from 'lucide-react';
-import { MealBreakdown, MacroBreakdown } from '@/types/nutrition';
-import { recipes, getRecipesByMealType, getMealTypeLabel, getPrepTimeLabel } from '@/data/recipes';
+import { MealBreakdown, MacroBreakdown, Recipe } from '@/types/nutrition';
+import { getRecipesByMealType } from '@/data/recipes';
+import { RecipeDetailModal } from './RecipeDetailModal';
 
 interface MealPlanGeneratorProps {
   targetCalories: number;
@@ -21,7 +22,24 @@ interface MealPlanGeneratorProps {
   mealBreakdown: MealBreakdown[];
 }
 
+const RECIPE_TABS = [
+  { value: 'breakfast', label: 'Breakfast' },
+  { value: 'lunch', label: 'Lunch' },
+  { value: 'dinner', label: 'Dinner' },
+  { value: 'snack', label: 'Snacks' },
+  { value: 'smoothie', label: 'Smoothies' },
+  { value: 'bowl', label: 'Bowls' },
+] as const;
+
 export function MealPlanGenerator({ targetCalories, targetMacros, mealBreakdown }: MealPlanGeneratorProps) {
+  const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+
+  const handleRecipeClick = (recipe: Recipe) => {
+    setSelectedRecipe(recipe);
+    setModalOpen(true);
+  };
+
   return (
     <div className="space-y-4">
       {/* Summary Header */}
@@ -96,22 +114,26 @@ export function MealPlanGenerator({ targetCalories, targetMacros, mealBreakdown 
             Recipe Ideas
           </CardTitle>
           <CardDescription>
-            Quick recipes to hit your macro targets
+            Tap any recipe for full details & instructions
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="breakfast">
-            <TabsList className="grid grid-cols-4 w-full">
-              <TabsTrigger value="breakfast">Breakfast</TabsTrigger>
-              <TabsTrigger value="lunch">Lunch</TabsTrigger>
-              <TabsTrigger value="dinner">Dinner</TabsTrigger>
-              <TabsTrigger value="snack">Snacks</TabsTrigger>
+            <TabsList className="grid grid-cols-3 sm:grid-cols-6 w-full">
+              {RECIPE_TABS.map((tab) => (
+                <TabsTrigger key={tab.value} value={tab.value}>{tab.label}</TabsTrigger>
+              ))}
             </TabsList>
 
-            {['breakfast', 'lunch', 'dinner', 'snack'].map((mealType) => (
-              <TabsContent key={mealType} value={mealType} className="space-y-3 mt-4">
-                {getRecipesByMealType(mealType as any).slice(0, 3).map((recipe) => (
-                  <Card key={recipe.id} variant="interactive" className="overflow-hidden">
+            {RECIPE_TABS.map((tab) => (
+              <TabsContent key={tab.value} value={tab.value} className="space-y-3 mt-4">
+                {getRecipesByMealType(tab.value as any).map((recipe) => (
+                  <Card
+                    key={recipe.id}
+                    variant="interactive"
+                    className="overflow-hidden cursor-pointer"
+                    onClick={() => handleRecipeClick(recipe)}
+                  >
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1">
@@ -123,7 +145,6 @@ export function MealPlanGenerator({ targetCalories, targetMacros, mealBreakdown 
                             </Badge>
                           </div>
                           
-                          {/* Macro Row */}
                           <div className="flex gap-3 text-xs font-mono">
                             <span className="flex items-center gap-1">
                               <Flame className="w-3 h-3 text-destructive" />
@@ -143,7 +164,6 @@ export function MealPlanGenerator({ targetCalories, targetMacros, mealBreakdown 
                             </span>
                           </div>
 
-                          {/* Tags */}
                           <div className="flex flex-wrap gap-1 mt-2">
                             {recipe.tags.slice(0, 3).map((tag) => (
                               <Badge key={tag} variant="outline" className="text-[10px]">
@@ -227,6 +247,13 @@ export function MealPlanGenerator({ targetCalories, targetMacros, mealBreakdown 
           </div>
         </CardContent>
       </Card>
+
+      {/* Recipe Detail Modal */}
+      <RecipeDetailModal
+        recipe={selectedRecipe}
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+      />
     </div>
   );
 }
