@@ -10,7 +10,6 @@ import {
   ExternalLink,
   Crown,
   Radio,
-  Calculator,
   Shield,
   Activity,
   Dumbbell
@@ -20,9 +19,7 @@ import { LibraryTab } from "@/components/vault/LibraryTab";
 import { AdminPanel } from "@/components/vault/AdminPanel";
 import { ProgressTab } from "@/components/progress/ProgressTab";
 import { WorkoutTab } from "@/components/workout/WorkoutTab";
-import { FoodDatabase } from "@/components/nutrition/FoodDatabase";
 import { CommunityFeed } from "@/components/community/CommunityFeed";
-import { Link } from "react-router-dom";
 import logo from "@/assets/logo.png";
 import { useAdminCheck } from "@/hooks/useAdminCheck";
 
@@ -72,10 +69,6 @@ export function VaultDashboard() {
                 <Dumbbell className="w-4 h-4" />
                 <span className="text-xs sm:text-sm">Workouts</span>
               </TabsTrigger>
-              <TabsTrigger value="nutrition" className="flex items-center gap-2 px-3 py-2.5 whitespace-nowrap">
-                <Calculator className="w-4 h-4" />
-                <span className="text-xs sm:text-sm">Nutrition</span>
-              </TabsTrigger>
               <TabsTrigger value="podcast" className="flex items-center gap-2 px-3 py-2.5 whitespace-nowrap">
                 <Radio className="w-4 h-4" />
                 <span className="text-xs sm:text-sm">Podcast</span>
@@ -112,31 +105,6 @@ export function VaultDashboard() {
             <WorkoutTab />
           </TabsContent>
 
-          {/* Nutrition Tab */}
-          <TabsContent value="nutrition">
-            <div className="space-y-6">
-              <Card variant="elevated">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Calculator className="w-5 h-5 text-primary" />
-                    The Fuel System
-                  </CardTitle>
-                  <CardDescription>
-                    Engineering-grade nutrition calculator with 50+ curated foods
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Link to="/nutrition">
-                    <Button variant="hero" className="w-full sm:w-auto">
-                      Open Full Calculator
-                    </Button>
-                  </Link>
-                </CardContent>
-              </Card>
-              
-              <FoodDatabase />
-            </div>
-          </TabsContent>
 
           {/* Podcast Tab */}
           <TabsContent value="podcast">
