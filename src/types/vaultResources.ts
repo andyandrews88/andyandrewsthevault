@@ -1,6 +1,6 @@
 // Database types for vault resources
 export type DbResourceType = 'youtube' | 'vimeo' | 'spotify' | 'apple_podcast' | 'article' | 'pdf';
-export type DbResourceCategory = 'physics' | 'physiology' | 'process';
+export type DbResourceCategory = 'training' | 'nutrition' | 'lifestyle';
 
 export interface VaultResource {
   id: string;

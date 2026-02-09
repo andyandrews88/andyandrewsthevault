@@ -156,6 +156,16 @@ export function AuditForm() {
   return (
     <div className="min-h-screen pt-20 pb-8 md:pt-24 md:pb-12">
       <div className="container mx-auto px-4 md:px-6 max-w-2xl">
+        {/* Page Description Header */}
+        <div className="text-center mb-8">
+          <Badge variant="elite" className="mb-3">STRUCTURAL AUDIT</Badge>
+          <h1 className="text-2xl md:text-3xl font-bold mb-2">Performance Assessment</h1>
+          <p className="text-muted-foreground text-sm md:text-base max-w-xl mx-auto">
+            Answer questions about your biometrics, strength, endurance, and lifestyle to identify 
+            performance gaps and get personalized recommendations.
+          </p>
+        </div>
+
         {/* Progress header - simplified for mobile */}
         <div className="mb-6 md:mb-8">
           <div className="flex justify-between items-center mb-3">

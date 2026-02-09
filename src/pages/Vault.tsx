@@ -216,6 +216,16 @@ export function VaultDashboard() {
 
           {/* Track Selection */}
           <TabsContent value="tracks">
+            {/* Page Description */}
+            <div className="text-center mb-6">
+              <Badge variant="elite" className="mb-3">TRAINING PROGRAMS</Badge>
+              <h2 className="text-xl md:text-2xl font-bold mb-2">Choose Your Path</h2>
+              <p className="text-muted-foreground text-sm md:text-base max-w-xl mx-auto">
+                Foundation for building fundamentals or Performance for advanced optimization. 
+                Select the track that matches your current level.
+              </p>
+            </div>
+
             <div className="grid md:grid-cols-2 gap-6">
               <Card variant="interactive" className="p-6">
                 <div className="flex items-start gap-4">

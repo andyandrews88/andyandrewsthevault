@@ -28,9 +28,9 @@ const resourceTypes: { value: DbResourceType; label: string }[] = [
 ];
 
 const categories: { value: DbResourceCategory; label: string }[] = [
-  { value: 'physics', label: 'Physics' },
-  { value: 'physiology', label: 'Physiology' },
-  { value: 'process', label: 'Process' },
+  { value: 'training', label: 'Training' },
+  { value: 'nutrition', label: 'Nutrition' },
+  { value: 'lifestyle', label: 'Lifestyle' },
 ];
 
 const leakTagOptions = Object.entries(leakTagLabels).map(([value, label]) => ({
@@ -43,7 +43,7 @@ export function ResourceEditor({ resource, isOpen, onClose, onSave }: ResourceEd
     title: resource?.title || '',
     description: resource?.description || '',
     type: resource?.type || 'youtube',
-    category: resource?.category || 'physics',
+    category: resource?.category || 'training',
     embed_url: resource?.embed_url || '',
     content: resource?.content || '',
     leak_tags: resource?.leak_tags || [],

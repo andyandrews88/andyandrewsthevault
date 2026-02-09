@@ -9,7 +9,7 @@ interface CategoryFilterProps {
   onTypeChange: (type: ResourceType | 'all') => void;
 }
 
-const categories: (ResourceCategory | 'all')[] = ['all', 'physics', 'physiology', 'process'];
+const categories: (ResourceCategory | 'all')[] = ['all', 'training', 'nutrition', 'lifestyle'];
 const types: (ResourceType | 'all')[] = ['all', 'youtube', 'spotify', 'article', 'pdf'];
 
 const typeDisplayLabels: Record<string, string> = {
