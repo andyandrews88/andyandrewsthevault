@@ -36,6 +36,9 @@ interface MealBuilderState {
   // Current meal being built
   currentMeal: MealFood[];
   
+  // Selected date for viewing/editing
+  selectedDate: Date;
+  
   // Saved meals for quick access
   savedMeals: SavedMeal[];
   
@@ -51,6 +54,7 @@ interface MealBuilderState {
   loadMeal: (mealId: string) => void;
   deleteSavedMeal: (mealId: string) => void;
   setPreferredUnit: (unit: 'metric' | 'imperial') => void;
+  setSelectedDate: (date: Date) => void;
   
   // Computed
   getCurrentTotals: () => { calories: number; protein: number; carbs: number; fats: number };
@@ -76,6 +80,7 @@ export const useMealBuilderStore = create<MealBuilderState>()(
     (set, get) => ({
       currentMeal: [],
       savedMeals: [],
+      selectedDate: new Date(),
       preferredUnit: 'imperial',
 
       addFood: (food, amount = 1, unit = 'piece') => {
@@ -180,6 +185,10 @@ export const useMealBuilderStore = create<MealBuilderState>()(
 
       setPreferredUnit: (unit) => {
         set({ preferredUnit: unit });
+      },
+
+      setSelectedDate: (date) => {
+        set({ selectedDate: date });
       },
 
       getCurrentTotals: () => {

@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -12,10 +13,10 @@ import { Search, Folder, Save, Trash2 } from 'lucide-react';
 import { useMealBuilderStore, MealFood, SavedMeal } from '@/stores/mealBuilderStore';
 import { searchFoods } from '@/data/foodDatabase';
 import { FoodItem } from '@/types/nutrition';
-import { MeasurementUnit } from '@/lib/unitConversions';
 import { DailySummaryBar } from './DailySummaryBar';
 import { MealSection, MealSlot } from './MealSection';
 import { BarcodeScanner } from './BarcodeScanner';
+import { DateNavigator } from './DateNavigator';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -41,6 +42,8 @@ export function FoodDiary({ targetCalories, targetMacros }: FoodDiaryProps) {
   const {
     currentMeal,
     savedMeals,
+    selectedDate,
+    setSelectedDate,
     addFood,
     removeFood,
     updateFoodAmount,
@@ -60,12 +63,13 @@ export function FoodDiary({ targetCalories, targetMacros }: FoodDiaryProps) {
 
   const totals = getCurrentTotals();
 
-  // Group foods by meal slot (for now, we'll use a simple approach - all foods are in 'breakfast')
-  // In a full implementation, you'd add a 'mealSlot' field to MealFood
   const mealSlots: MealSlot[] = ['breakfast', 'lunch', 'dinner', 'snacks'];
 
+  // Get foods for the current date
+  const currentDateStr = format(selectedDate, 'yyyy-MM-dd');
+
   // For now, distribute foods evenly for demo purposes
-  // In production, each MealFood would have a mealSlot property
+  // In a full implementation, each MealFood would have a mealSlot property
   const getFoodsForSlot = (slot: MealSlot): MealFood[] => {
     const slotIndex = mealSlots.indexOf(slot);
     return currentMeal.filter((_, i) => i % 4 === slotIndex);
@@ -102,6 +106,12 @@ export function FoodDiary({ targetCalories, targetMacros }: FoodDiaryProps) {
 
   return (
     <div className="space-y-4">
+      {/* Date Navigator */}
+      <DateNavigator 
+        selectedDate={selectedDate} 
+        onDateChange={setSelectedDate} 
+      />
+
       {/* Header with Actions */}
       <div className="flex items-center justify-between">
         <Badge variant="elite">FOOD DIARY</Badge>

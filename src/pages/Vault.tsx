@@ -7,8 +7,6 @@ import {
   Users, 
   Target, 
   Star,
-  MessageSquare,
-  Send,
   ExternalLink,
   Crown,
   Radio,
@@ -21,41 +19,13 @@ import { LibraryTab } from "@/components/vault/LibraryTab";
 import { AdminPanel } from "@/components/vault/AdminPanel";
 import { ProgressTab } from "@/components/progress/ProgressTab";
 import { FoodDatabase } from "@/components/nutrition/FoodDatabase";
-import { useState } from "react";
-import { Input } from "@/components/ui/input";
+import { CommunityFeed } from "@/components/community/CommunityFeed";
 import { Link } from "react-router-dom";
 import logo from "@/assets/logo.png";
 import { useAdminCheck } from "@/hooks/useAdminCheck";
 
-// Mock community posts
-const communityPosts = [
-  { 
-    id: 1, 
-    author: "Marcus T.", 
-    content: "Just hit a 10% improvement on my front squat ratio after 6 weeks on the thoracic mobility protocol. The pause work at the bottom really made the difference.", 
-    time: "2 hours ago",
-    likes: 12
-  },
-  { 
-    id: 2, 
-    author: "Sarah K.", 
-    content: "Question for the community: Has anyone found a good way to program Zone 2 work around heavy squat days? Struggling with recovery.", 
-    time: "5 hours ago",
-    likes: 8
-  },
-  { 
-    id: 3, 
-    author: "Andy Andrews", 
-    content: "Weekly reminder: Your engine work should never compromise your strength work. If you're feeling ground down, reduce volume on conditioning before touching the barbell work.", 
-    time: "1 day ago",
-    likes: 47,
-    verified: true
-  },
-];
-
 export function VaultDashboard() {
-  const [newPost, setNewPost] = useState("");
-  const { isAdmin, isLoading: isAdminLoading } = useAdminCheck();
+  const { isAdmin } = useAdminCheck();
 
   return (
     <div className="min-h-screen pt-24 pb-12">
@@ -164,54 +134,7 @@ export function VaultDashboard() {
 
           {/* Community Hub */}
           <TabsContent value="community">
-            <Card variant="elevated">
-              <CardHeader>
-                <CardTitle>Community Hub</CardTitle>
-                <CardDescription>Share insights, ask questions, and connect with fellow athletes</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* New post input */}
-                <div className="flex gap-3">
-                  <Input
-                    placeholder="Share your progress or ask a question..."
-                    value={newPost}
-                    onChange={(e) => setNewPost(e.target.value)}
-                    className="flex-1"
-                  />
-                  <Button variant="default" size="icon">
-                    <Send className="w-4 h-4" />
-                  </Button>
-                </div>
-
-                {/* Posts */}
-                <div className="space-y-4">
-                  {communityPosts.map((post) => (
-                    <div key={post.id} className="p-4 rounded-lg border border-border bg-card">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="font-medium text-sm">{post.author}</span>
-                        {post.verified && (
-                          <Badge variant="elite" className="text-xs py-0">
-                            <Star className="w-3 h-3 mr-1" />
-                            Coach
-                          </Badge>
-                        )}
-                        <span className="text-xs text-muted-foreground ml-auto">{post.time}</span>
-                      </div>
-                      <p className="text-sm text-muted-foreground">{post.content}</p>
-                      <div className="flex items-center gap-4 mt-3">
-                        <button className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
-                          <MessageSquare className="w-3 h-3" />
-                          Reply
-                        </button>
-                        <span className="text-xs text-muted-foreground">
-                          {post.likes} likes
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+            <CommunityFeed />
           </TabsContent>
 
           {/* Track Selection */}
