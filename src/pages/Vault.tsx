@@ -178,10 +178,17 @@ export function VaultDashboard() {
                       <li>• Base aerobic development</li>
                       <li>• 3 days/week programming</li>
                     </ul>
-                    <Button variant="outline" className="w-full">
-                      <ExternalLink className="w-4 h-4 mr-2" />
-                      Join on CoachRx
-                    </Button>
+                    <a 
+                      href="https://dashboard.coachrx.app/programs/sales/74471" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="block"
+                    >
+                      <Button variant="outline" className="w-full">
+                        <ExternalLink className="w-4 h-4 mr-2" />
+                        Join on CoachRx
+                      </Button>
+                    </a>
                   </div>
                 </div>
               </Card>
@@ -194,7 +201,7 @@ export function VaultDashboard() {
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <h3 className="font-semibold text-lg">Performance Track</h3>
-                      <Badge variant="elite" className="text-xs">ADVANCED</Badge>
+                      <Badge variant="secondary" className="text-xs">COMING SOON</Badge>
                     </div>
                     <p className="text-sm text-muted-foreground mb-4">
                       Push boundaries. Designed for athletes with solid foundations ready to 
@@ -206,31 +213,47 @@ export function VaultDashboard() {
                       <li>• Periodization models</li>
                       <li>• 5-6 days/week programming</li>
                     </ul>
-                    <Button variant="hero" className="w-full">
-                      <ExternalLink className="w-4 h-4 mr-2" />
-                      Join on CoachRx
+                    <Button variant="outline" className="w-full" disabled>
+                      Coming Soon
                     </Button>
                   </div>
                 </div>
               </Card>
             </div>
 
-            {/* 1-on-1 CTA */}
+            {/* 1-on-1 Coaching Card */}
             <Card variant="elevated" className="mt-6 p-6">
-              <div className="flex flex-col md:flex-row items-center gap-6">
-                <div className="p-4 rounded-lg bg-accent/10">
-                  <Crown className="w-8 h-8 text-accent" />
+              <div className="flex items-start gap-4">
+                <div className="p-3 rounded-lg bg-accent/10 text-accent">
+                  <Crown className="w-6 h-6" />
                 </div>
-                <div className="flex-1 text-center md:text-left">
-                  <h3 className="font-semibold text-lg mb-1">Ready for Elite-Level Attention?</h3>
-                  <p className="text-sm text-muted-foreground">
-                    If your audit shows you're in the Performance or Elite tier, you may qualify for 
-                    1-on-1 coaching with Andy.
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className="font-semibold text-lg">1-on-1 Coaching</h3>
+                    <Badge variant="elite" className="text-xs">ELITE</Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Ready for elite-level attention? If your audit shows you're in the Performance 
+                    or Elite tier, you may qualify for personalized coaching with Andy.
                   </p>
+                  <ul className="text-sm text-muted-foreground space-y-1 mb-4">
+                    <li>• Fully customized programming</li>
+                    <li>• Weekly check-ins & adjustments</li>
+                    <li>• Direct access to Andy</li>
+                    <li>• Comprehensive performance review</li>
+                  </ul>
+                  <a 
+                    href="https://docs.google.com/forms/d/e/1FAIpQLSeNZfnUe0PaxJFym_OJehlxbNmvbo9SPA6GDd6GIegdIaAD9Q/viewform?usp=header" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="block"
+                  >
+                    <Button variant="elite" className="w-full">
+                      <ExternalLink className="w-4 h-4 mr-2" />
+                      Apply Now
+                    </Button>
+                  </a>
                 </div>
-                <Button variant="elite" size="lg">
-                  Apply Now
-                </Button>
               </div>
             </Card>
           </TabsContent>
