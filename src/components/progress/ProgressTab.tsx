@@ -16,8 +16,8 @@ import { useProgressStore } from "@/stores/progressStore";
 import { BodyEntryForm } from "./BodyEntryForm";
 import { WeightChart } from "./WeightChart";
 import { MeasurementTable } from "./MeasurementTable";
-import { WearableConnect } from "./WearableConnect";
 import { ProgressOverview } from "./ProgressOverview";
+// WearableConnect temporarily removed - can restore later
 import { kgToLbs, cmToInches } from "@/types/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
@@ -33,8 +33,9 @@ export function ProgressTab() {
 
   useEffect(() => {
     fetchBodyEntries();
-    fetchWearableConnections();
-  }, [fetchBodyEntries, fetchWearableConnections]);
+    // Wearable connections temporarily disabled
+    // fetchWearableConnections();
+  }, [fetchBodyEntries]);
 
   const latestEntry = bodyEntries[0];
   const previousEntry = bodyEntries[1];
@@ -86,23 +87,23 @@ export function ProgressTab() {
         usesImperial={usesImperial}
       />
 
-      {/* Wearable Connections */}
-      <WearableConnect />
+      {/* Wearable Connections - temporarily disabled */}
+      {/* <WearableConnect /> */}
 
       {/* Main content tabs */}
       <Tabs defaultValue="weight" className="space-y-4">
-        <TabsList className="grid w-full max-w-md grid-cols-3">
-          <TabsTrigger value="weight" className="flex items-center gap-2">
+        <TabsList className="grid w-full max-w-md grid-cols-3 h-auto p-1">
+          <TabsTrigger value="weight" className="flex items-center gap-2 py-2.5 px-3">
             <Scale className="w-4 h-4" />
-            <span className="hidden sm:inline">Weight</span>
+            <span className="text-xs sm:text-sm">Weight</span>
           </TabsTrigger>
-          <TabsTrigger value="measurements" className="flex items-center gap-2">
+          <TabsTrigger value="measurements" className="flex items-center gap-2 py-2.5 px-3">
             <Ruler className="w-4 h-4" />
-            <span className="hidden sm:inline">Measurements</span>
+            <span className="text-xs sm:text-sm">Measures</span>
           </TabsTrigger>
-          <TabsTrigger value="scans" className="flex items-center gap-2">
+          <TabsTrigger value="scans" className="flex items-center gap-2 py-2.5 px-3">
             <Scan className="w-4 h-4" />
-            <span className="hidden sm:inline">Body Comp</span>
+            <span className="text-xs sm:text-sm">Scans</span>
           </TabsTrigger>
         </TabsList>
 

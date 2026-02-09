@@ -156,7 +156,7 @@ export function PodcastTab() {
           <CardDescription>Curated content for performance-focused athletes</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
             {regularEpisodes.map((episode) => (
               <a 
                 key={episode.id}

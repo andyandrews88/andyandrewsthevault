@@ -35,15 +35,17 @@ export function HeroSection() {
           {/* Status badge */}
           <Badge variant="data" className="mb-6 animate-pulse-glow">
             <Activity className="w-3 h-3 mr-1" />
-            SYSTEM ONLINE
+            PERFORMANCE ARCHITECT
           </Badge>
 
           {/* Main headline */}
           <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6">
-            <span className="text-gradient-primary data-glow">Performance</span>
-            <br />
-            <span className="text-foreground">Architecture.</span>
+            <span className="text-gradient-primary data-glow">The Vault.</span>
           </h1>
+          
+          <p className="text-lg md:text-xl text-foreground/80 font-medium mb-2">
+            Performance Architecture
+          </p>
 
           {/* Sub-headline */}
           <p className="text-sm md:text-base text-muted-foreground max-w-xl mx-auto mb-10">
@@ -67,7 +69,7 @@ export function HeroSection() {
         </div>
 
         {/* Data visualization hint */}
-        <div className="mt-20 flex justify-center gap-12 text-muted-foreground">
+        <div className="mt-20 flex flex-col sm:flex-row justify-center gap-6 sm:gap-12 text-muted-foreground">
           <div className="text-center">
             <p className="font-mono text-2xl text-primary data-glow">1,247+</p>
             <p className="text-xs uppercase tracking-wider mt-1">Athletes Analyzed</p>

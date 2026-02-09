@@ -156,7 +156,7 @@ export function BodyEntryForm({ onSuccess }: BodyEntryFormProps) {
 
         {/* Basic Tab */}
         <TabsContent value="basic" className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="weight">Weight ({weightUnit})</Label>
               <Input
@@ -165,7 +165,7 @@ export function BodyEntryForm({ onSuccess }: BodyEntryFormProps) {
                 step="0.1"
                 placeholder={usesImperial ? "e.g., 180" : "e.g., 82"}
                 {...register("weight")}
-                className="mt-1.5"
+                className="mt-1.5 h-11"
               />
             </div>
             <div>
@@ -176,12 +176,12 @@ export function BodyEntryForm({ onSuccess }: BodyEntryFormProps) {
                 step="0.1"
                 placeholder={usesImperial ? "e.g., 70" : "e.g., 178"}
                 {...register("height")}
-                className="mt-1.5"
+                className="mt-1.5 h-11"
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="body_fat_percent">Body Fat %</Label>
               <Input
@@ -190,13 +190,13 @@ export function BodyEntryForm({ onSuccess }: BodyEntryFormProps) {
                 step="0.1"
                 placeholder="e.g., 15"
                 {...register("body_fat_percent")}
-                className="mt-1.5"
+                className="mt-1.5 h-11"
               />
             </div>
             <div>
               <Label htmlFor="measurement_source">Measurement Method</Label>
               <Select value={measurementSource} onValueChange={(v) => setMeasurementSource(v as MeasurementSource)}>
-                <SelectTrigger className="mt-1.5">
+                <SelectTrigger className="mt-1.5 h-11">
                   <SelectValue placeholder="Select method" />
                 </SelectTrigger>
                 <SelectContent>
@@ -217,7 +217,7 @@ export function BodyEntryForm({ onSuccess }: BodyEntryFormProps) {
             Enter circumference measurements in {lengthUnit}
           </p>
           
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="neck">Neck</Label>
               <Input
@@ -225,7 +225,7 @@ export function BodyEntryForm({ onSuccess }: BodyEntryFormProps) {
                 type="number"
                 step="0.1"
                 {...register("neck")}
-                className="mt-1.5"
+                className="mt-1.5 h-11"
               />
             </div>
             <div>
@@ -235,12 +235,12 @@ export function BodyEntryForm({ onSuccess }: BodyEntryFormProps) {
                 type="number"
                 step="0.1"
                 {...register("shoulders")}
-                className="mt-1.5"
+                className="mt-1.5 h-11"
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="chest">Chest</Label>
               <Input
@@ -248,7 +248,7 @@ export function BodyEntryForm({ onSuccess }: BodyEntryFormProps) {
                 type="number"
                 step="0.1"
                 {...register("chest")}
-                className="mt-1.5"
+                className="mt-1.5 h-11"
               />
             </div>
             <div>
@@ -258,12 +258,12 @@ export function BodyEntryForm({ onSuccess }: BodyEntryFormProps) {
                 type="number"
                 step="0.1"
                 {...register("waist")}
-                className="mt-1.5"
+                className="mt-1.5 h-11"
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="hips">Hips</Label>
               <Input
@@ -271,7 +271,7 @@ export function BodyEntryForm({ onSuccess }: BodyEntryFormProps) {
                 type="number"
                 step="0.1"
                 {...register("hips")}
-                className="mt-1.5"
+                className="mt-1.5 h-11"
               />
             </div>
           </div>
@@ -289,7 +289,7 @@ export function BodyEntryForm({ onSuccess }: BodyEntryFormProps) {
 
           {showAdvanced && (
             <>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="left_bicep">Left Bicep</Label>
                   <Input
@@ -297,7 +297,7 @@ export function BodyEntryForm({ onSuccess }: BodyEntryFormProps) {
                     type="number"
                     step="0.1"
                     {...register("left_bicep")}
-                    className="mt-1.5"
+                    className="mt-1.5 h-11"
                   />
                 </div>
                 <div>
@@ -307,12 +307,12 @@ export function BodyEntryForm({ onSuccess }: BodyEntryFormProps) {
                     type="number"
                     step="0.1"
                     {...register("right_bicep")}
-                    className="mt-1.5"
+                    className="mt-1.5 h-11"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="left_forearm">Left Forearm</Label>
                   <Input
@@ -320,7 +320,7 @@ export function BodyEntryForm({ onSuccess }: BodyEntryFormProps) {
                     type="number"
                     step="0.1"
                     {...register("left_forearm")}
-                    className="mt-1.5"
+                    className="mt-1.5 h-11"
                   />
                 </div>
                 <div>
@@ -330,12 +330,12 @@ export function BodyEntryForm({ onSuccess }: BodyEntryFormProps) {
                     type="number"
                     step="0.1"
                     {...register("right_forearm")}
-                    className="mt-1.5"
+                    className="mt-1.5 h-11"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="left_thigh">Left Thigh</Label>
                   <Input
@@ -343,7 +343,7 @@ export function BodyEntryForm({ onSuccess }: BodyEntryFormProps) {
                     type="number"
                     step="0.1"
                     {...register("left_thigh")}
-                    className="mt-1.5"
+                    className="mt-1.5 h-11"
                   />
                 </div>
                 <div>
@@ -353,12 +353,12 @@ export function BodyEntryForm({ onSuccess }: BodyEntryFormProps) {
                     type="number"
                     step="0.1"
                     {...register("right_thigh")}
-                    className="mt-1.5"
+                    className="mt-1.5 h-11"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="left_calf">Left Calf</Label>
                   <Input
@@ -366,7 +366,7 @@ export function BodyEntryForm({ onSuccess }: BodyEntryFormProps) {
                     type="number"
                     step="0.1"
                     {...register("left_calf")}
-                    className="mt-1.5"
+                    className="mt-1.5 h-11"
                   />
                 </div>
                 <div>
@@ -376,7 +376,7 @@ export function BodyEntryForm({ onSuccess }: BodyEntryFormProps) {
                     type="number"
                     step="0.1"
                     {...register("right_calf")}
-                    className="mt-1.5"
+                    className="mt-1.5 h-11"
                   />
                 </div>
               </div>
@@ -390,7 +390,7 @@ export function BodyEntryForm({ onSuccess }: BodyEntryFormProps) {
             Enter data from DEXA, InBody, Bod Pod, or other body composition scans
           </p>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="lean_mass">Lean Mass ({weightUnit})</Label>
               <Input
@@ -398,7 +398,7 @@ export function BodyEntryForm({ onSuccess }: BodyEntryFormProps) {
                 type="number"
                 step="0.1"
                 {...register("lean_mass")}
-                className="mt-1.5"
+                className="mt-1.5 h-11"
               />
             </div>
             <div>
@@ -408,12 +408,12 @@ export function BodyEntryForm({ onSuccess }: BodyEntryFormProps) {
                 type="number"
                 step="0.1"
                 {...register("fat_mass")}
-                className="mt-1.5"
+                className="mt-1.5 h-11"
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="bone_density">Bone Density (g/cm²)</Label>
               <Input
@@ -421,7 +421,7 @@ export function BodyEntryForm({ onSuccess }: BodyEntryFormProps) {
                 type="number"
                 step="0.001"
                 {...register("bone_density")}
-                className="mt-1.5"
+                className="mt-1.5 h-11"
               />
             </div>
             <div>
@@ -430,14 +430,14 @@ export function BodyEntryForm({ onSuccess }: BodyEntryFormProps) {
                 id="visceral_fat_rating"
                 type="number"
                 {...register("visceral_fat_rating")}
-                className="mt-1.5"
+                className="mt-1.5 h-11"
               />
             </div>
           </div>
 
           <div className="border-t pt-4">
             <p className="text-sm font-medium mb-3">Regional Body Fat %</p>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="trunk_fat_percent">Trunk</Label>
                 <Input
@@ -445,7 +445,7 @@ export function BodyEntryForm({ onSuccess }: BodyEntryFormProps) {
                   type="number"
                   step="0.1"
                   {...register("trunk_fat_percent")}
-                  className="mt-1.5"
+                  className="mt-1.5 h-11"
                 />
               </div>
               <div>
@@ -455,11 +455,11 @@ export function BodyEntryForm({ onSuccess }: BodyEntryFormProps) {
                   type="number"
                   step="0.1"
                   {...register("left_arm_fat_percent")}
-                  className="mt-1.5"
+                  className="mt-1.5 h-11"
                 />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4 mt-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
               <div>
                 <Label htmlFor="right_arm_fat_percent">Right Arm</Label>
                 <Input
@@ -467,7 +467,7 @@ export function BodyEntryForm({ onSuccess }: BodyEntryFormProps) {
                   type="number"
                   step="0.1"
                   {...register("right_arm_fat_percent")}
-                  className="mt-1.5"
+                  className="mt-1.5 h-11"
                 />
               </div>
               <div>
@@ -477,11 +477,11 @@ export function BodyEntryForm({ onSuccess }: BodyEntryFormProps) {
                   type="number"
                   step="0.1"
                   {...register("left_leg_fat_percent")}
-                  className="mt-1.5"
+                  className="mt-1.5 h-11"
                 />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4 mt-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
               <div>
                 <Label htmlFor="right_leg_fat_percent">Right Leg</Label>
                 <Input
@@ -489,7 +489,7 @@ export function BodyEntryForm({ onSuccess }: BodyEntryFormProps) {
                   type="number"
                   step="0.1"
                   {...register("right_leg_fat_percent")}
-                  className="mt-1.5"
+                  className="mt-1.5 h-11"
                 />
               </div>
             </div>
