@@ -1,96 +1,74 @@
 
-# Upgrade Recipe Ideas: Clickable Cards + 50+ Recipes
 
-## Problem
+# Redesign Home Page: Tell the Story of The Vault
 
-1. **Recipe cards don't do anything when clicked** -- they have `variant="interactive"` (shows pointer cursor) but no click handler or detail view
-2. **Only 17 recipes exist** in `src/data/recipes.ts`
-3. **Missing categories**: no smoothies, protein bowls, or overnight oats
+## Overview
 
-## Solution
+Replace the current generic "Performance Architect" landing page with a compelling narrative that explains **what The Vault actually is, why it exists, and the philosophy behind it**. The current page reads like a corporate landing page for a coaching service. The new version will feel personal, purposeful, and clear about what users are getting.
 
-### 1. Add a Recipe Detail Modal
+## Current Problems
 
-Create a new `RecipeDetailModal` component that opens when a recipe card is clicked, showing:
-- Recipe name, prep time, servings
-- Full macro breakdown (calories, protein, carbs, fats)
-- Complete ingredient list with quantities
-- Step-by-step instructions
-- Tags
+- The hero section says "The Vault" and "Performance Architecture" but never explains what it is
+- The "Meet Andy" section talks about credentials but not the **why** behind the project
+- There's no mention of the actual tools: training logs, nutrition tracking, knowledge bank, progress tracking
+- It feels like a sales page rather than an invitation into a free resource
 
-### 2. Wire up click handlers in MealPlanGenerator
+## New Page Structure
 
-Add state to track the selected recipe and open the modal when a card is clicked.
+The page will flow in 3 sections:
 
-### 3. Expand to 50+ recipes across new categories
+### Section 1: Hero (Revised)
+Keep the logo, badge, and visual effects. Replace the tagline and subtitle with copy that immediately communicates the core idea:
 
-Update the `MealType` type in `src/types/nutrition.ts` to add `smoothie` and update the tab structure. Then expand `src/data/recipes.ts` with 35+ new recipes across these categories:
+**Headline:** "One Place. Everything You Need."
 
-**New recipe categories/types to add:**
+**Subtext:** A single sentence capturing the philosophy -- stop juggling five apps to manage your health. The Vault is your training, nutrition, and lifestyle hub, built on first principles and completely free.
 
-| Category | Examples | Count |
-|----------|----------|-------|
-| Smoothies | Berry Protein Smoothie, Green Machine, Tropical Protein, PB Banana Smoothie, Chocolate Recovery | ~8 |
-| Protein Bowls | Chicken Burrito Bowl, Tuna Poke Bowl, Turkey Taco Bowl, Shrimp Rice Bowl, Tofu Power Bowl | ~6 |
-| Overnight Oats | Classic PB Overnight Oats, Berry Protein Oats, Chocolate Banana Oats, Apple Cinnamon Oats | ~5 |
-| Additional Breakfast | Protein Pancakes, Egg Muffin Cups, Avocado Toast + Eggs | ~4 |
-| Additional Lunch | Grilled Chicken Salad, Tuna Lettuce Wraps, Shrimp Tacos | ~4 |
-| Additional Dinner | Lean Beef Tacos, Cod & Vegetables, Turkey Meatballs | ~4 |
-| Additional Snacks | Protein Energy Balls, Edamame, Tuna Rice Cakes, Greek Yogurt Bark | ~6 |
+Keep the two CTA buttons (Begin Structural Audit / Access The Vault). Remove the stats bar (1,247+ athletes, 94% leak detection, 6x champion) -- these feel like marketing filler and don't tell users what the app does.
 
-All recipes will emphasize **high-protein, low-calorie** options with full macro data.
+### Section 2: What Is The Vault (New Section - replaces MeetAndySection)
+A new `WhyTheVault` section with two halves:
 
-### 4. Update Tab Structure in MealPlanGenerator
+**Left side -- The Philosophy (personal narrative):**
+A candid, first-person-flavored explanation blending Andy's voice with editorial perspective:
 
-Change from 4 tabs to 6 tabs to accommodate the new categories:
+- The frustration of needing separate apps for nutrition, sleep, training, and progress
+- The belief that health and performance should be tracked from **one central place**, built on first principles -- not trends
+- The vision of a "second brain" where a decade of coaching knowledge lives as a free, open resource for anyone who needs it
+- The ethos: simplicity over complexity, principles over fads
 
-- Breakfast (includes overnight oats)
-- Lunch
-- Dinner
-- Snacks
-- Smoothies (new)
-- Bowls (new)
+**Right side -- What's Inside (feature cards):**
+Replace the abstract "Precision Diagnostics / Evidence-Based Protocols / Structured Progression" cards with concrete descriptions of what the app actually contains:
 
-Also remove the `.slice(0, 3)` limit so all recipes in each category are visible.
+1. **Training Log** -- Log workouts, track PRs, visualise volume and strength trends
+2. **Nutrition Tracker** -- Calculate macros, scan barcodes, plan meals from 50+ recipes
+3. **Knowledge Bank** -- A free library of curated resources on training, nutrition, and lifestyle
+4. **Progress Tracking** -- Track bodyweight, body composition, and measurements over time
+5. **Structural Audit** -- A diagnostic tool that finds gaps in your training, nutrition, and recovery
 
-## Files to Create/Modify
+### Section 3: Footer
+Keep as-is, just update the year from 2024 to 2026.
+
+## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/components/nutrition/RecipeDetailModal.tsx` | **NEW** -- Modal showing full recipe details |
-| `src/components/nutrition/MealPlanGenerator.tsx` | Add click handlers, state for selected recipe, render modal, update tabs to 6 categories |
-| `src/data/recipes.ts` | Expand from 17 to 50+ recipes with smoothies, protein bowls, overnight oats |
-| `src/types/nutrition.ts` | Add `smoothie` and `bowl` to `MealType` union |
+| `src/components/landing/HeroSection.tsx` | Update headline, subtext, remove stats bar |
+| `src/components/landing/MeetAndySection.tsx` | Full rewrite into "Why The Vault" section with philosophy narrative + feature cards |
+| `src/components/landing/Footer.tsx` | Update copyright year to 2026 |
 
-## RecipeDetailModal Design
+## Detailed Copy Direction
 
-```
-+------------------------------------------+
-|  [X]  Classic Chicken & Rice Bowl        |
-|        15-30 min  |  1 serving           |
-+------------------------------------------+
-|  550 kcal  | 45g P | 58g C | 12g F      |
-+------------------------------------------+
-|  INGREDIENTS                             |
-|  - 6 oz chicken breast                   |
-|  - 1.5 cups white rice                   |
-|  - 1 cup broccoli                        |
-|  - 0.5 tbsp olive oil                    |
-+------------------------------------------+
-|  INSTRUCTIONS                            |
-|  1. Cook rice according to directions    |
-|  2. Season chicken with salt & pepper    |
-|  3. Grill chicken to 165F               |
-|  4. Steam broccoli until tender-crisp    |
-|  5. Slice and serve over rice            |
-+------------------------------------------+
-|  Tags: meal-prep, balanced, gluten-free  |
-+------------------------------------------+
-```
+### Hero Subtext (draft)
+> "Stop juggling five different apps. The Vault brings your training, nutrition, and lifestyle into one place -- built on first principles, powered by a decade of coaching experience, and free for everyone."
 
-## Technical Details
+### Philosophy Section (draft tone)
+> "I built The Vault because I was tired of the fragmentation. One app for calories. Another for workouts. A spreadsheet for body comp. A notes app for everything I've learned coaching athletes for over a decade. None of them talked to each other, and none of them were built the way I think about performance -- from first principles, not trends.
+>
+> The Vault is my answer to that. It's a centralised system where you can track your training, dial in your nutrition, and monitor your progress -- all in one place, without the noise. But it's also something else: my second brain. Every piece of knowledge I've gathered as a coach -- the frameworks, the protocols, the lessons learned from working with hundreds of athletes -- lives here as a free resource. No gatekeeping. No paywall on the basics.
+>
+> This isn't finished. It never will be. I'm building this as a living system that grows with the community that uses it."
 
-- The modal uses the existing `Dialog` component from `@/components/ui/dialog`
-- Recipe data stays as static TypeScript arrays (no database needed)
-- Each recipe card gets an `onClick` that sets `selectedRecipe` state
-- The modal reads `instructions` and `ingredients` arrays already present in the Recipe type
+### Feature Cards
+Each card will have an icon, title, and one-line description that maps directly to a real feature in the app. No abstract marketing language -- just what's there and what it does.
+
