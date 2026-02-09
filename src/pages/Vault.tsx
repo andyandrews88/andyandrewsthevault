@@ -86,38 +86,40 @@ export function VaultDashboard() {
 
         {/* Main tabs */}
         <Tabs defaultValue="library" className="space-y-6">
-          <TabsList className={`grid w-full max-w-3xl ${isAdmin ? 'grid-cols-7' : 'grid-cols-6'}`}>
-            <TabsTrigger value="library" className="flex items-center gap-2">
-              <Library className="w-4 h-4" />
-              <span className="hidden sm:inline">Library</span>
-            </TabsTrigger>
-            <TabsTrigger value="progress" className="flex items-center gap-2">
-              <Activity className="w-4 h-4" />
-              <span className="hidden sm:inline">Progress</span>
-            </TabsTrigger>
-            <TabsTrigger value="nutrition" className="flex items-center gap-2">
-              <Calculator className="w-4 h-4" />
-              <span className="hidden sm:inline">Nutrition</span>
-            </TabsTrigger>
-            <TabsTrigger value="podcast" className="flex items-center gap-2">
-              <Radio className="w-4 h-4" />
-              <span className="hidden sm:inline">Podcast</span>
-            </TabsTrigger>
-            <TabsTrigger value="community" className="flex items-center gap-2">
-              <Users className="w-4 h-4" />
-              <span className="hidden sm:inline">Community</span>
-            </TabsTrigger>
-            <TabsTrigger value="tracks" className="flex items-center gap-2">
-              <Target className="w-4 h-4" />
-              <span className="hidden sm:inline">Tracks</span>
-            </TabsTrigger>
-            {isAdmin && (
-              <TabsTrigger value="admin" className="flex items-center gap-2">
-                <Shield className="w-4 h-4" />
-                <span className="hidden sm:inline">Admin</span>
+          <div className="overflow-x-auto scrollbar-hide -mx-6 px-6">
+            <TabsList className="inline-flex w-max min-w-full gap-1 h-auto p-1">
+              <TabsTrigger value="library" className="flex items-center gap-2 px-3 py-2.5 whitespace-nowrap">
+                <Library className="w-4 h-4" />
+                <span className="text-xs sm:text-sm">Library</span>
               </TabsTrigger>
-            )}
-          </TabsList>
+              <TabsTrigger value="progress" className="flex items-center gap-2 px-3 py-2.5 whitespace-nowrap">
+                <Activity className="w-4 h-4" />
+                <span className="text-xs sm:text-sm">Progress</span>
+              </TabsTrigger>
+              <TabsTrigger value="nutrition" className="flex items-center gap-2 px-3 py-2.5 whitespace-nowrap">
+                <Calculator className="w-4 h-4" />
+                <span className="text-xs sm:text-sm">Nutrition</span>
+              </TabsTrigger>
+              <TabsTrigger value="podcast" className="flex items-center gap-2 px-3 py-2.5 whitespace-nowrap">
+                <Radio className="w-4 h-4" />
+                <span className="text-xs sm:text-sm">Podcast</span>
+              </TabsTrigger>
+              <TabsTrigger value="community" className="flex items-center gap-2 px-3 py-2.5 whitespace-nowrap">
+                <Users className="w-4 h-4" />
+                <span className="text-xs sm:text-sm">Community</span>
+              </TabsTrigger>
+              <TabsTrigger value="tracks" className="flex items-center gap-2 px-3 py-2.5 whitespace-nowrap">
+                <Target className="w-4 h-4" />
+                <span className="text-xs sm:text-sm">Tracks</span>
+              </TabsTrigger>
+              {isAdmin && (
+                <TabsTrigger value="admin" className="flex items-center gap-2 px-3 py-2.5 whitespace-nowrap">
+                  <Shield className="w-4 h-4" />
+                  <span className="text-xs sm:text-sm">Admin</span>
+                </TabsTrigger>
+              )}
+            </TabsList>
+          </div>
 
           {/* Resource Library */}
           <TabsContent value="library">

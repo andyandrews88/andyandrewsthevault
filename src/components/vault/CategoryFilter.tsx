@@ -38,47 +38,55 @@ export function CategoryFilter({
   return (
     <div className="space-y-4">
       {/* Category Filter */}
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs text-muted-foreground uppercase tracking-wider mr-2">Category</span>
-        {categories.map((category) => (
-          <Button
-            key={category}
-            variant={selectedCategory === category ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => onCategoryChange(category)}
-            className="text-xs"
-          >
-            {category === 'all' ? 'All' : categoryLabels[category]}
-          </Button>
-        ))}
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-muted-foreground uppercase tracking-wider shrink-0">Category</span>
+        <div className="overflow-x-auto scrollbar-hide -mr-4 pr-4">
+          <div className="flex items-center gap-2 w-max">
+            {categories.map((category) => (
+              <Button
+                key={category}
+                variant={selectedCategory === category ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => onCategoryChange(category)}
+                className="text-xs whitespace-nowrap"
+              >
+                {category === 'all' ? 'All' : categoryLabels[category]}
+              </Button>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Type Filter */}
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs text-muted-foreground uppercase tracking-wider mr-2">Type</span>
-        {types.map((type) => (
-          <Button
-            key={type}
-            variant={selectedType === type ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => onTypeChange(type)}
-            className="text-xs"
-          >
-            {typeDisplayLabels[type]}
-          </Button>
-        ))}
-        
-        {hasFilters && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={clearFilters}
-            className="text-xs text-muted-foreground ml-2"
-          >
-            <X className="w-3 h-3 mr-1" />
-            Clear
-          </Button>
-        )}
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-muted-foreground uppercase tracking-wider shrink-0">Type</span>
+        <div className="overflow-x-auto scrollbar-hide -mr-4 pr-4">
+          <div className="flex items-center gap-2 w-max">
+            {types.map((type) => (
+              <Button
+                key={type}
+                variant={selectedType === type ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => onTypeChange(type)}
+                className="text-xs whitespace-nowrap"
+              >
+                {typeDisplayLabels[type]}
+              </Button>
+            ))}
+            
+            {hasFilters && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearFilters}
+                className="text-xs text-muted-foreground"
+              >
+                <X className="w-3 h-3 mr-1" />
+                Clear
+              </Button>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
