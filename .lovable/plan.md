@@ -1,34 +1,63 @@
 
-# Fix: Video Not Loading in Resource Modal
 
-## Problem Identified
+# Fix: Knowledge Bank Filtering Not Showing Results
 
-The "Back Squat Tutorial" video shows a **no-entry symbol** (🚫) because the `embed_url` stored in the database is a **YouTube share link**, not an embed URL:
+## Problem Analysis
 
-| Stored URL (Broken) | Required Format |
-|---------------------|-----------------|
-| `https://youtu.be/_s7wWVOgOc8?si=...` | `https://www.youtube.com/embed/_s7wWVOgOc8` |
-| `https://youtube.com/watch?v=VIDEO_ID` | `https://www.youtube.com/embed/VIDEO_ID` |
+After extensive testing, I identified several issues that could cause filtering problems in the Knowledge Bank:
 
-YouTube blocks its share/watch URLs from loading in iframes, which is why the browser shows the "no-entry" symbol.
+### Issue 1: Incorrect Category Badge Variants
+In `ResourceCard.tsx`, the `categoryVariants` map uses **incorrect category keys**:
+
+| Current (Wrong) | Should Be |
+|-----------------|-----------|
+| `physics` | `training` |
+| `physiology` | `nutrition` |
+| `process` | `lifestyle` |
+
+This means category badges don't get the correct styling variant (always falls back to `'data'`).
+
+### Issue 2: Potential Race Condition During Loading
+When the component first mounts, there's a brief moment where:
+- `isLoading = true`
+- `dbResources = []` (empty)
+- The component shows "Loading..." but filters still render
+
+If a user clicks a filter during this loading phase, the filtering runs on `staticResources` (fallback), then switches to `dbResources` when loading completes. This could cause a momentary mismatch.
+
+### Issue 3: No Loading State on Filter Results
+When data is being fetched, the filter result grid still renders normally. If there's any delay in data loading, users see "0 results" momentarily.
 
 ---
 
 ## Solution
 
-Add a **URL transformation utility** that automatically converts YouTube and Vimeo share/watch URLs to their proper embed format. This will be applied when rendering videos in the ResourceModal.
+### 1. Fix Category Variants in ResourceCard.tsx
 
-### URL Transformations
+Update the category-to-variant mapping:
 
-**YouTube formats to handle:**
-- `https://youtu.be/VIDEO_ID` → `https://www.youtube.com/embed/VIDEO_ID`
-- `https://www.youtube.com/watch?v=VIDEO_ID` → `https://www.youtube.com/embed/VIDEO_ID`
-- `https://youtube.com/watch?v=VIDEO_ID` → `https://www.youtube.com/embed/VIDEO_ID`
-- Already correct: `https://www.youtube.com/embed/VIDEO_ID` (no change)
+```typescript
+const categoryVariants: Record<string, 'data' | 'success' | 'elite'> = {
+  training: 'data',
+  nutrition: 'success',
+  lifestyle: 'elite',
+};
+```
 
-**Vimeo formats to handle:**
-- `https://vimeo.com/VIDEO_ID` → `https://player.vimeo.com/video/VIDEO_ID`
-- Already correct: `https://player.vimeo.com/video/VIDEO_ID` (no change)
+### 2. Prevent Filtering While Loading
+
+Add a loading check to prevent confusing empty states:
+
+```typescript
+// Show loading skeleton during initial fetch
+if (isLoading && dbResources.length === 0) {
+  return <LoadingSkeleton />;
+}
+```
+
+### 3. Add Loading Skeleton for Better UX
+
+Show placeholder cards while resources are loading instead of "No resources found".
 
 ---
 
@@ -36,82 +65,72 @@ Add a **URL transformation utility** that automatically converts YouTube and Vim
 
 | File | Changes |
 |------|---------|
-| `src/lib/vaultService.ts` | Add `toEmbedUrl()` helper function |
-| `src/components/vault/ResourceModal.tsx` | Apply `toEmbedUrl()` when rendering iframes |
+| `src/components/vault/ResourceCard.tsx` | Fix `categoryVariants` mapping |
+| `src/components/vault/LibraryTab.tsx` | Add loading state handling before filtering |
 
 ---
 
-## Implementation Details
+## Technical Details
 
-### New Helper Function in vaultService.ts
+### ResourceCard.tsx - Line 25-29
+
+Before:
+```typescript
+const categoryVariants: Record<string, 'data' | 'success' | 'elite'> = {
+  physics: 'data',
+  physiology: 'success',
+  process: 'elite',
+};
+```
+
+After:
+```typescript
+const categoryVariants: Record<string, 'data' | 'success' | 'elite'> = {
+  training: 'data',
+  nutrition: 'success',
+  lifestyle: 'elite',
+};
+```
+
+### LibraryTab.tsx - Enhanced Loading State
+
+Add skeleton loading state that shows placeholder cards while the database fetch is in progress:
 
 ```typescript
-// Convert various video URL formats to embed URLs
-export function toEmbedUrl(url: string, type: 'youtube' | 'vimeo'): string {
-  if (!url) return '';
-  
-  if (type === 'youtube') {
-    // Already an embed URL
-    if (url.includes('youtube.com/embed/')) return url;
-    
-    // Extract video ID from various formats
-    let videoId = '';
-    
-    // youtu.be/VIDEO_ID format
-    const shortMatch = url.match(/youtu\.be\/([a-zA-Z0-9_-]+)/);
-    if (shortMatch) videoId = shortMatch[1];
-    
-    // youtube.com/watch?v=VIDEO_ID format
-    const watchMatch = url.match(/[?&]v=([a-zA-Z0-9_-]+)/);
-    if (watchMatch) videoId = watchMatch[1];
-    
-    if (videoId) {
-      return `https://www.youtube.com/embed/${videoId}`;
-    }
-  }
-  
-  if (type === 'vimeo') {
-    // Already an embed URL
-    if (url.includes('player.vimeo.com/video/')) return url;
-    
-    // vimeo.com/VIDEO_ID format
-    const vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
-    if (vimeoMatch) {
-      return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
-    }
-  }
-  
-  return url;
+// Before the return statement
+if (isLoading && dbResources.length === 0) {
+  return (
+    <>
+      {/* Page description header */}
+      <div className="text-center mb-6">
+        ...
+      </div>
+      
+      <Card variant="elevated">
+        <CardHeader>...</CardHeader>
+        <CardContent>
+          {/* Show 6 skeleton cards */}
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[...Array(6)].map((_, i) => (
+              <Card key={i} className="p-4">
+                <Skeleton className="h-4 w-20 mb-3" />
+                <Skeleton className="h-4 w-full mb-2" />
+                <Skeleton className="h-3 w-3/4" />
+              </Card>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    </>
+  );
 }
 ```
 
-### Update ResourceModal.tsx
-
-Apply the transformation when rendering YouTube/Vimeo iframes:
-
-```tsx
-case 'youtube':
-  return (
-    <iframe
-      src={toEmbedUrl(resource.embedUrl || '', 'youtube')}
-      ...
-    />
-  );
-
-case 'vimeo':
-  return (
-    <iframe
-      src={toEmbedUrl(resource.embedUrl || '', 'vimeo')}
-      ...
-    />
-  );
-```
-
 ---
 
-## Why This Approach?
+## Why These Changes Fix the Issue
 
-1. **No database changes needed** - Existing URLs will work automatically
-2. **User-friendly** - Admins can paste any YouTube/Vimeo URL format when adding resources
-3. **Defensive** - Already-correct embed URLs pass through unchanged
-4. **Centralized** - Single helper function handles all video URL transformations
+1. **Category Variants**: Resources now display with correct badge styling, improving visual consistency
+2. **Loading Protection**: Users can't accidentally filter on empty data while resources are being fetched
+3. **Better UX**: Skeleton loading gives visual feedback that content is loading, preventing confusion about "empty" results
+
