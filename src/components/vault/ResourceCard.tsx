@@ -23,9 +23,9 @@ interface ResourceCardProps {
 }
 
 const categoryVariants: Record<string, 'data' | 'success' | 'elite'> = {
-  physics: 'data',
-  physiology: 'success',
-  process: 'elite',
+  training: 'data',
+  nutrition: 'success',
+  lifestyle: 'elite',
 };
 
 const typeIcons: Record<string, React.ReactNode> = {
