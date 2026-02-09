@@ -98,11 +98,22 @@ export async function uploadFile(file: File, path: string): Promise<string> {
 
   if (error) throw error;
   
-  const { data: urlData } = supabase.storage
-    .from('vault-files')
-    .getPublicUrl(data.path);
+  // Return the path for storage - will generate signed URL when accessing
+  return data.path;
+}
 
-  return urlData.publicUrl;
+// Get a signed URL for a vault file (1 hour expiration)
+export async function getSignedFileUrl(path: string): Promise<string | null> {
+  const { data, error } = await supabase.storage
+    .from('vault-files')
+    .createSignedUrl(path, 3600); // 1 hour expiration
+
+  if (error) {
+    console.error('Error creating signed URL:', error);
+    return null;
+  }
+
+  return data.signedUrl;
 }
 
 // Delete a file from vault-files bucket
