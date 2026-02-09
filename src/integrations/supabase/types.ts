@@ -370,6 +370,42 @@ export type Database = {
         }
         Relationships: []
       }
+      user_daily_checkins: {
+        Row: {
+          check_date: string
+          created_at: string
+          drive_score: number
+          energy_score: number
+          id: string
+          notes: string | null
+          sleep_score: number
+          stress_score: number
+          user_id: string
+        }
+        Insert: {
+          check_date?: string
+          created_at?: string
+          drive_score: number
+          energy_score: number
+          id?: string
+          notes?: string | null
+          sleep_score: number
+          stress_score: number
+          user_id: string
+        }
+        Update: {
+          check_date?: string
+          created_at?: string
+          drive_score?: number
+          energy_score?: number
+          id?: string
+          notes?: string | null
+          sleep_score?: number
+          stress_score?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_meals: {
         Row: {
           created_at: string
