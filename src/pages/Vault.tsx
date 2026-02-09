@@ -12,7 +12,9 @@ import {
   Radio,
   Shield,
   Activity,
-  Dumbbell
+  Dumbbell,
+  Heart,
+  LayoutDashboard
 } from "lucide-react";
 import { PodcastTab } from "@/components/vault/PodcastTab";
 import { LibraryTab } from "@/components/vault/LibraryTab";
@@ -20,6 +22,8 @@ import { AdminPanel } from "@/components/vault/AdminPanel";
 import { ProgressTab } from "@/components/progress/ProgressTab";
 import { WorkoutTab } from "@/components/workout/WorkoutTab";
 import { CommunityFeed } from "@/components/community/CommunityFeed";
+import { LifestyleTab } from "@/components/lifestyle/LifestyleTab";
+import { VaultDashboard as DashboardView } from "@/components/dashboard/VaultDashboard";
 import logo from "@/assets/logo.png";
 import { useAdminCheck } from "@/hooks/useAdminCheck";
 
@@ -54,9 +58,13 @@ export function VaultDashboard() {
         </div>
 
         {/* Main tabs */}
-        <Tabs defaultValue="library" className="space-y-6">
+        <Tabs defaultValue="dashboard" className="space-y-6">
           <div className="overflow-x-auto scrollbar-hide -mx-6 px-6">
             <TabsList className="inline-flex w-max min-w-full gap-1 h-auto p-1">
+              <TabsTrigger value="dashboard" className="flex items-center gap-2 px-3 py-2.5 whitespace-nowrap">
+                <LayoutDashboard className="w-4 h-4" />
+                <span className="text-xs sm:text-sm">Dashboard</span>
+              </TabsTrigger>
               <TabsTrigger value="library" className="flex items-center gap-2 px-3 py-2.5 whitespace-nowrap">
                 <Library className="w-4 h-4" />
                 <span className="text-xs sm:text-sm">Library</span>
@@ -64,6 +72,10 @@ export function VaultDashboard() {
               <TabsTrigger value="progress" className="flex items-center gap-2 px-3 py-2.5 whitespace-nowrap">
                 <Activity className="w-4 h-4" />
                 <span className="text-xs sm:text-sm">Progress</span>
+              </TabsTrigger>
+              <TabsTrigger value="lifestyle" className="flex items-center gap-2 px-3 py-2.5 whitespace-nowrap">
+                <Heart className="w-4 h-4" />
+                <span className="text-xs sm:text-sm">Lifestyle</span>
               </TabsTrigger>
               <TabsTrigger value="workouts" className="flex items-center gap-2 px-3 py-2.5 whitespace-nowrap">
                 <Dumbbell className="w-4 h-4" />
@@ -90,6 +102,11 @@ export function VaultDashboard() {
             </TabsList>
           </div>
 
+          {/* Dashboard */}
+          <TabsContent value="dashboard">
+            <DashboardView />
+          </TabsContent>
+
           {/* Resource Library */}
           <TabsContent value="library">
             <LibraryTab isPremiumMember={true} isAdmin={isAdmin} />
@@ -100,11 +117,15 @@ export function VaultDashboard() {
             <ProgressTab />
           </TabsContent>
 
+          {/* Lifestyle Tab */}
+          <TabsContent value="lifestyle">
+            <LifestyleTab />
+          </TabsContent>
+
           {/* Workouts Tab */}
           <TabsContent value="workouts">
             <WorkoutTab />
           </TabsContent>
-
 
           {/* Podcast Tab */}
           <TabsContent value="podcast">
