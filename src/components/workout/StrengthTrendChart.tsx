@@ -4,12 +4,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { TrendingUp } from "lucide-react";
 import { useWorkoutStore } from "@/stores/workoutStore";
-import { COMMON_EXERCISES, ExerciseHistory } from "@/types/workout";
+import { ALL_EXERCISES, ExerciseHistory } from "@/types/workout";
 import { format } from "date-fns";
+import { convertWeight } from "@/lib/weightConversion";
 
 export function StrengthTrendChart() {
-  const { fetchExerciseHistory, personalRecords } = useWorkoutStore();
-  const [selectedExercise, setSelectedExercise] = useState("back squat");
+  const { fetchExerciseHistory, personalRecords, preferredUnit } = useWorkoutStore();
+  const [selectedExercise, setSelectedExercise] = useState("back squat (high bar)");
   const [history, setHistory] = useState<ExerciseHistory[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -17,7 +18,7 @@ export function StrengthTrendChart() {
   const userExercises = personalRecords.map(pr => pr.exercise_name);
   const exerciseOptions = [...new Set([
     ...userExercises,
-    ...COMMON_EXERCISES.map(e => e.toLowerCase())
+    ...ALL_EXERCISES.map(e => e.toLowerCase())
   ])].sort();
 
   useEffect(() => {
@@ -32,7 +33,7 @@ export function StrengthTrendChart() {
 
   const chartData = history.map(h => ({
     date: format(new Date(h.date), 'MMM d'),
-    weight: h.max_weight,
+    weight: preferredUnit === 'kg' ? convertWeight(h.max_weight, 'lbs', 'kg') : h.max_weight,
   }));
 
   const currentPR = personalRecords.find(pr => pr.exercise_name === selectedExercise.toLowerCase());
@@ -40,6 +41,12 @@ export function StrengthTrendChart() {
   const percentageGain = firstWeight && currentPR 
     ? Math.round(((currentPR.max_weight - firstWeight) / firstWeight) * 100)
     : 0;
+  
+  const displayCurrentMax = currentPR 
+    ? preferredUnit === 'kg' 
+      ? convertWeight(currentPR.max_weight, 'lbs', 'kg') 
+      : currentPR.max_weight
+    : null;
 
   return (
     <Card variant="elevated">
@@ -101,7 +108,7 @@ export function StrengthTrendChart() {
                       border: '1px solid hsl(var(--border))',
                       borderRadius: '8px',
                     }}
-                    formatter={(value: number) => [`${value} lbs`, 'Max Weight']}
+                    formatter={(value: number) => [`${value} ${preferredUnit}`, 'Max Weight']}
                   />
                   <Line 
                     type="monotone" 
@@ -119,7 +126,7 @@ export function StrengthTrendChart() {
             <div className="flex items-center justify-between mt-4 pt-4 border-t">
               <div>
                 <p className="text-sm text-muted-foreground">Current Max</p>
-                <p className="text-2xl font-bold">{currentPR?.max_weight || '—'} lbs</p>
+                <p className="text-2xl font-bold">{displayCurrentMax || '—'} {preferredUnit}</p>
               </div>
               {percentageGain !== 0 && (
                 <div className="text-right">

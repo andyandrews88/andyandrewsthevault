@@ -4,9 +4,10 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { TrendingUp } from "lucide-react";
 import { useWorkoutStore } from "@/stores/workoutStore";
 import { WeeklyVolume } from "@/types/workout";
+import { convertWeight } from "@/lib/weightConversion";
 
 export function VolumeTrendChart() {
-  const { fetchWeeklyVolume } = useWorkoutStore();
+  const { fetchWeeklyVolume, preferredUnit } = useWorkoutStore();
   const [data, setData] = useState<WeeklyVolume[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -22,13 +23,16 @@ export function VolumeTrendChart() {
 
   const chartData = data.map(d => ({
     week: d.week_label.replace('Week of ', ''),
-    volume: d.total_volume,
+    volume: preferredUnit === 'kg' ? convertWeight(d.total_volume, 'lbs', 'kg') : d.total_volume,
   }));
 
-  const currentWeekVolume = data[data.length - 1]?.total_volume || 0;
-  const lastWeekVolume = data[data.length - 2]?.total_volume || 0;
-  const percentChange = lastWeekVolume 
-    ? Math.round(((currentWeekVolume - lastWeekVolume) / lastWeekVolume) * 100)
+  const rawCurrentWeekVolume = data[data.length - 1]?.total_volume || 0;
+  const rawLastWeekVolume = data[data.length - 2]?.total_volume || 0;
+  const currentWeekVolume = preferredUnit === 'kg' 
+    ? convertWeight(rawCurrentWeekVolume, 'lbs', 'kg') 
+    : rawCurrentWeekVolume;
+  const percentChange = rawLastWeekVolume 
+    ? Math.round(((rawCurrentWeekVolume - rawLastWeekVolume) / rawLastWeekVolume) * 100)
     : 0;
 
   const formatVolume = (value: number) => {
@@ -81,7 +85,7 @@ export function VolumeTrendChart() {
                       border: '1px solid hsl(var(--border))',
                       borderRadius: '8px',
                     }}
-                    formatter={(value: number) => [`${value.toLocaleString()} lbs`, 'Volume']}
+                    formatter={(value: number) => [`${value.toLocaleString()} ${preferredUnit}`, 'Volume']}
                   />
                   <Bar 
                     dataKey="volume" 
@@ -96,7 +100,7 @@ export function VolumeTrendChart() {
             <div className="flex items-center justify-between mt-4 pt-4 border-t">
               <div>
                 <p className="text-sm text-muted-foreground">This Week</p>
-                <p className="text-2xl font-bold">{currentWeekVolume.toLocaleString()} lbs</p>
+                <p className="text-2xl font-bold">{currentWeekVolume.toLocaleString()} {preferredUnit}</p>
               </div>
               {percentChange !== 0 && (
                 <div className="text-right">

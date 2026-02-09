@@ -84,6 +84,53 @@ export type Database = {
           },
         ]
       }
+      conditioning_sets: {
+        Row: {
+          avg_heart_rate: number | null
+          calories: number | null
+          created_at: string
+          distance: number | null
+          distance_unit: string | null
+          duration_seconds: number | null
+          exercise_id: string
+          id: string
+          is_completed: boolean | null
+          set_number: number
+        }
+        Insert: {
+          avg_heart_rate?: number | null
+          calories?: number | null
+          created_at?: string
+          distance?: number | null
+          distance_unit?: string | null
+          duration_seconds?: number | null
+          exercise_id: string
+          id?: string
+          is_completed?: boolean | null
+          set_number?: number
+        }
+        Update: {
+          avg_heart_rate?: number | null
+          calories?: number | null
+          created_at?: string
+          distance?: number | null
+          distance_unit?: string | null
+          duration_seconds?: number | null
+          exercise_id?: string
+          id?: string
+          is_completed?: boolean | null
+          set_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conditioning_sets_exercise_id_fkey"
+            columns: ["exercise_id"]
+            isOneToOne: false
+            referencedRelation: "workout_exercises"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       exercise_sets: {
         Row: {
           created_at: string
@@ -639,6 +686,7 @@ export type Database = {
         Row: {
           created_at: string
           exercise_name: string
+          exercise_type: string | null
           id: string
           notes: string | null
           order_index: number
@@ -647,6 +695,7 @@ export type Database = {
         Insert: {
           created_at?: string
           exercise_name: string
+          exercise_type?: string | null
           id?: string
           notes?: string | null
           order_index?: number
@@ -655,6 +704,7 @@ export type Database = {
         Update: {
           created_at?: string
           exercise_name?: string
+          exercise_type?: string | null
           id?: string
           notes?: string | null
           order_index?: number
