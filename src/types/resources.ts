@@ -1,6 +1,6 @@
 export type ResourceType = 'youtube' | 'vimeo' | 'spotify' | 'apple_podcast' | 'article' | 'pdf';
 
-export type ResourceCategory = 'physics' | 'physiology' | 'process';
+export type ResourceCategory = 'training' | 'nutrition' | 'lifestyle';
 
 export type LeakTag = 
   | 'aerobic-power' 
@@ -25,15 +25,15 @@ export interface Resource {
 }
 
 export const categoryLabels: Record<ResourceCategory, string> = {
-  physics: 'PHYSICS',
-  physiology: 'PHYSIOLOGY',
-  process: 'PROCESS',
+  training: 'TRAINING',
+  nutrition: 'NUTRITION',
+  lifestyle: 'LIFESTYLE',
 };
 
 export const categoryDescriptions: Record<ResourceCategory, string> = {
-  physics: 'Biomechanics, movement patterns, force production',
-  physiology: 'Energy systems, recovery, adaptation',
-  process: 'Programming, periodization, lifestyle',
+  training: 'Movement patterns, technique, strength work',
+  nutrition: 'Fuel systems, recovery protocols, eating strategies',
+  lifestyle: 'Programming, sleep, stress management, habits',
 };
 
 export const typeLabels: Record<ResourceType, string> = {

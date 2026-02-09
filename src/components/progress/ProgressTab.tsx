@@ -52,15 +52,24 @@ export function ProgressTab() {
 
   return (
     <div className="space-y-6">
+      {/* Page Description */}
+      <div className="text-center">
+        <Badge variant="elite" className="mb-3">PROGRESS TRACKER</Badge>
+        <h2 className="text-xl md:text-2xl font-bold mb-2">Body Composition & Metrics</h2>
+        <p className="text-muted-foreground text-sm md:text-base max-w-xl mx-auto mb-4">
+          Track your bodyweight, measurements, and body composition over time. See trends and monitor your transformation.
+        </p>
+      </div>
+
       {/* Header with Add Entry button */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold flex items-center gap-2">
-            <Activity className="w-6 h-6 text-primary" />
-            Progress Tracking
-          </h2>
-          <p className="text-muted-foreground">
-            Track your body composition and wearable metrics
+          <h3 className="text-lg font-semibold flex items-center gap-2">
+            <Activity className="w-5 h-5 text-primary" />
+            Your Progress
+          </h3>
+          <p className="text-sm text-muted-foreground">
+            Track body composition and metrics
           </p>
         </div>
         

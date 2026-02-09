@@ -148,6 +148,15 @@ export function LibraryTab({ isPremiumMember = false, isAdmin = false }: Library
 
   return (
     <>
+      {/* Page Description */}
+      <div className="text-center mb-6">
+        <Badge variant="elite" className="mb-3">KNOWLEDGE BANK</Badge>
+        <h2 className="text-xl md:text-2xl font-bold mb-2">Training & Education Resources</h2>
+        <p className="text-muted-foreground text-sm md:text-base max-w-xl mx-auto">
+          Access curated videos, articles, and guides covering training techniques, nutrition strategies, and lifestyle optimization.
+        </p>
+      </div>
+
       <Card variant="elevated">
         <CardHeader>
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">

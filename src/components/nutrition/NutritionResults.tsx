@@ -26,7 +26,7 @@ import { useNutritionStore } from '@/stores/nutritionStore';
 import { MacroChart } from './MacroChart';
 import { MealPlanGenerator } from './MealPlanGenerator';
 import { FoodDatabase } from './FoodDatabase';
-import { MealBuilder } from './MealBuilder';
+import { FoodDiary } from './FoodDiary';
 
 export function NutritionResults({ onRecalculate }: { onRecalculate: () => void }) {
   const { results, biometrics, goals } = useNutritionStore();
@@ -128,9 +128,12 @@ export function NutritionResults({ onRecalculate }: { onRecalculate: () => void 
           </TabsTrigger>
         </TabsList>
 
-        {/* Meal Builder Tab */}
+        {/* Food Diary Tab */}
         <TabsContent value="builder">
-          <MealBuilder />
+          <FoodDiary 
+            targetCalories={metrics.targetCalories}
+            targetMacros={macros}
+          />
         </TabsContent>
 
         {/* Advanced Metrics Tab */}

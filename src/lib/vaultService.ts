@@ -10,7 +10,7 @@ export async function fetchResources(): Promise<VaultResource[]> {
     .order('created_at', { ascending: false });
 
   if (error) throw error;
-  return data || [];
+  return (data || []) as VaultResource[];
 }
 
 // Convert database resource to frontend Resource type
@@ -51,7 +51,7 @@ export async function createResource(data: ResourceFormData): Promise<VaultResou
     .single();
 
   if (error) throw error;
-  return resource;
+  return resource as VaultResource;
 }
 
 // Update a resource
@@ -77,7 +77,7 @@ export async function updateResource(id: string, data: Partial<ResourceFormData>
     .single();
 
   if (error) throw error;
-  return resource;
+  return resource as VaultResource;
 }
 
 // Delete a resource

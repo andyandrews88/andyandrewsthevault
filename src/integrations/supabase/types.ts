@@ -471,7 +471,7 @@ export type Database = {
         | "navy_method"
         | "visual_estimate"
         | "other"
-      resource_category: "physics" | "physiology" | "process"
+      resource_category: "training" | "nutrition" | "lifestyle"
       resource_type:
         | "youtube"
         | "vimeo"
@@ -638,7 +638,7 @@ export const Constants = {
         "visual_estimate",
         "other",
       ],
-      resource_category: ["physics", "physiology", "process"],
+      resource_category: ["training", "nutrition", "lifestyle"],
       resource_type: [
         "youtube",
         "vimeo",

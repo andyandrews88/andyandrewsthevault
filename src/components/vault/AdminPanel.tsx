@@ -159,7 +159,7 @@ export function AdminPanel() {
         title: file.name.replace(/\.[^/.]+$/, ''),
         description: 'Uploaded PDF document',
         type: 'pdf',
-        category: 'process',
+        category: 'lifestyle',
         embed_url: url,
         leak_tags: [],
         is_premium: false,
