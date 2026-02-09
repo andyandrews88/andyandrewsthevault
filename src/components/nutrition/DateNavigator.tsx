@@ -1,0 +1,82 @@
+import { format, addDays, subDays, isToday, isFuture, isPast } from 'date-fns';
+import { Button } from '@/components/ui/button';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+interface DateNavigatorProps {
+  selectedDate: Date;
+  onDateChange: (date: Date) => void;
+}
+
+export function DateNavigator({ selectedDate, onDateChange }: DateNavigatorProps) {
+  const handlePrevDay = () => onDateChange(subDays(selectedDate, 1));
+  const handleNextDay = () => onDateChange(addDays(selectedDate, 1));
+  const handleToday = () => onDateChange(new Date());
+
+  const dateLabel = isToday(selectedDate)
+    ? 'Today'
+    : isFuture(selectedDate)
+    ? format(selectedDate, 'EEE, MMM d') + ' (Planning)'
+    : format(selectedDate, 'EEE, MMM d');
+
+  return (
+    <div className="flex items-center justify-between gap-2 p-3 rounded-lg border bg-card">
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={handlePrevDay}
+        className="h-8 w-8"
+      >
+        <ChevronLeft className="h-4 w-4" />
+      </Button>
+
+      <div className="flex items-center gap-2 flex-1 justify-center">
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="ghost"
+              className={cn(
+                'font-medium text-sm gap-2',
+                isFuture(selectedDate) && 'text-primary',
+                isPast(selectedDate) && !isToday(selectedDate) && 'text-muted-foreground'
+              )}
+            >
+              <CalendarIcon className="h-4 w-4" />
+              {dateLabel}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="center">
+            <Calendar
+              mode="single"
+              selected={selectedDate}
+              onSelect={(date) => date && onDateChange(date)}
+              initialFocus
+            />
+          </PopoverContent>
+        </Popover>
+
+        {!isToday(selectedDate) && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleToday}
+            className="text-xs h-7"
+          >
+            Today
+          </Button>
+        )}
+      </div>
+
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={handleNextDay}
+        className="h-8 w-8"
+      >
+        <ChevronRight className="h-4 w-4" />
+      </Button>
+    </div>
+  );
+}
