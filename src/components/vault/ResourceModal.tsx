@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Resource, categoryLabels, typeLabels } from "@/types/resources";
 import { ExternalLink, Download, X } from "lucide-react";
+import { toEmbedUrl } from "@/lib/vaultService";
 
 interface ResourceModalProps {
   resource: Resource | null;
@@ -33,7 +34,7 @@ export function ResourceModal({ resource, isOpen, onClose }: ResourceModalProps)
         return (
           <div className="aspect-video w-full rounded-lg overflow-hidden bg-secondary">
             <iframe
-              src={resource.embedUrl}
+              src={toEmbedUrl(resource.embedUrl || '', 'youtube')}
               title={resource.title}
               className="w-full h-full"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -46,7 +47,7 @@ export function ResourceModal({ resource, isOpen, onClose }: ResourceModalProps)
         return (
           <div className="aspect-video w-full rounded-lg overflow-hidden bg-secondary">
             <iframe
-              src={resource.embedUrl}
+              src={toEmbedUrl(resource.embedUrl || '', 'vimeo')}
               title={resource.title}
               className="w-full h-full"
               allow="autoplay; fullscreen; picture-in-picture"

@@ -2,6 +2,44 @@ import { supabase } from '@/integrations/supabase/client';
 import { VaultResource, VaultPodcast, ResourceFormData, PodcastFormData } from '@/types/vaultResources';
 import { Resource } from '@/types/resources';
 
+// Convert various video URL formats to embed URLs
+export function toEmbedUrl(url: string, type: 'youtube' | 'vimeo'): string {
+  if (!url) return '';
+  
+  if (type === 'youtube') {
+    // Already an embed URL
+    if (url.includes('youtube.com/embed/')) return url;
+    
+    // Extract video ID from various formats
+    let videoId = '';
+    
+    // youtu.be/VIDEO_ID format
+    const shortMatch = url.match(/youtu\.be\/([a-zA-Z0-9_-]+)/);
+    if (shortMatch) videoId = shortMatch[1];
+    
+    // youtube.com/watch?v=VIDEO_ID format
+    const watchMatch = url.match(/[?&]v=([a-zA-Z0-9_-]+)/);
+    if (watchMatch) videoId = watchMatch[1];
+    
+    if (videoId) {
+      return `https://www.youtube.com/embed/${videoId}`;
+    }
+  }
+  
+  if (type === 'vimeo') {
+    // Already an embed URL
+    if (url.includes('player.vimeo.com/video/')) return url;
+    
+    // vimeo.com/VIDEO_ID format
+    const vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
+    if (vimeoMatch) {
+      return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
+    }
+  }
+  
+  return url;
+}
+
 // Fetch all resources from database
 export async function fetchResources(): Promise<VaultResource[]> {
   const { data, error } = await supabase
