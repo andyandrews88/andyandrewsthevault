@@ -1,175 +1,208 @@
 
 
-# Comprehensive Metrics & Body Tracking System
+# Rebrand to "The Vault" + Remove Wearables + Mobile UI Audit
 
 ## Overview
 
-This plan delivers two major interconnected features for your Vault:
-1. **Wearable Device Integrations** - Connect Whoop, Garmin, Fitbit, and Apple Health to automatically sync fitness metrics
-2. **Body Composition Tracker** - Manual entry system for bodyweight, body fat, measurements, and advanced scans with full visualization
-
-Both features will be built together, with data displayed in interactive charts and tables for easy progress assessment.
-
----
-
-## Feature 1: Body Composition Tracker
-
-### What Users Can Track
-
-| Category | Metrics |
-|----------|---------|
-| **Basic** | Bodyweight, calculated BMI, weight trend |
-| **Body Fat Methods** | Caliper readings, bioimpedance scale %, visual estimate, Navy method (auto-calculated from measurements) |
-| **Advanced Scans** | DEXA results (bone density, lean mass, fat mass by region), InBody readings, Bod Pod data |
-| **Circumferences** | Neck, shoulders, chest, waist, hips, biceps, forearms, thighs, calves |
-
-### User Experience
-
-- **New "Progress" tab** in the Vault alongside Library, Nutrition, Podcast, Community, Tracks
-- Entry form with date picker and smart defaults (remembers last values)
-- Support for both imperial and metric units
-- Photo upload option for visual progress tracking
-- Quick-add for common entries (just weight) vs detailed entries (full measurements)
-
-### Data Visualization
-
-- **Weight Timeline Chart** - Line graph showing bodyweight over time with trend line
-- **Body Composition Pie Chart** - Fat mass vs lean mass breakdown (when scan data available)
-- **Measurement Comparison Table** - Side-by-side view of measurements across selected dates
-- **Progress Cards** - Weekly/monthly changes with color-coded indicators (green for progress toward goals)
+This plan addresses three key changes:
+1. **Rebrand**: Change the opening page name to "The Vault" with slogan "Performance Architect"
+2. **Remove Wearables**: Remove smartwatch integration (temporary - can restore later)
+3. **Mobile UI Audit**: Fix cramped layouts across all screens
 
 ---
 
-## Feature 2: Wearable Device Integrations
+## Part 1: Rebranding to "The Vault"
 
-### Supported Devices & Data
+### Changes to Opening Page (Landing/Hero)
 
-| Device | Available Metrics |
-|--------|-------------------|
-| **Whoop** | Recovery score, strain score, HRV, resting heart rate, sleep performance, respiratory rate |
-| **Garmin** | Steps, heart rate zones, VO2 max, training load, sleep score, body battery, stress level |
-| **Fitbit** | Steps, active minutes, heart rate, sleep stages, cardio fitness score |
-| **Apple Health** | Aggregated data from Apple Watch - steps, heart rate, workouts, stand hours |
+| Location | Current | New |
+|----------|---------|-----|
+| Browser tab | Uses current title | "The Vault - Performance Architect" |
+| Hero headline | "Performance Architecture." | "The Vault" with subheading "Performance Architect" |
+| Badge | "SYSTEM ONLINE" | "PERFORMANCE ARCHITECT" |
+| CTA button | "Begin Structural Audit" | Keep or update to "Enter The Vault" |
+| Footer | "The Vault" (already correct) | Keep as is |
 
-### Connection Flow
+### Files to Modify
 
-1. User clicks "Connect [Device]" button in Progress tab
-2. Redirected to device manufacturer's OAuth authorization page
-3. User grants permission to share data
-4. Redirected back to your app with connection confirmed
-5. Data syncs automatically going forward
+- `index.html` - Update page title and meta description
+- `src/components/landing/HeroSection.tsx` - Rebrand headline and badge
+- `src/components/layout/Navbar.tsx` - Optional: Update logo alt text
 
-### Important Notes on Wearable APIs
-
-- **Whoop, Garmin, Fitbit** all require OAuth 2.0 authentication with client credentials
-- **Apple Health** uses a different approach - requires a native iOS companion app or third-party aggregator (Apple doesn't provide a web API)
-- Each integration requires registering your app with the device manufacturer and storing API credentials securely
-
----
-
-## Database Structure
-
-### New Tables
-
-**user_body_entries** - Manual body composition data
-- Entry date, weight, body fat %, measurement source (scale, calipers, DEXA, etc.)
-- Circumference measurements (waist, hips, chest, etc.)
-- Scan-specific fields (lean mass, fat mass, bone density)
-- Photo reference (optional)
-
-**user_wearable_connections** - OAuth tokens for connected devices
-- Device type (whoop, garmin, fitbit, apple_health)
-- Access token, refresh token, expiry timestamp
-- Connection status
-
-**user_wearable_data** - Synced metrics from wearables
-- Device source, metric type, value, recorded date
-- Indexed for efficient charting queries
-
----
-
-## Technical Architecture
+### Hero Section New Layout
 
 ```text
-+------------------+     +-----------------------+     +------------------+
-|   Progress Tab   |---->|   Body Entry Form     |---->|  Supabase DB     |
-|   (Vault)        |     |   + Measurement UI    |     |  body_entries    |
-+------------------+     +-----------------------+     +------------------+
-        |
-        v
-+------------------+     +-----------------------+     +------------------+
-| Device Connect   |---->|   OAuth Flow          |---->|  Edge Functions  |
-| Buttons          |     |   (Backend Handled)   |     |  + Token Storage |
-+------------------+     +-----------------------+     +------------------+
-        |
-        v
-+------------------+     +-----------------------+
-| Charts & Tables  |<----|  Combined Data Query  |
-| (Recharts)       |     |  (Manual + Wearable)  |
-+------------------+     +-----------------------+
++------------------------------------------+
+|              [LOGO IMAGE]                |
+|                                          |
+|      [ PERFORMANCE ARCHITECT badge ]     |
+|                                          |
+|              THE VAULT                   |
+|        Performance Architecture          |
+|                                          |
+|    6-Time Fittest Man in Sri Lanka...    |
+|                                          |
+|   [Begin Audit]  [Access The Vault]      |
++------------------------------------------+
 ```
 
 ---
 
-## Implementation Phases
+## Part 2: Remove Wearable Integration (Temporary)
 
-### Phase 1: Foundation (First Delivery)
-- Database tables and RLS policies
-- Body entry form with all measurement types
-- Weight chart and basic progress visualization
-- Progress tab integrated into Vault
+### What Gets Removed
 
-### Phase 2: Advanced Visualization
-- Body measurement comparison tables
-- Composition pie charts
-- Progress photo gallery
-- Goal setting and progress indicators
+- **WearableConnect.tsx component** - The device connection UI
+- **Wearable section from ProgressTab** - Hide the connected devices card
+- **Database tables stay intact** - Keep `user_wearable_connections` and `user_wearable_data` tables for future use
 
-### Phase 3: Wearable Integrations
-- OAuth edge functions for each provider
-- Device connection UI and status indicators
-- Data sync jobs and storage
-- Combined charts showing wearable + manual data
+### What Stays
 
----
+- All body composition tracking functionality
+- Weight charts, measurement tables, body scans
+- Progress overview cards
+- The database schema (for when you're ready to restore wearables)
 
-## API Credential Requirements
+### Files to Modify
 
-For the wearable integrations to work, you'll need to register developer accounts with each platform:
+- `src/components/progress/ProgressTab.tsx` - Remove WearableConnect import and usage
+- `src/types/progress.ts` - Keep wearable types (for future restoration)
 
-| Platform | Registration URL | What You Get |
-|----------|-----------------|--------------|
-| Whoop | developer.whoop.com | Client ID + Secret |
-| Garmin | developer.garmin.com/gc-developer-program | Consumer Key + Secret |
-| Fitbit | dev.fitbit.com | Client ID + Secret |
+### Restoration Path
 
-I'll securely store these credentials as backend secrets once you provide them. Apple Health requires a different approach (iOS app) which we can discuss as a future enhancement.
+When you're ready to add wearables back:
+1. Simply uncomment the WearableConnect import
+2. Add the component back to ProgressTab
+3. All types and database structure will still be in place
 
 ---
 
-## UI Preview
+## Part 3: Mobile UI Audit & Fixes
 
-The Progress tab will include:
-- **Overview section** - Current weight, body fat, key wearable metrics in cards
-- **Connected Devices** - Icons showing which wearables are synced
-- **Entry History** - Recent entries with quick edit/delete
-- **Charts Section** - Toggle between weight, body fat, measurements, and wearable metrics
-- **Add Entry Button** - Opens modal for new measurements
+### Identified Issues
+
+| Component | Problem | Fix |
+|-----------|---------|-----|
+| **Navbar** | Mobile menu items have decent spacing but could be improved | Increase padding, add visual separators |
+| **Vault Tabs** | 6-7 tabs crammed on small screens, icons only with hidden labels | Stack tabs vertically or use horizontal scroll |
+| **Progress Overview Cards** | 2x2 grid is tight on mobile | Single column on mobile, 2 columns on tablet |
+| **ProgressTab inner tabs** | 3 tabs with tiny icons, hidden labels | Larger touch targets |
+| **BodyEntryForm** | Form fields cramped, popup calendar hard to use | More vertical spacing, full-width calendar |
+| **Hero Stats** | 3-column layout gets tight | Vertical stack on small screens |
+| **Category Filters (Library)** | Buttons wrap awkwardly | Horizontal scroll or dropdown on mobile |
+| **Wearable Device Grid** | 4 columns too dense on mobile | Already using 1 column on mobile, but cards are cramped |
+
+### Detailed Fixes
+
+#### 1. Vault Main Tabs (Vault.tsx)
+
+Current issue: 6-7 tabs in a grid that shows only icons on mobile
+
+**Fix**: Use a scrollable horizontal tab list with visible labels
+
+```text
+Mobile Current:                    Mobile Fixed:
++--+--+--+--+--+--+--+            +------------------------+
+|📚|📊|🍎|🎧|👥|🎯|⚙️|            | 📚 Library | 📊 Progress | ...→
++--+--+--+--+--+--+--+            +------------------------+
+                                   (horizontally scrollable)
+```
+
+#### 2. Progress Overview Cards (ProgressOverview.tsx)
+
+Current: `grid-cols-2 md:grid-cols-4` on all screens
+
+**Fix**: `grid-cols-1 sm:grid-cols-2 md:grid-cols-4` with improved card padding
+
+#### 3. Hero Section Stats (HeroSection.tsx)
+
+Current: `flex gap-12` which squishes on small screens
+
+**Fix**: `flex flex-col sm:flex-row gap-6 sm:gap-12` to stack vertically on mobile
+
+#### 4. Body Entry Form (BodyEntryForm.tsx)
+
+Current: Cramped 2-column grids
+
+**Fix**: 
+- Single column on mobile for all form sections
+- Larger input fields with more vertical spacing
+- Full-width date picker button
+
+#### 5. Category Filters (CategoryFilter.tsx)
+
+Current: Wrapping buttons that look messy
+
+**Fix**: Horizontal scroll container with gradient fade edges
+
+#### 6. Library Resource Grid (LibraryTab.tsx)
+
+Current: `sm:grid-cols-2 lg:grid-cols-3` starts 2-column too early
+
+**Fix**: `md:grid-cols-2 lg:grid-cols-3` for more breathing room
+
+#### 7. Podcast Episode Grid (PodcastTab.tsx)
+
+Current: Same grid issue as Library
+
+**Fix**: Same responsive breakpoint adjustment
+
+### Mobile Spacing Standards
+
+Applying consistent spacing throughout:
+
+| Element | Mobile Padding | Desktop Padding |
+|---------|---------------|-----------------|
+| Page container | `px-4` | `px-6` |
+| Card content | `p-4` | `p-6` |
+| Form groups | `space-y-4` | `space-y-6` |
+| Touch targets | min 44px height | Standard |
 
 ---
 
 ## Files to Create/Modify
 
-| File | Purpose |
+| File | Changes |
 |------|---------|
-| `src/components/progress/ProgressTab.tsx` | Main tab component |
-| `src/components/progress/BodyEntryForm.tsx` | Entry form with all fields |
-| `src/components/progress/WeightChart.tsx` | Weight timeline visualization |
-| `src/components/progress/MeasurementTable.tsx` | Comparison table |
-| `src/components/progress/WearableConnect.tsx` | Device connection UI |
-| `src/stores/progressStore.ts` | Zustand store for progress data |
-| `src/types/progress.ts` | TypeScript types |
-| `supabase/functions/whoop-auth/` | Whoop OAuth handler |
-| `supabase/functions/garmin-auth/` | Garmin OAuth handler |
-| `supabase/functions/fitbit-auth/` | Fitbit OAuth handler |
+| `index.html` | Update title to "The Vault - Performance Architect" |
+| `src/components/landing/HeroSection.tsx` | Rebrand headline, badge, mobile stat layout |
+| `src/pages/Vault.tsx` | Fix tab navigation for mobile (horizontal scroll) |
+| `src/components/progress/ProgressTab.tsx` | Remove WearableConnect, fix inner tab layout |
+| `src/components/progress/ProgressOverview.tsx` | Better mobile grid |
+| `src/components/progress/BodyEntryForm.tsx` | Single-column mobile, larger touch targets |
+| `src/components/vault/CategoryFilter.tsx` | Horizontal scroll container |
+| `src/components/vault/LibraryTab.tsx` | Adjust grid breakpoints |
+| `src/components/vault/PodcastTab.tsx` | Adjust grid breakpoints |
+
+---
+
+## Implementation Order
+
+1. **Rebrand first** - Quick visual change to see "The Vault" branding
+2. **Remove wearables** - Simple removal, keeps code clean
+3. **Mobile fixes** - Systematic component-by-component improvements
+
+---
+
+## Technical Notes
+
+### Tab Scroll Implementation
+
+For the Vault tabs horizontal scroll:
+
+```text
+<div className="overflow-x-auto scrollbar-hide">
+  <TabsList className="flex w-max min-w-full gap-1">
+    {/* tabs with visible labels */}
+  </TabsList>
+</div>
+```
+
+### Preserving Wearable Code
+
+The wearable types and database schema remain in place. To restore:
+- Types in `src/types/progress.ts` - kept
+- Database tables - kept (no migrations to reverse)
+- Component file `WearableConnect.tsx` - kept but unused
+- Just needs re-import when ready
 
