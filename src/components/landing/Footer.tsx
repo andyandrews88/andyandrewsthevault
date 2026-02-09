@@ -19,7 +19,7 @@ export function Footer() {
           </nav>
 
           <p className="text-sm text-muted-foreground">
-            © 2024 Andy Andrews. All rights reserved.
+            © 2026 Andy Andrews. All rights reserved.
           </p>
         </div>
       </div>

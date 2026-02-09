@@ -40,16 +40,14 @@ export function HeroSection() {
 
           {/* Main headline */}
           <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6">
-            <span className="text-gradient-primary data-glow">The Vault.</span>
+            <span className="text-gradient-primary data-glow">One Place.</span>
+            <br />
+            <span className="text-foreground">Everything You Need.</span>
           </h1>
-          
-          <p className="text-lg md:text-xl text-foreground/80 font-medium mb-2">
-            Performance Architecture
-          </p>
 
           {/* Sub-headline */}
-          <p className="text-sm md:text-base text-muted-foreground max-w-xl mx-auto mb-10">
-            6-Time Fittest Man in Sri Lanka & CrossFit Games Athlete
+          <p className="text-sm md:text-base text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed">
+            Stop juggling five different apps. The Vault brings your training, nutrition, and lifestyle into one place — built on first principles, powered by a decade of coaching experience, and free for everyone.
           </p>
 
           {/* CTA buttons */}
@@ -68,21 +66,6 @@ export function HeroSection() {
           </div>
         </div>
 
-        {/* Data visualization hint */}
-        <div className="mt-20 flex flex-col sm:flex-row justify-center gap-6 sm:gap-12 text-muted-foreground">
-          <div className="text-center">
-            <p className="font-mono text-2xl text-primary data-glow">1,247+</p>
-            <p className="text-xs uppercase tracking-wider mt-1">Athletes Analyzed</p>
-          </div>
-          <div className="text-center">
-            <p className="font-mono text-2xl text-primary data-glow">94%</p>
-            <p className="text-xs uppercase tracking-wider mt-1">Leak Detection Rate</p>
-          </div>
-          <div className="text-center">
-            <p className="font-mono text-2xl text-primary data-glow">6x</p>
-            <p className="text-xs uppercase tracking-wider mt-1">National Champion</p>
-          </div>
-        </div>
       </div>
 
       {/* Bottom gradient fade */}
