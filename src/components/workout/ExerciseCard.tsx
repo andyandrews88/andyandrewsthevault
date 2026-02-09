@@ -8,7 +8,7 @@ import {
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
 import { Plus, MoreVertical, History, Trash2 } from "lucide-react";
-import { WorkoutExercise, ExerciseSet } from "@/types/workout";
+import { WorkoutExercise } from "@/types/workout";
 import { SetRow } from "./SetRow";
 import { useWorkoutStore } from "@/stores/workoutStore";
 
@@ -18,7 +18,7 @@ interface ExerciseCardProps {
 }
 
 export function ExerciseCard({ exercise, onRemove }: ExerciseCardProps) {
-  const { addSet, removeSet, updateSet, completeSet, loadLastSession, getLastSessionSets } = useWorkoutStore();
+  const { addSet, removeSet, updateSet, completeSet, loadLastSession, getLastSessionSets, preferredUnit } = useWorkoutStore();
   const [previousSets, setPreviousSets] = useState<{ weight: number; reps: number }[]>([]);
   const [isLoadingPrevious, setIsLoadingPrevious] = useState(false);
 
@@ -82,7 +82,7 @@ export function ExerciseCard({ exercise, onRemove }: ExerciseCardProps) {
         <div className="grid grid-cols-[40px_1fr_1fr_1fr_44px_32px] gap-2 items-center py-2 px-4 border-b border-border bg-muted/30 text-xs font-medium text-muted-foreground">
           <span className="text-center">Set</span>
           <span className="text-center">Prev</span>
-          <span className="text-center">Weight</span>
+          <span className="text-center">{preferredUnit === 'kg' ? 'Kg' : 'Lbs'}</span>
           <span className="text-center">Reps</span>
           <span className="text-center">✓</span>
           <span></span>

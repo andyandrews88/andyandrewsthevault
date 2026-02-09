@@ -4,9 +4,10 @@ import { Badge } from "@/components/ui/badge";
 import { Trophy, Medal } from "lucide-react";
 import { useWorkoutStore } from "@/stores/workoutStore";
 import { format } from "date-fns";
+import { convertWeight } from "@/lib/weightConversion";
 
 export function PRBoard() {
-  const { personalRecords, fetchPersonalRecords } = useWorkoutStore();
+  const { personalRecords, fetchPersonalRecords, preferredUnit } = useWorkoutStore();
 
   useEffect(() => {
     fetchPersonalRecords();
@@ -17,6 +18,13 @@ export function PRBoard() {
 
   const formatExerciseName = (name: string) => {
     return name.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+  };
+
+  const formatWeight = (weight: number) => {
+    const displayWeight = preferredUnit === 'kg' 
+      ? convertWeight(weight, 'lbs', 'kg') 
+      : weight;
+    return `${displayWeight} ${preferredUnit}`;
   };
 
   return (
@@ -68,7 +76,7 @@ export function PRBoard() {
                 </div>
                 
                 <div className="text-right">
-                  <p className="text-lg font-bold">{pr.max_weight} lbs</p>
+                  <p className="text-lg font-bold">{formatWeight(pr.max_weight)}</p>
                   {pr.max_reps && (
                     <Badge variant="outline" className="text-xs">
                       × {pr.max_reps} reps

@@ -4,12 +4,15 @@ import {
   Workout, 
   WorkoutExercise, 
   ExerciseSet, 
+  ConditioningSet,
   PersonalRecord,
   ExerciseHistory,
   WeeklyVolume,
-  WorkoutDay
+  WorkoutDay,
+  isConditioningExercise
 } from '@/types/workout';
-import { format, subDays, startOfWeek, endOfWeek } from 'date-fns';
+import { format, subDays, startOfWeek } from 'date-fns';
+import { WeightUnit, getStoredUnit, setStoredUnit } from '@/lib/weightConversion';
 
 interface WorkoutState {
   // Current workout session
@@ -20,6 +23,16 @@ interface WorkoutState {
   recentWorkouts: Workout[];
   personalRecords: PersonalRecord[];
   
+  // Calendar navigation
+  selectedDate: Date;
+  viewingWorkout: Workout | null;
+  viewingExercises: WorkoutExercise[];
+  workoutDays: WorkoutDay[];
+  
+  // Unit preference
+  preferredUnit: WeightUnit;
+  setPreferredUnit: (unit: WeightUnit) => void;
+  
   // Loading states
   isLoading: boolean;
   isSaving: boolean;
@@ -27,6 +40,10 @@ interface WorkoutState {
   // New PR celebration
   newPR: { exerciseName: string; weight: number } | null;
   clearNewPR: () => void;
+  
+  // Calendar actions
+  setSelectedDate: (date: Date) => void;
+  fetchWorkoutByDate: (date: Date) => Promise<void>;
   
   // Workout session actions
   startWorkout: (name: string) => Promise<void>;
@@ -39,6 +56,12 @@ interface WorkoutState {
   loadLastSession: (exerciseId: string, exerciseName: string) => Promise<void>;
   finishWorkout: () => Promise<void>;
   cancelWorkout: () => Promise<void>;
+  
+  // Conditioning actions
+  addConditioningSet: (exerciseId: string) => Promise<void>;
+  removeConditioningSet: (setId: string) => Promise<void>;
+  updateConditioningSet: (setId: string, data: Partial<ConditioningSet>) => void;
+  completeConditioningSet: (setId: string) => Promise<void>;
   
   // Fetching
   fetchActiveWorkout: () => Promise<void>;
@@ -55,11 +78,61 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
   exercises: [],
   recentWorkouts: [],
   personalRecords: [],
+  selectedDate: new Date(),
+  viewingWorkout: null,
+  viewingExercises: [],
+  workoutDays: [],
+  preferredUnit: getStoredUnit(),
   isLoading: false,
   isSaving: false,
   newPR: null,
   
   clearNewPR: () => set({ newPR: null }),
+  
+  setPreferredUnit: (unit: WeightUnit) => {
+    setStoredUnit(unit);
+    set({ preferredUnit: unit });
+  },
+  
+  setSelectedDate: (date: Date) => {
+    set({ selectedDate: date });
+    get().fetchWorkoutByDate(date);
+  },
+  
+  fetchWorkoutByDate: async (date: Date) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    
+    const dateStr = format(date, 'yyyy-MM-dd');
+    
+    const { data: workout } = await supabase
+      .from('workouts')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('date', dateStr)
+      .eq('is_completed', true)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    
+    if (workout) {
+      const { data: exercisesData } = await supabase
+        .from('workout_exercises')
+        .select('*, sets:exercise_sets(*)')
+        .eq('workout_id', workout.id)
+        .order('order_index');
+      
+      const exercises = (exercisesData || []).map(e => ({
+        ...e,
+        exercise_type: (e.exercise_type as 'strength' | 'conditioning') || 'strength',
+        sets: e.sets?.sort((a: ExerciseSet, b: ExerciseSet) => a.set_number - b.set_number) || []
+      })) as WorkoutExercise[];
+      
+      set({ viewingWorkout: workout, viewingExercises: exercises });
+    } else {
+      set({ viewingWorkout: null, viewingExercises: [] });
+    }
+  },
   
   startWorkout: async (name: string) => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -90,12 +163,15 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
     const { activeWorkout, exercises } = get();
     if (!activeWorkout) return;
     
+    const exerciseType = isConditioningExercise(name) ? 'conditioning' : 'strength';
+    
     const { data: exercise, error } = await supabase
       .from('workout_exercises')
       .insert({
         workout_id: activeWorkout.id,
         exercise_name: name,
         order_index: exercises.length,
+        exercise_type: exerciseType,
       })
       .select()
       .single();
@@ -105,19 +181,43 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
       return;
     }
     
-    // Add a default empty set
-    const { data: firstSet } = await supabase
-      .from('exercise_sets')
-      .insert({
-        exercise_id: exercise.id,
-        set_number: 1,
-      })
-      .select()
-      .single();
-    
-    set({ 
-      exercises: [...exercises, { ...exercise, sets: firstSet ? [firstSet] : [] }] 
-    });
+    if (exerciseType === 'conditioning') {
+      // Add a default empty conditioning set
+      const { data: firstSet } = await supabase
+        .from('conditioning_sets')
+        .insert({
+          exercise_id: exercise.id,
+          set_number: 1,
+        })
+        .select()
+        .single();
+      
+      const newExercise: WorkoutExercise = { 
+        ...exercise, 
+        exercise_type: 'conditioning',
+        conditioning_sets: firstSet ? [{...firstSet, distance_unit: (firstSet.distance_unit as 'miles' | 'km' | 'meters') || 'miles'}] : [],
+        sets: []
+      };
+      set({ exercises: [...exercises, newExercise] });
+    } else {
+      // Add a default empty strength set
+      const { data: firstSet } = await supabase
+        .from('exercise_sets')
+        .insert({
+          exercise_id: exercise.id,
+          set_number: 1,
+        })
+        .select()
+        .single();
+      
+      const newExercise: WorkoutExercise = { 
+        ...exercise, 
+        exercise_type: 'strength',
+        sets: firstSet ? [firstSet] : [],
+        conditioning_sets: []
+      };
+      set({ exercises: [...exercises, newExercise] });
+    }
   },
   
   removeExercise: async (exerciseId: string) => {
@@ -170,6 +270,93 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
       exercises: exercises.map(e => ({
         ...e,
         sets: e.sets?.filter(s => s.id !== setId)
+      }))
+    });
+  },
+  
+  // Conditioning set actions
+  addConditioningSet: async (exerciseId: string) => {
+    const { exercises } = get();
+    const exercise = exercises.find(e => e.id === exerciseId);
+    if (!exercise) return;
+    
+    const newSetNumber = (exercise.conditioning_sets?.length || 0) + 1;
+    
+    const { data: newSet, error } = await supabase
+      .from('conditioning_sets')
+      .insert({
+        exercise_id: exerciseId,
+        set_number: newSetNumber,
+      })
+      .select()
+      .single();
+    
+    if (error || !newSet) return;
+    
+    const typedSet: ConditioningSet = {
+      ...newSet,
+      distance_unit: (newSet.distance_unit as 'miles' | 'km' | 'meters') || 'miles'
+    };
+    
+    set({
+      exercises: exercises.map(e => 
+        e.id === exerciseId 
+          ? { ...e, conditioning_sets: [...(e.conditioning_sets || []), typedSet] }
+          : e
+      )
+    });
+  },
+  
+  removeConditioningSet: async (setId: string) => {
+    const { exercises } = get();
+    
+    await supabase
+      .from('conditioning_sets')
+      .delete()
+      .eq('id', setId);
+    
+    set({
+      exercises: exercises.map(e => ({
+        ...e,
+        conditioning_sets: e.conditioning_sets?.filter(s => s.id !== setId)
+      }))
+    });
+  },
+  
+  updateConditioningSet: (setId: string, data: Partial<ConditioningSet>) => {
+    const { exercises } = get();
+    
+    set({
+      exercises: exercises.map(e => ({
+        ...e,
+        conditioning_sets: e.conditioning_sets?.map(s => 
+          s.id === setId ? { ...s, ...data } : s
+        )
+      }))
+    });
+    
+    // Save to DB
+    supabase
+      .from('conditioning_sets')
+      .update(data)
+      .eq('id', setId)
+      .then(() => {});
+  },
+  
+  completeConditioningSet: async (setId: string) => {
+    const { exercises } = get();
+    
+    await supabase
+      .from('conditioning_sets')
+      .update({ is_completed: true })
+      .eq('id', setId);
+    
+    set({
+      exercises: exercises.map(e => ({
+        ...e,
+        conditioning_sets: e.conditioning_sets?.map(s => 
+          s.id === setId ? { ...s, is_completed: true } : s
+        )
       }))
     });
   },
@@ -346,8 +533,10 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
       
       const exercises = (exercisesData || []).map(e => ({
         ...e,
-        sets: e.sets?.sort((a: ExerciseSet, b: ExerciseSet) => a.set_number - b.set_number) || []
-      }));
+        exercise_type: (e.exercise_type as 'strength' | 'conditioning') || 'strength',
+        sets: e.sets?.sort((a: ExerciseSet, b: ExerciseSet) => a.set_number - b.set_number) || [],
+        conditioning_sets: []
+      })) as WorkoutExercise[];
       
       set({ activeWorkout: workout, exercises, isLoading: false });
     } else {

@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { 
   Dialog,
   DialogContent,
@@ -24,16 +23,20 @@ import {
   ArrowLeft, 
   Plus, 
   Save, 
-  X, 
   Dumbbell,
   Clock,
   TrendingUp
 } from "lucide-react";
 import { useWorkoutStore } from "@/stores/workoutStore";
 import { ExerciseCard } from "./ExerciseCard";
+import { ConditioningCard } from "./ConditioningCard";
 import { ExerciseSearch } from "./ExerciseSearch";
 import { PRCelebration } from "./PRCelebration";
+import { WeekStrip } from "./WeekStrip";
+import { WorkoutCalendar } from "./WorkoutCalendar";
+import { WorkoutHistoryView } from "./WorkoutHistoryView";
 import { format } from "date-fns";
+import { convertWeight } from "@/lib/weightConversion";
 
 interface WorkoutLoggerProps {
   onBack: () => void;
@@ -53,19 +56,28 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
     finishWorkout,
     cancelWorkout,
     fetchActiveWorkout,
-    fetchPersonalRecords
+    fetchPersonalRecords,
+    selectedDate,
+    setSelectedDate,
+    viewingWorkout,
+    viewingExercises,
+    workoutDays,
+    fetchWorkoutDays,
+    preferredUnit
   } = useWorkoutStore();
   
   const [isExerciseSearchOpen, setIsExerciseSearchOpen] = useState(false);
   const [showStartDialog, setShowStartDialog] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
   const [workoutName, setWorkoutName] = useState("");
   const [startTime] = useState(new Date());
 
   useEffect(() => {
     fetchActiveWorkout();
     fetchPersonalRecords();
-  }, [fetchActiveWorkout, fetchPersonalRecords]);
+    fetchWorkoutDays(12);
+  }, [fetchActiveWorkout, fetchPersonalRecords, fetchWorkoutDays]);
 
   const handleStartWorkout = async () => {
     if (workoutName.trim()) {
@@ -77,6 +89,7 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
 
   const handleFinish = async () => {
     await finishWorkout();
+    fetchWorkoutDays(12); // Refresh the calendar
     onBack();
   };
 
@@ -100,6 +113,10 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
     return sum + exVolume;
   }, 0);
 
+  const displayVolume = preferredUnit === 'kg' 
+    ? convertWeight(totalVolume, 'lbs', 'kg') 
+    : totalVolume;
+
   // Calculate elapsed time
   const elapsedMinutes = Math.floor((new Date().getTime() - startTime.getTime()) / 60000);
 
@@ -111,61 +128,135 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
     );
   }
 
+  // Check if viewing a past workout
+  const isViewingPast = viewingWorkout && format(selectedDate, 'yyyy-MM-dd') !== format(new Date(), 'yyyy-MM-dd');
+
+  // If viewing past workout
+  if (isViewingPast && viewingWorkout) {
+    return (
+      <div className="space-y-4">
+        {/* Week Strip Navigation */}
+        <WeekStrip
+          selectedDate={selectedDate}
+          onDateSelect={setSelectedDate}
+          workoutDays={workoutDays}
+          onMonthClick={() => setShowCalendar(true)}
+        />
+        
+        {/* Past Workout View */}
+        <WorkoutHistoryView 
+          workout={viewingWorkout} 
+          exercises={viewingExercises} 
+        />
+        
+        {/* Calendar Dialog */}
+        <WorkoutCalendar
+          open={showCalendar}
+          onOpenChange={setShowCalendar}
+          selectedDate={selectedDate}
+          onDateSelect={setSelectedDate}
+          workoutDays={workoutDays}
+        />
+      </div>
+    );
+  }
+
   // No active workout - show start screen
   if (!activeWorkout) {
     return (
-      <div className="space-y-6">
-        <Card variant="elevated" className="text-center py-12">
-          <CardContent>
-            <Dumbbell className="h-16 w-16 mx-auto mb-4 text-primary opacity-50" />
-            <h3 className="text-xl font-semibold mb-2">Ready to Train?</h3>
-            <p className="text-muted-foreground mb-6">
-              Start a new workout session to log your exercises and track PRs
-            </p>
-            
-            <Dialog open={showStartDialog} onOpenChange={setShowStartDialog}>
-              <DialogTrigger asChild>
-                <Button variant="hero" size="lg">
-                  <Plus className="h-5 w-5 mr-2" />
-                  Start Workout
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Name Your Workout</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4 pt-4">
-                  <Input
-                    placeholder="e.g., Upper Body A, Leg Day, Push..."
-                    value={workoutName}
-                    onChange={(e) => setWorkoutName(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleStartWorkout()}
-                    autoFocus
-                  />
-                  <div className="flex flex-wrap gap-2">
-                    {["Push Day", "Pull Day", "Leg Day", "Upper Body", "Lower Body", "Full Body"].map(name => (
-                      <Button
-                        key={name}
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setWorkoutName(name)}
-                      >
-                        {name}
-                      </Button>
-                    ))}
-                  </div>
-                  <Button 
-                    onClick={handleStartWorkout} 
-                    disabled={!workoutName.trim()}
-                    className="w-full"
-                  >
+      <div className="space-y-4">
+        {/* Week Strip Navigation */}
+        <WeekStrip
+          selectedDate={selectedDate}
+          onDateSelect={setSelectedDate}
+          workoutDays={workoutDays}
+          onMonthClick={() => setShowCalendar(true)}
+        />
+        
+        {/* Past workout for selected date */}
+        {viewingWorkout && (
+          <WorkoutHistoryView 
+            workout={viewingWorkout} 
+            exercises={viewingExercises} 
+          />
+        )}
+        
+        {/* Start workout prompt for today */}
+        {!viewingWorkout && format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd') && (
+          <Card variant="elevated" className="text-center py-12">
+            <CardContent>
+              <Dumbbell className="h-16 w-16 mx-auto mb-4 text-primary opacity-50" />
+              <h3 className="text-xl font-semibold mb-2">Ready to Train?</h3>
+              <p className="text-muted-foreground mb-6">
+                Start a new workout session to log your exercises and track PRs
+              </p>
+              
+              <Dialog open={showStartDialog} onOpenChange={setShowStartDialog}>
+                <DialogTrigger asChild>
+                  <Button variant="hero" size="lg">
+                    <Plus className="h-5 w-5 mr-2" />
                     Start Workout
                   </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
-          </CardContent>
-        </Card>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Name Your Workout</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 pt-4">
+                    <Input
+                      placeholder="e.g., Upper Body A, Leg Day, Push..."
+                      value={workoutName}
+                      onChange={(e) => setWorkoutName(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleStartWorkout()}
+                      autoFocus
+                    />
+                    <div className="flex flex-wrap gap-2">
+                      {["Push Day", "Pull Day", "Leg Day", "Upper Body", "Lower Body", "Full Body"].map(name => (
+                        <Button
+                          key={name}
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setWorkoutName(name)}
+                        >
+                          {name}
+                        </Button>
+                      ))}
+                    </div>
+                    <Button 
+                      onClick={handleStartWorkout} 
+                      disabled={!workoutName.trim()}
+                      className="w-full"
+                    >
+                      Start Workout
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </CardContent>
+          </Card>
+        )}
+        
+        {/* Empty state for past dates without workouts */}
+        {!viewingWorkout && format(selectedDate, 'yyyy-MM-dd') !== format(new Date(), 'yyyy-MM-dd') && (
+          <Card variant="elevated" className="text-center py-12">
+            <CardContent>
+              <Dumbbell className="h-16 w-16 mx-auto mb-4 text-muted-foreground opacity-50" />
+              <h3 className="text-lg font-semibold mb-2">No Workout</h3>
+              <p className="text-muted-foreground">
+                No workout was logged on {format(selectedDate, 'MMMM d, yyyy')}
+              </p>
+            </CardContent>
+          </Card>
+        )}
+        
+        {/* Calendar Dialog */}
+        <WorkoutCalendar
+          open={showCalendar}
+          onOpenChange={setShowCalendar}
+          selectedDate={selectedDate}
+          onDateSelect={setSelectedDate}
+          workoutDays={workoutDays}
+        />
       </div>
     );
   }
@@ -208,11 +299,19 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
       {/* Exercise Cards */}
       <div className="space-y-4">
         {exercises.map(exercise => (
-          <ExerciseCard
-            key={exercise.id}
-            exercise={exercise}
-            onRemove={() => removeExercise(exercise.id)}
-          />
+          exercise.exercise_type === 'conditioning' ? (
+            <ConditioningCard
+              key={exercise.id}
+              exercise={exercise}
+              onRemove={() => removeExercise(exercise.id)}
+            />
+          ) : (
+            <ExerciseCard
+              key={exercise.id}
+              exercise={exercise}
+              onRemove={() => removeExercise(exercise.id)}
+            />
+          )
         ))}
       </div>
       
@@ -235,7 +334,7 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
                 <TrendingUp className="h-4 w-4" />
                 <span className="text-xs">Volume</span>
               </div>
-              <p className="font-bold">{totalVolume.toLocaleString()} lbs</p>
+              <p className="font-bold">{displayVolume.toLocaleString()} {preferredUnit}</p>
             </div>
             <div className="h-8 w-px bg-border" />
             <div>
