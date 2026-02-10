@@ -47,12 +47,16 @@ export function useAdminCheck() {
       }
     }
 
-    checkAdminRole();
+    // Debounce to let rapid auth events settle (critical for mobile)
+    const timeoutId = setTimeout(() => {
+      checkAdminRole();
+    }, 300);
 
     return () => {
       isCancelled = true;
+      clearTimeout(timeoutId);
     };
-  }, [user, isAuthenticated, isInitialized]);
+  }, [user?.id, isAuthenticated, isInitialized]);
 
   return { isAdmin, isLoading };
 }

@@ -14,6 +14,7 @@ import { ResourceEditor } from "./ResourceEditor";
 import { fetchResources, createResource, updateResource, deleteResource, dbToResource } from "@/lib/vaultService";
 import { VaultResource, ResourceFormData } from "@/types/vaultResources";
 import { toast } from "sonner";
+import { useAuthStore } from "@/stores/authStore";
 
 interface LibraryTabProps {
   isPremiumMember?: boolean;
@@ -36,10 +37,12 @@ export function LibraryTab({ isPremiumMember = false, isAdmin = false }: Library
   const [editingResource, setEditingResource] = useState<VaultResource | null>(null);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
 
-  // Load resources from database
+  const { isAuthenticated } = useAuthStore();
+
+  // Load resources from database (retry when auth state changes)
   useEffect(() => {
     loadResources();
-  }, []);
+  }, [isAuthenticated]);
 
   async function loadResources() {
     setIsLoading(true);
