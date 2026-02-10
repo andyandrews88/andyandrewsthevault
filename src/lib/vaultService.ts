@@ -21,6 +21,10 @@ export function toEmbedUrl(url: string, type: 'youtube' | 'vimeo'): string {
     const watchMatch = url.match(/[?&]v=([a-zA-Z0-9_-]+)/);
     if (watchMatch) videoId = watchMatch[1];
     
+    // youtube.com/shorts/VIDEO_ID format
+    const shortsMatch = url.match(/youtube\.com\/shorts\/([a-zA-Z0-9_-]+)/);
+    if (shortsMatch) videoId = shortsMatch[1];
+    
     if (videoId) {
       return `https://www.youtube.com/embed/${videoId}`;
     }
