@@ -432,6 +432,12 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
             : [...personalRecords, newPR],
           newPR: { exerciseName, weight }
         });
+
+        // Sync with goals
+        import('@/stores/goalStore').then(({ useGoalStore }) => {
+          useGoalStore.getState().syncGoalsAfterPR(exerciseName, weight);
+        });
+
         return true;
       }
     }

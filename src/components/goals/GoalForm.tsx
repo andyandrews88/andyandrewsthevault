@@ -1,18 +1,24 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Loader2 } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Plus, Loader2, ChevronsUpDown, Check } from "lucide-react";
 import { useGoalStore } from "@/stores/goalStore";
 import { toast } from "@/hooks/use-toast";
 import { format, addWeeks } from "date-fns";
+import { STRENGTH_EXERCISES, CONDITIONING_EXERCISES } from "@/types/workout";
+import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
 
 export function GoalForm() {
   const { addGoal } = useGoalStore();
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [exercisePopoverOpen, setExercisePopoverOpen] = useState(false);
 
   const [goalType, setGoalType] = useState<"strength" | "body_weight" | "conditioning">("strength");
   const [title, setTitle] = useState("");
@@ -22,6 +28,12 @@ export function GoalForm() {
   const [unit, setUnit] = useState("kg");
   const [targetDate, setTargetDate] = useState(format(addWeeks(new Date(), 12), "yyyy-MM-dd"));
 
+  const exerciseList = useMemo(() => {
+    if (goalType === "strength") return [...STRENGTH_EXERCISES].sort();
+    if (goalType === "conditioning") return [...CONDITIONING_EXERCISES].sort();
+    return [];
+  }, [goalType]);
+
   const resetForm = () => {
     setGoalType("strength");
     setTitle("");
@@ -30,6 +42,58 @@ export function GoalForm() {
     setStartValue("");
     setUnit("kg");
     setTargetDate(format(addWeeks(new Date(), 12), "yyyy-MM-dd"));
+  };
+
+  const handleExerciseSelect = async (exercise: string) => {
+    setExerciseName(exercise);
+    setExercisePopoverOpen(false);
+
+    // Auto-populate start value from latest PR
+    if (goalType === "strength") {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: pr } = await supabase
+        .from("personal_records")
+        .select("max_weight")
+        .eq("user_id", user.id)
+        .eq("exercise_name", exercise.toLowerCase())
+        .maybeSingle();
+
+      if (pr) {
+        setStartValue(String(pr.max_weight));
+        if (!title) setTitle(`${exercise} ${targetValue || "?"}${unit}`);
+      }
+    }
+  };
+
+  const handleGoalTypeChange = async (type: "strength" | "body_weight" | "conditioning") => {
+    setGoalType(type);
+    setExerciseName("");
+    setStartValue("");
+
+    if (type === "body_weight") {
+      setUnit("kg");
+      // Auto-populate from latest body entry
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: entry } = await supabase
+        .from("user_body_entries")
+        .select("weight_kg")
+        .eq("user_id", user.id)
+        .order("entry_date", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (entry?.weight_kg) {
+        setStartValue(String(entry.weight_kg));
+      }
+    } else if (type === "conditioning") {
+      setUnit("seconds");
+    } else {
+      setUnit("kg");
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -80,7 +144,7 @@ export function GoalForm() {
           {/* Goal type */}
           <div className="space-y-2">
             <Label>Goal Type</Label>
-            <Select value={goalType} onValueChange={(v: any) => setGoalType(v)}>
+            <Select value={goalType} onValueChange={(v: any) => handleGoalTypeChange(v)}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="strength">Strength (PR Target)</SelectItem>
@@ -96,11 +160,43 @@ export function GoalForm() {
             <Input placeholder='e.g. "Squat 150kg" or "Lose 5kg"' value={title} onChange={e => setTitle(e.target.value)} />
           </div>
 
-          {/* Exercise name (strength/conditioning) */}
+          {/* Exercise picker (strength/conditioning) */}
           {goalType !== "body_weight" && (
             <div className="space-y-2">
-              <Label>Exercise Name</Label>
-              <Input placeholder="e.g. Squat, Bench Press, Running (Outdoor)" value={exerciseName} onChange={e => setExerciseName(e.target.value)} />
+              <Label>Exercise</Label>
+              <Popover open={exercisePopoverOpen} onOpenChange={setExercisePopoverOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={exercisePopoverOpen}
+                    className="w-full justify-between font-normal"
+                  >
+                    {exerciseName || "Select exercise..."}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Search exercises..." />
+                    <CommandList className="max-h-[200px]">
+                      <CommandEmpty>No exercise found.</CommandEmpty>
+                      <CommandGroup>
+                        {exerciseList.map((ex) => (
+                          <CommandItem
+                            key={ex}
+                            value={ex}
+                            onSelect={() => handleExerciseSelect(ex)}
+                          >
+                            <Check className={cn("mr-2 h-4 w-4", exerciseName === ex ? "opacity-100" : "opacity-0")} />
+                            {ex}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
           )}
 

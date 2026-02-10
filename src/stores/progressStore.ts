@@ -114,6 +114,13 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
 
       if (error) throw error;
 
+      // Sync body weight goals
+      if (formData.weight) {
+        import('@/stores/goalStore').then(({ useGoalStore }) => {
+          useGoalStore.getState().syncGoalsAfterBodyEntry(formData.weight!);
+        });
+      }
+
       // Refresh entries
       await get().fetchBodyEntries();
     } catch (error) {
