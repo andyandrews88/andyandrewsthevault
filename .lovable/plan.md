@@ -1,143 +1,94 @@
 
 
-# Goal Setting Engine & Readiness-Driven Training Suggestions
+# Auto-Sync Goals with Workout Tracker & Exercise Dropdown
 
 ## Overview
 
-Two tightly connected features:
-
-1. **Goal Setting & Progress Tracking** -- Users set specific, measurable goals with deadlines. The app tracks their actual rate of progress and projects whether they're on track, ahead, or behind.
-2. **Readiness-Driven Training Suggestions** -- The dashboard uses today's readiness score to recommend session intensity (push hard, train normally, go light, or take a recovery day).
-
----
-
-## Part 1: Goal Setting & Periodisation Engine
-
-### Goal Types Supported
-
-| Type | Example | Data Source | How Progress is Measured |
-|------|---------|-------------|--------------------------|
-| Strength | "Squat 150kg by June" | `personal_records` table | Latest PR weight for the named exercise |
-| Body Weight | "Lose 5kg in 12 weeks" | `user_body_entries` table | Latest weight entry |
-| Conditioning | "Run sub-25 min 5k" | `conditioning_sets` table | Best time for "Running (Outdoor)" at 5km distance |
-
-### Database
-
-New table: `user_goals`
-
-| Column | Type | Notes |
-|--------|------|-------|
-| id | uuid | PK |
-| user_id | uuid | References auth user |
-| goal_type | text | 'strength', 'body_weight', or 'conditioning' |
-| title | text | User-friendly label e.g. "Squat 150kg" |
-| exercise_name | text | Nullable -- for strength/conditioning goals, matches exercise library |
-| target_value | numeric | The target number (weight in kg, time in seconds, bodyweight in kg) |
-| start_value | numeric | The value when the goal was created (baseline) |
-| current_value | numeric | Updated when progress is logged |
-| target_date | date | Deadline |
-| unit | text | 'kg', 'lbs', 'seconds', 'minutes' |
-| status | text | 'active', 'achieved', 'missed', 'cancelled' |
-| created_at | timestamptz | Default now() |
-| achieved_at | timestamptz | Nullable |
-
-RLS: Users can only CRUD their own goals.
-
-### UI Components
-
-- **`src/components/goals/GoalForm.tsx`** -- Modal/drawer form to create a new goal. User picks the type, selects an exercise (for strength/conditioning), enters the target value, and sets a deadline. The form auto-populates the start value from their current data (latest PR, latest weight, latest conditioning time).
-
-- **`src/components/goals/GoalCard.tsx`** -- A card showing one goal with:
-  - Title and target
-  - Progress bar (start value to target value, current position marked)
-  - Projected completion date based on rate of change (linear regression from data points)
-  - Status badge: "On Track", "Ahead", "Behind", "Achieved"
-  - Days remaining
-
-- **`src/components/goals/GoalsPanel.tsx`** -- Container that lists active goals + button to add new ones. Sits on the Dashboard tab above the Weekly Review.
-
-### Projection Logic (Client-Side)
-
-For strength goals: query the user's PR history for that exercise, calculate the weekly rate of increase, and project when they'll hit the target.
-
-For body weight goals: query body entries over the last 4 weeks, calculate the weekly rate of change, and project when they'll hit the target.
-
-For conditioning goals: query conditioning sets for the relevant exercise, find the best time per week, calculate improvement rate, and project.
-
-The projection status is determined by comparing the projected date to the target date:
-- Projected date is before target date = "Ahead"
-- Projected date is within 1 week of target date = "On Track"
-- Projected date is after target date = "Behind"
-
-### State Management
-
-- **`src/stores/goalStore.ts`** -- Zustand store for CRUD operations on goals + projection calculations.
+Two changes:
+1. **Exercise dropdown in GoalForm** -- Replace the free-text exercise input with a searchable dropdown populated from the existing exercise library (~250 movements), so exercise names always match what the workout tracker uses.
+2. **Auto-update goal progress** -- When a new PR is logged or a body entry is saved, automatically update any matching active goals so the dashboard always reflects the latest progress.
 
 ---
 
-## Part 2: Readiness-Driven Training Suggestions
+## 1. Exercise Dropdown in GoalForm
+
+### Current Problem
+The exercise name field is a plain text input. If a user types "Squat" but their PR is stored as "Squat (Barbell)", the goal will never auto-sync.
+
+### Solution
+Replace the `<Input>` with a searchable `<Select>` dropdown that uses:
+- `STRENGTH_EXERCISES` from `src/types/workout.ts` when goal type is "strength"
+- `CONDITIONING_EXERCISES` when goal type is "conditioning"
+
+The dropdown will use the existing `cmdk` (command menu) pattern already installed in the project for a filterable/searchable list, since there are ~250 exercises.
+
+### Auto-populate Start Value
+When the user selects an exercise and the goal type is "strength", query the `personal_records` table for that exercise and pre-fill the "Current Value" field with their latest PR weight. For body weight goals, pre-fill from the latest `user_body_entries` weight.
+
+---
+
+## 2. Auto-Update Goals on PR / Body Entry
 
 ### How It Works
 
-Based on today's readiness score from the daily check-in, the Dashboard shows a training suggestion banner. No new database tables needed -- this reads from the existing `user_daily_checkins` data already in the dashboard store.
+After a new PR is logged in `workoutStore.ts`, call `goalStore.syncGoalsAfterPR(exerciseName, newWeight)`. This function:
+1. Finds any active goal where `goal_type = 'strength'` and `exercise_name` matches (case-insensitive)
+2. Updates `current_value` to the new PR weight
+3. If `current_value >= target_value`, marks the goal as `achieved`
 
-### Suggestion Logic
+After a body entry is saved in `progressStore.ts`, call `goalStore.syncGoalsAfterBodyEntry(weightKg)`. This function:
+1. Finds any active goal where `goal_type = 'body_weight'`
+2. Updates `current_value` to the new weight
+3. Checks if the target is reached (handles both "lose" and "gain" directions)
 
-| Readiness Score | Zone | Suggestion | Color |
-|----------------|------|------------|-------|
-| 85-100% | Green (Push) | "Readiness is high. Great day to push intensity -- go for PRs or increase volume." | Green |
-| 70-84% | Blue (Normal) | "Solid readiness. Train as programmed. Stay consistent." | Blue/Primary |
-| 50-69% | Amber (Moderate) | "Readiness is moderate. Consider reducing volume by 10-20% or skipping heavy compounds." | Amber |
-| Below 50% | Red (Recovery) | "Readiness is low. Prioritise recovery today -- light mobility, a walk, or complete rest." | Red |
-| No check-in | Grey | "Complete your daily check-in to get a training recommendation." | Grey |
+### Integration Points
 
-### UI Component
+**`src/stores/workoutStore.ts`** (around line 428-435):
+After a new PR is confirmed, import and call `useGoalStore.getState().syncGoalsAfterPR(exerciseName, weight)`.
 
-- **`src/components/dashboard/TrainingSuggestion.tsx`** -- A banner/card placed on the Dashboard between the Today's Snapshot and the Goals Panel. Shows:
-  - The zone name and colour
-  - The suggestion text
-  - Optionally: which sub-scores are dragging readiness down (e.g. "Sleep and stress are low today")
-
-### Dashboard Integration
-
-The updated VaultDashboard layout will be:
-
-```
-[Today's Snapshot - 3 cards]
-[Training Suggestion Banner]
-[Active Goals Panel]
-[Weekly Review]
-```
+**`src/stores/progressStore.ts`** (around line 113-118):
+After a body entry is inserted, import and call `useGoalStore.getState().syncGoalsAfterBodyEntry(weightKg)`.
 
 ---
-
-## Files to Create
-
-| File | Purpose |
-|------|---------|
-| `src/components/goals/GoalForm.tsx` | Goal creation form (type selector, exercise picker, target, deadline) |
-| `src/components/goals/GoalCard.tsx` | Individual goal progress card with projection |
-| `src/components/goals/GoalsPanel.tsx` | Container listing active goals + add button |
-| `src/stores/goalStore.ts` | Zustand store for goal CRUD + projection logic |
-| `src/components/dashboard/TrainingSuggestion.tsx` | Readiness-based training recommendation banner |
 
 ## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/components/dashboard/VaultDashboard.tsx` | Add TrainingSuggestion and GoalsPanel between snapshot and weekly review |
+| `src/stores/goalStore.ts` | Add `syncGoalsAfterPR()` and `syncGoalsAfterBodyEntry()` methods |
+| `src/components/goals/GoalForm.tsx` | Replace exercise text input with searchable dropdown; auto-populate start value from PR/weight data |
+| `src/stores/workoutStore.ts` | After PR upsert, call `syncGoalsAfterPR()` |
+| `src/stores/progressStore.ts` | After body entry insert, call `syncGoalsAfterBodyEntry()` |
 
-## Database Migration
+## No New Files Needed
 
-One new table (`user_goals`) with RLS policies for user-scoped CRUD.
+All changes are modifications to existing files.
+
+## No Database Changes Needed
+
+The `user_goals` table already has all required columns.
 
 ---
 
-## Implementation Order
+## Technical Details
 
-1. Create the `user_goals` table with RLS policies
-2. Build the goal store with CRUD and projection logic
-3. Build the GoalForm, GoalCard, and GoalsPanel components
-4. Build the TrainingSuggestion component (reads from existing dashboard store)
-5. Wire everything into VaultDashboard in the correct layout order
+### New Methods in goalStore
 
+```
+syncGoalsAfterPR(exerciseName: string, newWeight: number)
+  - Normalises exercise name to lowercase
+  - Finds active goals matching exercise_name (case-insensitive)
+  - For each match: calls updateGoalProgress(goalId, newWeight)
+
+syncGoalsAfterBodyEntry(weightKg: number)
+  - Finds active goals where goal_type = 'body_weight'
+  - For each match: calls updateGoalProgress(goalId, weightKg)
+```
+
+### GoalForm Exercise Picker
+
+Uses `Popover` + `Command` (cmdk) components already in the project for a searchable dropdown. When goal type changes, the exercise list switches between strength and conditioning exercises. Selecting an exercise auto-fills the title field (e.g. "Bench Press 100kg") and queries the user's current PR to pre-fill the start value.
+
+### Achievement Detection
+
+The existing `updateGoalProgress` in goalStore already handles marking goals as achieved -- for strength goals it checks `currentValue >= targetValue`, and for conditioning goals it checks `currentValue <= targetValue` (lower time = better). This logic is preserved.
