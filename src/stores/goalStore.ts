@@ -73,6 +73,8 @@ interface GoalState {
   updateGoalProgress: (goalId: string, currentValue: number) => Promise<void>;
   cancelGoal: (goalId: string) => Promise<void>;
   deleteGoal: (goalId: string) => Promise<void>;
+  syncGoalsAfterPR: (exerciseName: string, newWeight: number) => Promise<void>;
+  syncGoalsAfterBodyEntry: (weightKg: number) => Promise<void>;
 }
 
 export const useGoalStore = create<GoalState>((set, get) => ({
@@ -172,6 +174,29 @@ export const useGoalStore = create<GoalState>((set, get) => ({
       await get().fetchGoals();
     } catch (err) {
       console.error("Failed to delete goal:", err);
+    }
+  },
+
+  syncGoalsAfterPR: async (exerciseName: string, newWeight: number) => {
+    const { goals } = get();
+    const matching = goals.filter(
+      g => g.status === "active" && g.goal_type === "strength" &&
+        g.exercise_name?.toLowerCase() === exerciseName.toLowerCase()
+    );
+    for (const goal of matching) {
+      if (newWeight > goal.current_value) {
+        await get().updateGoalProgress(goal.id, newWeight);
+      }
+    }
+  },
+
+  syncGoalsAfterBodyEntry: async (weightKg: number) => {
+    const { goals } = get();
+    const matching = goals.filter(
+      g => g.status === "active" && g.goal_type === "body_weight"
+    );
+    for (const goal of matching) {
+      await get().updateGoalProgress(goal.id, weightKg);
     }
   },
 }));
