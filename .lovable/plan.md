@@ -1,34 +1,92 @@
 
 
-# Fix: Sign-Out Dead Button and Admin Recognition
+# Fix: Admin Role Not Recognized on Phone
 
-## Issue 1: Sign-Out Button Not Working
+## Root Cause
 
-**Root cause:** The `signOut` function in `authStore.ts` sets `isLoading: true` before calling `supabase.auth.signOut()`. When sign-out succeeds, the `onAuthStateChange` listener fires and sets `isAuthenticated: false`, which causes the Navbar to immediately re-render and unmount the dropdown menu -- killing the `handleSignOut` function mid-execution before `navigate("/")` can run.
+The `useAdminCheck` hook has a race condition. During initialization, `onAuthStateChange` fires multiple times (INITIAL_SESSION, then TOKEN_REFRESHED), each updating `user` and `isAuthenticated`. Every change triggers a new admin role query. On slower devices/networks (phone), these overlapping queries can:
 
-**Fix in `src/stores/authStore.ts`:**
-- Remove `set({ isLoading: true })` from the `signOut` function. There's no UI reason to show a loading state for sign-out -- it should be instant. This prevents the race condition with the re-render.
+1. Start a query before the session token is fully ready, causing it to fail
+2. Have an older query's "not admin" result overwrite a newer query's "admin" result
+3. Run with a stale or incomplete auth state
 
-**Fix in `src/components/layout/Navbar.tsx`:**
-- Change `handleSignOut` to navigate FIRST, then sign out. This ensures the navigation happens before the auth state change triggers a re-render that unmounts the dropdown.
+## Fix
 
-## Issue 2: Admin Role Not Recognized
+### File: `src/hooks/useAdminCheck.ts`
 
-**Root cause:** `andyandrewscf@gmail.com` IS the admin in the database (confirmed). The issue is that `initialize()` is called in BOTH `App.tsx` (line 24) and `Auth.tsx` (line 26). Each call to `initialize()` registers a NEW `onAuthStateChange` listener without cleaning up the previous one. This causes duplicate listener registrations and potential race conditions where auth state updates fire multiple times with stale closures.
+Add proper cleanup/cancellation to the effect so stale queries don't overwrite fresh results:
 
-**Fix in `src/stores/authStore.ts`:**
-- Add a guard in `initialize()` to prevent multiple listener registrations. Track whether initialization has already been done and skip if so.
+- Add an `isCancelled` flag in the effect that gets set on cleanup
+- Don't update state if the effect has been superseded by a newer run
+- Add a small debounce: only run the check after auth state has settled (user and session both present)
+- Use the session from authStore to ensure the token is ready before querying
 
-**Fix in `src/pages/Auth.tsx`:**
-- Remove the redundant `initialize()` call since `App.tsx` already handles initialization at the app root level.
+```typescript
+export function useAdminCheck() {
+  const { user, isAuthenticated, isInitialized } = useAuthStore();
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-## Summary of Changes
+  useEffect(() => {
+    let isCancelled = false;
+
+    async function checkAdminRole() {
+      if (!isInitialized || !isAuthenticated || !user) {
+        if (!isCancelled) {
+          setIsAdmin(false);
+          setIsLoading(false);
+        }
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .eq('role', 'admin')
+          .maybeSingle();
+
+        if (isCancelled) return; // Don't update if superseded
+
+        if (error) {
+          console.error('Error checking admin role:', error);
+          setIsAdmin(false);
+        } else {
+          setIsAdmin(!!data);
+        }
+      } catch (err) {
+        if (!isCancelled) {
+          console.error('Error checking admin role:', err);
+          setIsAdmin(false);
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    checkAdminRole();
+
+    return () => {
+      isCancelled = true; // Cancel stale queries
+    };
+  }, [user, isAuthenticated, isInitialized]);
+
+  return { isAdmin, isLoading };
+}
+```
+
+Key changes:
+- Added `isInitialized` to dependencies -- won't query until auth is fully ready
+- Added `isCancelled` cleanup flag -- prevents stale results from overwriting fresh ones
+- This ensures on phone, even if the effect fires 3 times in quick succession, only the last query's result sticks
+
+## Files Modified
 
 | File | Change |
 |------|--------|
-| `src/stores/authStore.ts` | Remove `isLoading` from signOut; add initialization guard to prevent duplicate listeners |
-| `src/components/layout/Navbar.tsx` | Navigate before signing out to avoid unmount race |
-| `src/pages/Auth.tsx` | Remove duplicate `initialize()` call |
+| `src/hooks/useAdminCheck.ts` | Add cancellation flag and `isInitialized` gate to prevent race conditions |
 
-No database changes. No flow changes.
-
+One file changed. No database changes.
