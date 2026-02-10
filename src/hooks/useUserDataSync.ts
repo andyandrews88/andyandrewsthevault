@@ -39,7 +39,7 @@ export function useUserDataSync() {
     async function fetchUserData() {
       if (!userId) return;
       
-      hasFetchedRef.current = true;
+      // hasFetchedRef set after success below
       
       try {
         // Fetch nutrition data
@@ -97,7 +97,9 @@ export function useUserDataSync() {
             results: auditData.results as never 
           });
         }
+        hasFetchedRef.current = true;
       } catch (error) {
+        // hasFetchedRef stays false, will retry on next auth change
         console.error('Error fetching user data:', error);
       }
     }

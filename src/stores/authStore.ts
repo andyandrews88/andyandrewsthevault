@@ -25,27 +25,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   initialize: async () => {
     if (get().isInitialized) return;
-    
-    // Set up auth state listener FIRST
-    supabase.auth.onAuthStateChange(
-      (event, session) => {
-        set({ 
-          session, 
-          user: session?.user ?? null,
-          isAuthenticated: !!session?.user
-        });
-      }
-    );
 
-    // THEN check for existing session
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    set({ 
-      session, 
-      user: session?.user ?? null,
-      isAuthenticated: !!session?.user,
-      isLoading: false,
-      isInitialized: true
+    supabase.auth.onAuthStateChange((event, session) => {
+      set({
+        session,
+        user: session?.user ?? null,
+        isAuthenticated: !!session?.user,
+        isInitialized: true,
+        isLoading: false,
+      });
     });
   },
 
