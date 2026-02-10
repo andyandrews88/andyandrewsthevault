@@ -1,19 +1,57 @@
 
 
-# Fix: Admin Not Working on Mobile + Library Showing Demo Data
+# Complete Fix: Mobile Auth, Admin, and Data Sync
 
-## Problem 1: Admin Not Recognized on Mobile
+## Root Cause (affects EVERYTHING on mobile)
 
-**Root cause:** The `useAdminCheck` effect depends on the `user` object reference (`[user, isAuthenticated, isInitialized]`). On mobile, `onAuthStateChange` fires multiple times in quick succession (INITIAL_SESSION, SIGNED_IN, TOKEN_REFRESHED), and each event creates a NEW `user` object. Even though it's the same user, the different object reference triggers the effect to re-run and cancel the previous in-flight database query via `isCancelled`. On a slow mobile connection, the admin query never gets a chance to complete before being cancelled by the next auth event.
+The `authStore.ts` `initialize()` function has a fundamental race condition between TWO competing auth state sources:
 
-**Fix in `src/hooks/useAdminCheck.ts`:**
-- Change dependency from `user` to `user?.id` (a stable string, not a changing object reference)
-- This means the effect only re-runs when the actual user changes, not when the session refreshes
-- Add a `setTimeout` debounce (300ms) before running the query to let all rapid auth events settle first
+```text
+Timeline on mobile:
+1. onAuthStateChange registered
+2. getSession() starts (network call to refresh expired token)
+3. onAuthStateChange fires INITIAL_SESSION → sets user, isAuthenticated
+   BUT does NOT set isInitialized (still false)
+4. useAdminCheck sees isInitialized=false → bails, sets isAdmin=false
+5. useUserDataSync sees isInitialized=false → bails, no data loaded
+6. getSession() resolves → sets isInitialized=true
+7. onAuthStateChange fires TOKEN_REFRESHED → sets NEW user object
+   BUT user?.id is the same, so effects DON'T re-run
+8. User sees: no admin, no data, no resources
+```
+
+On laptop, steps 2-6 happen almost instantly so the race doesn't matter. On mobile with slower networks, there's a significant gap.
+
+Additionally, `useUserDataSync` sets `hasFetchedRef = true` BEFORE the database queries run. If those queries fail (expired token, network timeout), it never retries.
+
+## Fix 1: authStore.ts - Eliminate the race condition
+
+Remove `getSession()` entirely. Use `onAuthStateChange` with INITIAL_SESSION as the sole source of truth (this is the Supabase-recommended approach). Set `isInitialized: true` from within the listener itself, so auth state and initialization are ALWAYS atomic.
+
+```typescript
+initialize: async () => {
+  if (get().isInitialized) return;
+
+  supabase.auth.onAuthStateChange((event, session) => {
+    set({
+      session,
+      user: session?.user ?? null,
+      isAuthenticated: !!session?.user,
+      isInitialized: true, // Set on EVERY auth event, not separately
+    });
+  });
+},
+```
+
+This guarantees that when `isInitialized` becomes `true`, the session/user/isAuthenticated are already correct -- no gap, no race.
+
+## Fix 2: useAdminCheck.ts - Re-run on session changes
+
+The current dependency `[user?.id, isAuthenticated, isInitialized]` misses token refreshes (same user ID, new session). Add the `session` object from authStore so the admin check re-runs when the session changes (e.g., after token refresh).
 
 ```typescript
 export function useAdminCheck() {
-  const { user, isAuthenticated, isInitialized } = useAuthStore();
+  const { user, session, isAuthenticated, isInitialized } = useAuthStore();
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -38,89 +76,53 @@ export function useAdminCheck() {
           .maybeSingle();
 
         if (isCancelled) return;
-
-        if (error) {
-          console.error('Error checking admin role:', error);
-          setIsAdmin(false);
-        } else {
-          setIsAdmin(!!data);
-        }
-      } catch (err) {
-        if (!isCancelled) {
-          console.error('Error checking admin role:', err);
-          setIsAdmin(false);
-        }
+        setIsAdmin(!error && !!data);
+      } catch {
+        if (!isCancelled) setIsAdmin(false);
       } finally {
-        if (!isCancelled) {
-          setIsLoading(false);
-        }
+        if (!isCancelled) setIsLoading(false);
       }
     }
 
-    // Debounce to let rapid auth events settle (mobile)
-    const timeoutId = setTimeout(() => {
-      checkAdminRole();
-    }, 300);
+    const timeoutId = setTimeout(() => checkAdminRole(), 300);
 
     return () => {
       isCancelled = true;
       clearTimeout(timeoutId);
     };
-  }, [user?.id, isAuthenticated, isInitialized]);
-  //    ^^^^^^^ stable string instead of object reference
+  }, [user?.id, session?.access_token, isAuthenticated, isInitialized]);
+  //          ^^^^^^^^^^^^^^^^^^^^^ NEW: re-run on token refresh
 
   return { isAdmin, isLoading };
 }
 ```
 
----
+## Fix 3: useUserDataSync.ts - Don't mark fetched before success
 
-## Problem 2: Library Showing Demo Data
-
-**Root cause:** Two compounding issues:
-
-1. The `vault_resources` table has RLS enabled with a SELECT policy that only allows the `authenticated` role. When the LibraryTab mounts and calls `fetchResources()`, the auth session may not be established yet (especially on mobile). The query runs as `anon`, gets back 0 rows (not an error), and the code sees `dbResources.length === 0` and falls back to static demo data.
-
-2. `loadResources()` runs once on mount via `useEffect([], [])` and never retries, even after auth succeeds.
-
-**Fix 1 -- Database: Allow public read access to vault_resources:**
-Resources are educational content meant to be visible to all users. Add an `anon` SELECT policy so resources load regardless of auth state.
-
-```sql
-CREATE POLICY "Anyone can view resources public"
-  ON public.vault_resources
-  FOR SELECT
-  TO anon
-  USING (true);
-```
-
-**Fix 2 -- `src/components/vault/LibraryTab.tsx`:**
-Add auth state awareness so resources are refetched once auth is ready (for cases where the initial load returned empty):
+Move `hasFetchedRef.current = true` from BEFORE the queries to AFTER they succeed. This way, if the initial fetch fails (expired token, network issue), it will retry when auth state changes.
 
 ```typescript
-// Add import
-import { useAuthStore } from '@/stores/authStore';
+// BEFORE (broken):
+hasFetchedRef.current = true; // Set BEFORE queries
+try {
+  // queries that might fail...
+}
 
-// Inside component
-const { isAuthenticated } = useAuthStore();
-
-// Change useEffect to also trigger on auth changes
-useEffect(() => {
-  loadResources();
-}, [isAuthenticated]);
+// AFTER (fixed):
+try {
+  // queries...
+  hasFetchedRef.current = true; // Set AFTER success
+} catch (error) {
+  // hasFetchedRef stays false, will retry
+}
 ```
-
-This ensures that even if the first fetch returned empty due to auth timing, it retries once the user is authenticated.
-
----
 
 ## Summary of All Changes
 
-| File / Area | Change |
-|-------------|--------|
-| `src/hooks/useAdminCheck.ts` | Use `user?.id` instead of `user` in deps; add 300ms debounce |
-| Database migration | Add `anon` SELECT policy on `vault_resources` |
-| `src/components/vault/LibraryTab.tsx` | Refetch resources when auth state changes |
+| File | Change | Why |
+|------|--------|-----|
+| `src/stores/authStore.ts` | Remove `getSession()`, set `isInitialized` inside `onAuthStateChange` | Eliminates the race condition between two competing state sources |
+| `src/hooks/useAdminCheck.ts` | Add `session?.access_token` to effect dependencies | Re-runs admin check after token refresh |
+| `src/hooks/useUserDataSync.ts` | Move `hasFetchedRef.current = true` after successful queries | Allows retry if initial fetch fails with expired token |
 
-No breaking changes. No schema changes beyond the new policy.
-
+Three files changed. No database changes. These fixes address the root timing issues that cause all mobile failures.
