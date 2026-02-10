@@ -63,6 +63,7 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
     viewingExercises,
     workoutDays,
     fetchWorkoutDays,
+    fetchWorkoutByDate,
     preferredUnit
   } = useWorkoutStore();
   
@@ -77,7 +78,8 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
     fetchActiveWorkout();
     fetchPersonalRecords();
     fetchWorkoutDays(12);
-  }, [fetchActiveWorkout, fetchPersonalRecords, fetchWorkoutDays]);
+    fetchWorkoutByDate(selectedDate);
+  }, [fetchActiveWorkout, fetchPersonalRecords, fetchWorkoutDays, fetchWorkoutByDate, selectedDate]);
 
   const handleStartWorkout = async () => {
     if (workoutName.trim()) {
