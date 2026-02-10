@@ -178,25 +178,49 @@ export const useGoalStore = create<GoalState>((set, get) => ({
   },
 
   syncGoalsAfterPR: async (exerciseName: string, newWeight: number) => {
-    const { goals } = get();
-    const matching = goals.filter(
-      g => g.status === "active" && g.goal_type === "strength" &&
-        g.exercise_name?.toLowerCase() === exerciseName.toLowerCase()
-    );
-    for (const goal of matching) {
-      if (newWeight > goal.current_value) {
-        await get().updateGoalProgress(goal.id, newWeight);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: matching } = await supabase
+        .from("user_goals" as any)
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("status", "active")
+        .eq("goal_type", "strength")
+        .ilike("exercise_name", exerciseName);
+
+      const goals = (matching || []) as unknown as Goal[];
+      for (const goal of goals) {
+        if (newWeight > goal.current_value) {
+          await get().updateGoalProgress(goal.id, newWeight);
+        }
       }
+      await get().fetchGoals();
+    } catch (err) {
+      console.error("Failed to sync goals after PR:", err);
     }
   },
 
   syncGoalsAfterBodyEntry: async (weightKg: number) => {
-    const { goals } = get();
-    const matching = goals.filter(
-      g => g.status === "active" && g.goal_type === "body_weight"
-    );
-    for (const goal of matching) {
-      await get().updateGoalProgress(goal.id, weightKg);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: matching } = await supabase
+        .from("user_goals" as any)
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("status", "active")
+        .eq("goal_type", "body_weight");
+
+      const goals = (matching || []) as unknown as Goal[];
+      for (const goal of goals) {
+        await get().updateGoalProgress(goal.id, weightKg);
+      }
+      await get().fetchGoals();
+    } catch (err) {
+      console.error("Failed to sync goals after body entry:", err);
     }
   },
 }));
