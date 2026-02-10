@@ -4,6 +4,7 @@ import { Separator } from '@/components/ui/separator';
 import { Clock, Users, Flame, Beef, Wheat, Droplets } from 'lucide-react';
 import { Recipe } from '@/types/nutrition';
 import { getPrepTimeLabel } from '@/data/recipes';
+import { getFoodById } from '@/data/foodDatabase';
 
 interface RecipeDetailModalProps {
   recipe: Recipe | null;
@@ -59,18 +60,52 @@ export function RecipeDetailModal({ recipe, open, onOpenChange }: RecipeDetailMo
 
         {/* Ingredients */}
         <div>
-          <h4 className="font-semibold text-sm mb-2 uppercase tracking-wider text-muted-foreground">Ingredients</h4>
-          <ul className="space-y-1.5">
-            {recipe.ingredients.map((ing, idx) => (
-              <li key={idx} className="flex items-center gap-2 text-sm">
-                <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
-                <span>
-                  {ing.quantity !== 1 && `${ing.quantity}x `}
-                  {ing.customServingSize || ing.foodId.replace(/-/g, ' ')}
-                </span>
-              </li>
-            ))}
-          </ul>
+          <h4 className="font-semibold text-sm mb-3 uppercase tracking-wider text-muted-foreground">Ingredients</h4>
+          <div className="space-y-2">
+            {recipe.ingredients.map((ing, idx) => {
+              const food = getFoodById(ing.foodId);
+              if (!food) {
+                return (
+                  <div key={idx} className="bg-muted/30 rounded-lg p-3 text-sm">
+                    {ing.customServingSize || ing.foodId.replace(/-/g, ' ')}
+                    {ing.quantity !== 1 && ` (×${ing.quantity})`}
+                  </div>
+                );
+              }
+              const totalGrams = Math.round(food.servingGrams * ing.quantity);
+              const totalOz = Math.round((totalGrams / 28.35) * 10) / 10;
+              const cal = Math.round(food.calories * ing.quantity);
+              const pro = Math.round(food.protein * ing.quantity * 10) / 10;
+              const carb = Math.round(food.carbs * ing.quantity * 10) / 10;
+              const fat = Math.round(food.fats * ing.quantity * 10) / 10;
+
+              const servingLabel = ing.quantity === 1
+                ? food.servingSize
+                : `${ing.quantity} × ${food.servingSize}`;
+
+              return (
+                <div key={idx} className="bg-muted/30 rounded-lg p-3 space-y-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="font-medium text-sm">{food.name}</span>
+                    <span className="text-xs font-mono font-semibold text-destructive shrink-0">{cal} kcal</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs text-muted-foreground">
+                      {totalGrams}g ({totalOz} oz)
+                      <span className="ml-1.5 opacity-60">· {servingLabel}</span>
+                    </span>
+                  </div>
+                  <div className="flex gap-3 text-[11px] text-muted-foreground">
+                    <span className="text-primary font-medium">{pro}g P</span>
+                    <span>·</span>
+                    <span className="text-success font-medium">{carb}g C</span>
+                    <span>·</span>
+                    <span className="text-accent font-medium">{fat}g F</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         <Separator />
