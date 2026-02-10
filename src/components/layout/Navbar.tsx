@@ -26,9 +26,9 @@ export function Navbar() {
   ];
 
   const handleSignOut = async () => {
+    navigate("/");
     await signOut();
     toast.success("Signed out successfully");
-    navigate("/");
   };
 
   return (

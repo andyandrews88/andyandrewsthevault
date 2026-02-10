@@ -15,16 +15,12 @@ const passwordSchema = z.string().min(8, "Password must be at least 8 characters
 
 export function AuthPage() {
   const navigate = useNavigate();
-  const { signIn, signUp, isAuthenticated, isLoading, initialize } = useAuthStore();
+  const { signIn, signUp, isAuthenticated, isLoading } = useAuthStore();
   
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
-
-  useEffect(() => {
-    initialize();
-  }, [initialize]);
 
   useEffect(() => {
     if (isAuthenticated) {
