@@ -1,25 +1,15 @@
 
 
-# Fix: Admin Role Not Recognized on Phone
+# Fix: Admin Not Working on Mobile + Library Showing Demo Data
 
-## Root Cause
+## Problem 1: Admin Not Recognized on Mobile
 
-The `useAdminCheck` hook has a race condition. During initialization, `onAuthStateChange` fires multiple times (INITIAL_SESSION, then TOKEN_REFRESHED), each updating `user` and `isAuthenticated`. Every change triggers a new admin role query. On slower devices/networks (phone), these overlapping queries can:
+**Root cause:** The `useAdminCheck` effect depends on the `user` object reference (`[user, isAuthenticated, isInitialized]`). On mobile, `onAuthStateChange` fires multiple times in quick succession (INITIAL_SESSION, SIGNED_IN, TOKEN_REFRESHED), and each event creates a NEW `user` object. Even though it's the same user, the different object reference triggers the effect to re-run and cancel the previous in-flight database query via `isCancelled`. On a slow mobile connection, the admin query never gets a chance to complete before being cancelled by the next auth event.
 
-1. Start a query before the session token is fully ready, causing it to fail
-2. Have an older query's "not admin" result overwrite a newer query's "admin" result
-3. Run with a stale or incomplete auth state
-
-## Fix
-
-### File: `src/hooks/useAdminCheck.ts`
-
-Add proper cleanup/cancellation to the effect so stale queries don't overwrite fresh results:
-
-- Add an `isCancelled` flag in the effect that gets set on cleanup
-- Don't update state if the effect has been superseded by a newer run
-- Add a small debounce: only run the check after auth state has settled (user and session both present)
-- Use the session from authStore to ensure the token is ready before querying
+**Fix in `src/hooks/useAdminCheck.ts`:**
+- Change dependency from `user` to `user?.id` (a stable string, not a changing object reference)
+- This means the effect only re-runs when the actual user changes, not when the session refreshes
+- Add a `setTimeout` debounce (300ms) before running the query to let all rapid auth events settle first
 
 ```typescript
 export function useAdminCheck() {
@@ -47,7 +37,7 @@ export function useAdminCheck() {
           .eq('role', 'admin')
           .maybeSingle();
 
-        if (isCancelled) return; // Don't update if superseded
+        if (isCancelled) return;
 
         if (error) {
           console.error('Error checking admin role:', error);
@@ -67,26 +57,70 @@ export function useAdminCheck() {
       }
     }
 
-    checkAdminRole();
+    // Debounce to let rapid auth events settle (mobile)
+    const timeoutId = setTimeout(() => {
+      checkAdminRole();
+    }, 300);
 
     return () => {
-      isCancelled = true; // Cancel stale queries
+      isCancelled = true;
+      clearTimeout(timeoutId);
     };
-  }, [user, isAuthenticated, isInitialized]);
+  }, [user?.id, isAuthenticated, isInitialized]);
+  //    ^^^^^^^ stable string instead of object reference
 
   return { isAdmin, isLoading };
 }
 ```
 
-Key changes:
-- Added `isInitialized` to dependencies -- won't query until auth is fully ready
-- Added `isCancelled` cleanup flag -- prevents stale results from overwriting fresh ones
-- This ensures on phone, even if the effect fires 3 times in quick succession, only the last query's result sticks
+---
 
-## Files Modified
+## Problem 2: Library Showing Demo Data
 
-| File | Change |
-|------|--------|
-| `src/hooks/useAdminCheck.ts` | Add cancellation flag and `isInitialized` gate to prevent race conditions |
+**Root cause:** Two compounding issues:
 
-One file changed. No database changes.
+1. The `vault_resources` table has RLS enabled with a SELECT policy that only allows the `authenticated` role. When the LibraryTab mounts and calls `fetchResources()`, the auth session may not be established yet (especially on mobile). The query runs as `anon`, gets back 0 rows (not an error), and the code sees `dbResources.length === 0` and falls back to static demo data.
+
+2. `loadResources()` runs once on mount via `useEffect([], [])` and never retries, even after auth succeeds.
+
+**Fix 1 -- Database: Allow public read access to vault_resources:**
+Resources are educational content meant to be visible to all users. Add an `anon` SELECT policy so resources load regardless of auth state.
+
+```sql
+CREATE POLICY "Anyone can view resources public"
+  ON public.vault_resources
+  FOR SELECT
+  TO anon
+  USING (true);
+```
+
+**Fix 2 -- `src/components/vault/LibraryTab.tsx`:**
+Add auth state awareness so resources are refetched once auth is ready (for cases where the initial load returned empty):
+
+```typescript
+// Add import
+import { useAuthStore } from '@/stores/authStore';
+
+// Inside component
+const { isAuthenticated } = useAuthStore();
+
+// Change useEffect to also trigger on auth changes
+useEffect(() => {
+  loadResources();
+}, [isAuthenticated]);
+```
+
+This ensures that even if the first fetch returned empty due to auth timing, it retries once the user is authenticated.
+
+---
+
+## Summary of All Changes
+
+| File / Area | Change |
+|-------------|--------|
+| `src/hooks/useAdminCheck.ts` | Use `user?.id` instead of `user` in deps; add 300ms debounce |
+| Database migration | Add `anon` SELECT policy on `vault_resources` |
+| `src/components/vault/LibraryTab.tsx` | Refetch resources when auth state changes |
+
+No breaking changes. No schema changes beyond the new policy.
+
