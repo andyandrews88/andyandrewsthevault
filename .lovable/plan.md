@@ -1,34 +1,34 @@
 
 
-# Fix: Sign-In Button Showing "Signing In" Before User Input
+# Fix: Sign-Out Dead Button and Admin Recognition
 
-## Root Cause
+## Issue 1: Sign-Out Button Not Working
 
-In `authStore.ts`, `isLoading` defaults to `true` (line 16). The Auth page button uses `isLoading` to both disable itself and display "Signing in..." text. Since `initialize()` is async, there's a window where `isLoading` is `true` before the session check completes, causing the button to appear stuck.
+**Root cause:** The `signOut` function in `authStore.ts` sets `isLoading: true` before calling `supabase.auth.signOut()`. When sign-out succeeds, the `onAuthStateChange` listener fires and sets `isAuthenticated: false`, which causes the Navbar to immediately re-render and unmount the dropdown menu -- killing the `handleSignOut` function mid-execution before `navigate("/")` can run.
 
-The real problem: `isLoading` is being used for TWO different purposes:
-1. Initial auth initialization (should the whole page show a loader?)
-2. Active sign-in/sign-up form submission (should the button show progress?)
+**Fix in `src/stores/authStore.ts`:**
+- Remove `set({ isLoading: true })` from the `signOut` function. There's no UI reason to show a loading state for sign-out -- it should be instant. This prevents the race condition with the re-render.
 
-These need to be separated.
+**Fix in `src/components/layout/Navbar.tsx`:**
+- Change `handleSignOut` to navigate FIRST, then sign out. This ensures the navigation happens before the auth state change triggers a re-render that unmounts the dropdown.
 
-## Fix
+## Issue 2: Admin Role Not Recognized
 
-### File: `src/stores/authStore.ts`
+**Root cause:** `andyandrewscf@gmail.com` IS the admin in the database (confirmed). The issue is that `initialize()` is called in BOTH `App.tsx` (line 24) and `Auth.tsx` (line 26). Each call to `initialize()` registers a NEW `onAuthStateChange` listener without cleaning up the previous one. This causes duplicate listener registrations and potential race conditions where auth state updates fire multiple times with stale closures.
 
-- Change `isLoading` default from `true` to `false` -- this field should only represent active sign-in/sign-up actions
-- The existing `isInitialized` field (defaults to `false`) already handles the initialization state separately
-- No other changes needed -- `ProtectedRoute.tsx` already checks `isInitialized` independently
+**Fix in `src/stores/authStore.ts`:**
+- Add a guard in `initialize()` to prevent multiple listener registrations. Track whether initialization has already been done and skip if so.
 
-### File: `src/pages/Auth.tsx`
+**Fix in `src/pages/Auth.tsx`:**
+- Remove the redundant `initialize()` call since `App.tsx` already handles initialization at the app root level.
 
-- No changes needed -- the button logic (`isLoading ? "Signing in..." : "Sign In"`) will now work correctly since `isLoading` starts as `false` and only becomes `true` during an actual sign-in attempt
-
-## Summary
+## Summary of Changes
 
 | File | Change |
 |------|--------|
-| `src/stores/authStore.ts` | Change `isLoading` initial value from `true` to `false` |
+| `src/stores/authStore.ts` | Remove `isLoading` from signOut; add initialization guard to prevent duplicate listeners |
+| `src/components/layout/Navbar.tsx` | Navigate before signing out to avoid unmount race |
+| `src/pages/Auth.tsx` | Remove duplicate `initialize()` call |
 
-One line change. No database changes. No flow changes.
+No database changes. No flow changes.
 
