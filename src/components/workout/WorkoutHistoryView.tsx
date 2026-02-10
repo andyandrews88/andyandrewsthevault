@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Dumbbell, Clock, TrendingUp } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Dumbbell, Clock, TrendingUp, Pencil } from "lucide-react";
 import { Workout, WorkoutExercise } from "@/types/workout";
 import { format } from "date-fns";
 import { useWorkoutStore } from "@/stores/workoutStore";
@@ -12,7 +13,7 @@ interface WorkoutHistoryViewProps {
 }
 
 export function WorkoutHistoryView({ workout, exercises }: WorkoutHistoryViewProps) {
-  const { preferredUnit } = useWorkoutStore();
+  const { preferredUnit, editWorkout } = useWorkoutStore();
 
   const formatWeight = (weight: number) => {
     const displayWeight = preferredUnit === 'kg' 
@@ -33,7 +34,18 @@ export function WorkoutHistoryView({ workout, exercises }: WorkoutHistoryViewPro
                 {format(new Date(workout.date), 'EEEE, MMMM d, yyyy')}
               </p>
             </div>
-            <Badge variant="outline">Completed</Badge>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                onClick={() => editWorkout(workout.id)}
+              >
+                <Pencil className="h-3.5 w-3.5" />
+                Edit
+              </Button>
+              <Badge variant="outline">Completed</Badge>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -61,14 +73,11 @@ export function WorkoutHistoryView({ workout, exercises }: WorkoutHistoryViewPro
           <CardContent className="pt-0">
             {exercise.exercise_type === 'strength' && exercise.sets && (
               <div className="space-y-2">
-                {/* Header */}
                 <div className="grid grid-cols-3 text-xs text-muted-foreground font-medium pb-1 border-b">
                   <span>Set</span>
                   <span className="text-center">Weight</span>
                   <span className="text-center">Reps</span>
                 </div>
-                
-                {/* Sets */}
                 {exercise.sets
                   .filter(s => s.is_completed)
                   .sort((a, b) => a.set_number - b.set_number)
@@ -88,14 +97,11 @@ export function WorkoutHistoryView({ workout, exercises }: WorkoutHistoryViewPro
             
             {exercise.exercise_type === 'conditioning' && exercise.conditioning_sets && (
               <div className="space-y-2">
-                {/* Header */}
                 <div className="grid grid-cols-3 text-xs text-muted-foreground font-medium pb-1 border-b">
                   <span>Set</span>
                   <span className="text-center">Duration</span>
                   <span className="text-center">Distance/Cals</span>
                 </div>
-                
-                {/* Sets */}
                 {exercise.conditioning_sets
                   .filter(s => s.is_completed)
                   .sort((a, b) => a.set_number - b.set_number)
