@@ -1,82 +1,34 @@
 
 
-# Recipe Ingredients Overhaul: Precise, Professional Measurements
+# Fix: Sign-In Button Showing "Signing In" Before User Input
 
-## Problem
+## Root Cause
 
-Currently, recipe ingredients display like this:
-- `0.5x peanut butter`
-- `1.5x chicken breast`
-- `1x oats`
+In `authStore.ts`, `isLoading` defaults to `true` (line 16). The Auth page button uses `isLoading` to both disable itself and display "Signing in..." text. Since `initialize()` is async, there's a window where `isLoading` is `true` before the session check completes, causing the button to appear stuck.
 
-This is lazy and unusable for anyone actually cooking. No grams, no ounces, no cups -- just a vague multiplier of an unnamed serving size. People following these recipes for body composition results need exact, weighed measurements.
+The real problem: `isLoading` is being used for TWO different purposes:
+1. Initial auth initialization (should the whole page show a loader?)
+2. Active sign-in/sign-up form submission (should the button show progress?)
 
-## Solution
+These need to be separated.
 
-Cross-reference each recipe ingredient's `foodId` and `quantity` with the food database to compute the **exact gram weight**, then display it in multiple useful units (grams primary, plus a practical unit like oz or cups where appropriate). Also show per-ingredient macro breakdown so users can see exactly what each ingredient contributes.
+## Fix
 
-## What Changes
+### File: `src/stores/authStore.ts`
 
-### 1. `src/components/nutrition/RecipeDetailModal.tsx`
+- Change `isLoading` default from `true` to `false` -- this field should only represent active sign-in/sign-up actions
+- The existing `isInitialized` field (defaults to `false`) already handles the initialization state separately
+- No other changes needed -- `ProtectedRoute.tsx` already checks `isInitialized` independently
 
-Transform the ingredient list from a basic bullet list into a detailed, professional ingredient display:
+### File: `src/pages/Auth.tsx`
 
-**For each ingredient, show:**
-- Food name (proper case, from the database -- not the raw foodId)
-- Primary measurement: exact grams (e.g., "170g")
-- Secondary measurement: practical unit (e.g., "6 oz" or "1.5 cups")
-- Original serving context (e.g., "1.5 servings" dimmed)
-- Per-ingredient macros: cal / P / C / F in a compact row
+- No changes needed -- the button logic (`isLoading ? "Signing in..." : "Sign In"`) will now work correctly since `isLoading` starts as `false` and only becomes `true` during an actual sign-in attempt
 
-**Layout:** Each ingredient becomes a small card-like row with the name and measurements on the left, and a compact macro summary on the right.
-
-**Example transformation:**
-```
-BEFORE:  - 1.5x chicken breast
-AFTER:   Chicken Breast
-         170g / 6 oz (1.5 servings of 4 oz)
-         180 cal | 39g P | 0g C | 2.3g F
-```
-
-**Implementation:**
-- Import `foodDatabase` from `@/data/foodDatabase`
-- For each ingredient, look up the food item by `foodId`
-- Calculate: `grams = food.servingGrams * ingredient.quantity`
-- Calculate: `ounces = grams / 28.35` (rounded to 1 decimal)
-- Calculate macros: multiply each macro by `ingredient.quantity`
-- Show the food's `servingSize` as context (e.g., "1.5 x 4 oz serving")
-
-### 2. `src/data/recipes.ts` -- No structural changes needed
-
-The recipe data already has the correct `quantity` multipliers against the food database serving sizes. The food database already has `servingGrams`, `servingSize`, and all macros per serving. We just need to USE this data in the modal display.
-
-## Visual Design
-
-```text
-+------------------------------------------+
-| INGREDIENTS                              |
-+------------------------------------------+
-| Chicken Breast                           |
-| 170g (6 oz)                    180 kcal  |
-| 39g P · 0g C · 2.3g F                   |
-+------------------------------------------+
-| White Rice                               |
-| 210g (1.5 cups cooked)        315 kcal   |
-| 6g P · 69g C · 0.8g F                   |
-+------------------------------------------+
-| Broccoli                                 |
-| 85g (3 oz)                     25 kcal   |
-| 2g P · 5g C · 0g F                      |
-+------------------------------------------+
-```
-
-Each ingredient row will use a subtle card background (`bg-muted/30 rounded-lg p-3`) to visually separate them and make the list scannable.
-
-## Files Modified
+## Summary
 
 | File | Change |
 |------|--------|
-| `src/components/nutrition/RecipeDetailModal.tsx` | Replace simple bullet list with detailed ingredient cards showing exact grams, ounces, and per-ingredient macros |
+| `src/stores/authStore.ts` | Change `isLoading` initial value from `true` to `false` |
 
-One file changed. No database changes. No flow changes. No new dependencies.
+One line change. No database changes. No flow changes.
 
