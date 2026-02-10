@@ -1,12 +1,18 @@
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, TrendingDown, Minus, FileText } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { TrendingUp, TrendingDown, Minus, FileText, Sparkles, Loader2 } from "lucide-react";
 import { useDashboardStore } from "@/stores/dashboardStore";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 
 function kgToLbs(kg: number) { return Math.round(kg * 2.20462 * 10) / 10; }
 
 export function WeeklyReview() {
   const { weeklyData } = useDashboardStore();
+  const [aiReview, setAiReview] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const trendIcon = weeklyData.readinessTrend === "up" ? TrendingUp
     : weeklyData.readinessTrend === "down" ? TrendingDown : Minus;
@@ -18,7 +24,6 @@ export function WeeklyReview() {
   const generateWriteup = (): string => {
     const parts: string[] = [];
 
-    // Training
     if (weeklyData.workoutsCompleted > 0) {
       let s = `This week you completed ${weeklyData.workoutsCompleted} workout${weeklyData.workoutsCompleted > 1 ? "s" : ""}`;
       if (weeklyData.totalVolume > 0) {
@@ -33,7 +38,6 @@ export function WeeklyReview() {
       parts.push("No workouts logged this week. Consider getting a session in if you're feeling up to it.");
     }
 
-    // Readiness
     if (weeklyData.avgReadiness > 0) {
       let s = `Your average readiness score was ${weeklyData.avgReadiness}%, ${trendLabel.toLowerCase()} from last week.`;
       if (weeklyData.lowestReadinessDay) {
@@ -42,7 +46,6 @@ export function WeeklyReview() {
       parts.push(s);
     }
 
-    // Body comp
     if (weeklyData.weightStart && weeklyData.weightEnd) {
       const diff = weeklyData.weightEnd - weeklyData.weightStart;
       const displayDiff = weeklyData.usesImperial ? kgToLbs(Math.abs(diff)) : Math.round(Math.abs(diff) * 10) / 10;
@@ -58,6 +61,38 @@ export function WeeklyReview() {
     }
 
     return parts.join(" ");
+  };
+
+  const handleGenerateAI = async () => {
+    setIsGenerating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("weekly-review", {
+        body: { weeklyData },
+      });
+
+      if (error) {
+        const status = (error as any)?.status;
+        if (status === 429) {
+          toast({ title: "Rate limited", description: "Please try again in a moment.", variant: "destructive" });
+        } else if (status === 402) {
+          toast({ title: "Credits exhausted", description: "Top up your AI credits in Settings.", variant: "destructive" });
+        } else {
+          toast({ title: "Generation failed", description: "Could not generate AI review. Try again later.", variant: "destructive" });
+        }
+        return;
+      }
+
+      if (data?.error) {
+        toast({ title: "Generation failed", description: data.error, variant: "destructive" });
+        return;
+      }
+
+      setAiReview(data?.review || null);
+    } catch {
+      toast({ title: "Error", description: "Something went wrong. Try again.", variant: "destructive" });
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const hasData = weeklyData.workoutsCompleted > 0 || weeklyData.avgReadiness > 0 || weeklyData.weightEnd;
@@ -107,10 +142,33 @@ export function WeeklyReview() {
               </div>
             </div>
 
-            {/* Generated writeup */}
+            {/* Write-up box */}
             <div className="p-4 rounded-lg bg-muted/50 border border-border">
-              <p className="text-sm leading-relaxed text-foreground/90">{generateWriteup()}</p>
+              <p className="text-sm leading-relaxed text-foreground/90">
+                {aiReview || generateWriteup()}
+              </p>
+              {aiReview && (
+                <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
+                  <Sparkles className="w-3 h-3" /> AI-generated review
+                </p>
+              )}
             </div>
+
+            {/* Generate button */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-3 gap-1.5"
+              onClick={handleGenerateAI}
+              disabled={isGenerating}
+            >
+              {isGenerating ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Sparkles className="w-3.5 h-3.5" />
+              )}
+              {isGenerating ? "Generating..." : aiReview ? "Regenerate AI Review" : "Generate AI Review"}
+            </Button>
           </>
         )}
       </CardContent>
