@@ -77,95 +77,137 @@ export function ConditioningSetRow({
   const hasData = (minutes && seconds) || distance || calories;
 
   return (
-    <div className="grid grid-cols-[40px_1fr_1fr_1fr_44px_32px] gap-2 items-center py-2 border-b border-border/50 last:border-0">
-      {/* Set Number */}
-      <span className="text-center text-sm font-medium text-muted-foreground">
-        {set.set_number}
-      </span>
-      
-      {/* Duration (MM:SS) */}
-      <div className="flex items-center gap-1">
+    <div className="py-2 border-b border-border/50 last:border-0">
+      {/* Row 1: Set#, Time, Checkbox, Delete */}
+      <div className="grid grid-cols-[32px_1fr_40px_28px] sm:grid-cols-[32px_1fr_1fr_1fr_40px_28px] gap-1.5 sm:gap-2 items-center">
+        {/* Set Number */}
+        <span className="text-center text-sm font-medium text-muted-foreground">
+          {set.set_number}
+        </span>
+        
+        {/* Duration (MM:SS) */}
+        <div className="flex items-center gap-1">
+          <Input
+            type="number"
+            inputMode="numeric"
+            placeholder="min"
+            value={minutes}
+            onChange={(e) => setMinutes(e.target.value)}
+            onBlur={handleDurationChange}
+            disabled={set.is_completed || disabled}
+            className="h-9 text-center text-sm w-12"
+          />
+          <span className="text-muted-foreground">:</span>
+          <Input
+            type="number"
+            inputMode="numeric"
+            placeholder="sec"
+            value={seconds}
+            onChange={(e) => setSeconds(e.target.value)}
+            onBlur={handleDurationChange}
+            disabled={set.is_completed || disabled}
+            className="h-9 text-center text-sm w-12"
+          />
+        </div>
+        
+        {/* Distance - visible on sm+ inline */}
+        <div className="hidden sm:flex items-center gap-1">
+          <Input
+            type="number"
+            inputMode="decimal"
+            placeholder="dist"
+            value={distance}
+            onChange={(e) => handleDistanceChange(e.target.value)}
+            disabled={set.is_completed || disabled}
+            className="h-9 text-center text-sm flex-1"
+          />
+          <Select 
+            value={set.distance_unit} 
+            onValueChange={(v) => onUpdate({ distance_unit: v as 'miles' | 'km' | 'meters' })}
+            disabled={set.is_completed || disabled}
+          >
+            <SelectTrigger className="h-9 w-14 px-1 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="miles">mi</SelectItem>
+              <SelectItem value="km">km</SelectItem>
+              <SelectItem value="meters">m</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        
+        {/* Calories - visible on sm+ inline */}
         <Input
           type="number"
           inputMode="numeric"
-          placeholder="min"
-          value={minutes}
-          onChange={(e) => setMinutes(e.target.value)}
-          onBlur={handleDurationChange}
+          placeholder="cals"
+          value={calories}
+          onChange={(e) => handleCaloriesChange(e.target.value)}
           disabled={set.is_completed || disabled}
-          className="h-9 text-center text-sm w-12"
+          className="hidden sm:block h-9 text-center text-sm"
         />
-        <span className="text-muted-foreground">:</span>
-        <Input
-          type="number"
-          inputMode="numeric"
-          placeholder="sec"
-          value={seconds}
-          onChange={(e) => setSeconds(e.target.value)}
-          onBlur={handleDurationChange}
-          disabled={set.is_completed || disabled}
-          className="h-9 text-center text-sm w-12"
-        />
-      </div>
-      
-      {/* Distance */}
-      <div className="flex items-center gap-1">
-        <Input
-          type="number"
-          inputMode="decimal"
-          placeholder="dist"
-          value={distance}
-          onChange={(e) => handleDistanceChange(e.target.value)}
-          disabled={set.is_completed || disabled}
-          className="h-9 text-center text-sm flex-1"
-        />
-        <Select 
-          value={set.distance_unit} 
-          onValueChange={(v) => onUpdate({ distance_unit: v as 'miles' | 'km' | 'meters' })}
-          disabled={set.is_completed || disabled}
+        
+        {/* Complete Checkbox */}
+        <div className="flex justify-center">
+          <Checkbox
+            checked={set.is_completed}
+            onCheckedChange={handleComplete}
+            disabled={!hasData || disabled}
+            className="h-6 w-6"
+          />
+        </div>
+        
+        {/* Remove Button */}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onRemove}
+          disabled={disabled}
+          className="h-8 w-8 text-muted-foreground hover:text-destructive"
         >
-          <SelectTrigger className="h-9 w-14 px-1 text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="miles">mi</SelectItem>
-            <SelectItem value="km">km</SelectItem>
-            <SelectItem value="meters">m</SelectItem>
-          </SelectContent>
-        </Select>
+          <Trash2 className="h-4 w-4" />
+        </Button>
       </div>
-      
-      {/* Calories */}
-      <Input
-        type="number"
-        inputMode="numeric"
-        placeholder="cals"
-        value={calories}
-        onChange={(e) => handleCaloriesChange(e.target.value)}
-        disabled={set.is_completed || disabled}
-        className="h-9 text-center text-sm"
-      />
-      
-      {/* Complete Checkbox */}
-      <div className="flex justify-center">
-        <Checkbox
-          checked={set.is_completed}
-          onCheckedChange={handleComplete}
-          disabled={!hasData || disabled}
-          className="h-6 w-6"
+
+      {/* Row 2 (mobile only): Distance + Calories */}
+      <div className="grid grid-cols-[32px_1fr_1fr] gap-1.5 items-center mt-1.5 sm:hidden">
+        <span></span>
+        <div className="flex items-center gap-1">
+          <Input
+            type="number"
+            inputMode="decimal"
+            placeholder="dist"
+            value={distance}
+            onChange={(e) => handleDistanceChange(e.target.value)}
+            disabled={set.is_completed || disabled}
+            className="h-8 text-center text-xs flex-1"
+          />
+          <Select 
+            value={set.distance_unit} 
+            onValueChange={(v) => onUpdate({ distance_unit: v as 'miles' | 'km' | 'meters' })}
+            disabled={set.is_completed || disabled}
+          >
+            <SelectTrigger className="h-8 w-12 px-1 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="miles">mi</SelectItem>
+              <SelectItem value="km">km</SelectItem>
+              <SelectItem value="meters">m</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <Input
+          type="number"
+          inputMode="numeric"
+          placeholder="cals"
+          value={calories}
+          onChange={(e) => handleCaloriesChange(e.target.value)}
+          disabled={set.is_completed || disabled}
+          className="h-8 text-center text-xs"
         />
       </div>
-      
-      {/* Remove Button */}
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={onRemove}
-        disabled={disabled}
-        className="h-8 w-8 text-muted-foreground hover:text-destructive"
-      >
-        <Trash2 className="h-4 w-4" />
-      </Button>
     </div>
   );
 }

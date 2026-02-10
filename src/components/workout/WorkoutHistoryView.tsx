@@ -27,9 +27,9 @@ export function WorkoutHistoryView({ workout, exercises }: WorkoutHistoryViewPro
       {/* Workout Header */}
       <Card variant="elevated">
         <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
-              <CardTitle className="text-xl">{workout.workout_name}</CardTitle>
+              <CardTitle className="text-lg sm:text-xl">{workout.workout_name}</CardTitle>
               <p className="text-sm text-muted-foreground">
                 {format(new Date(workout.date), 'EEEE, MMMM d, yyyy')}
               </p>
