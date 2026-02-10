@@ -24,6 +24,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isAuthenticated: false,
 
   initialize: async () => {
+    if (get().isInitialized) return;
+    
     // Set up auth state listener FIRST
     supabase.auth.onAuthStateChange(
       (event, session) => {
@@ -79,7 +81,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   signOut: async () => {
-    set({ isLoading: true });
     await supabase.auth.signOut();
     set({ 
       user: null, 
