@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
 
 export function useAdminCheck() {
-  const { user, isAuthenticated, isInitialized } = useAuthStore();
+  const { user, session, isAuthenticated, isInitialized } = useAuthStore();
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -28,35 +28,21 @@ export function useAdminCheck() {
           .maybeSingle();
 
         if (isCancelled) return;
-
-        if (error) {
-          console.error('Error checking admin role:', error);
-          setIsAdmin(false);
-        } else {
-          setIsAdmin(!!data);
-        }
-      } catch (err) {
-        if (!isCancelled) {
-          console.error('Error checking admin role:', err);
-          setIsAdmin(false);
-        }
+        setIsAdmin(!error && !!data);
+      } catch {
+        if (!isCancelled) setIsAdmin(false);
       } finally {
-        if (!isCancelled) {
-          setIsLoading(false);
-        }
+        if (!isCancelled) setIsLoading(false);
       }
     }
 
-    // Debounce to let rapid auth events settle (critical for mobile)
-    const timeoutId = setTimeout(() => {
-      checkAdminRole();
-    }, 300);
+    const timeoutId = setTimeout(() => checkAdminRole(), 300);
 
     return () => {
       isCancelled = true;
       clearTimeout(timeoutId);
     };
-  }, [user?.id, isAuthenticated, isInitialized]);
+  }, [user?.id, session?.access_token, isAuthenticated, isInitialized]);
 
   return { isAdmin, isLoading };
 }
