@@ -71,6 +71,7 @@ interface WorkoutState {
   fetchWeeklyVolume: (weeks?: number) => Promise<WeeklyVolume[]>;
   fetchWorkoutDays: (weeks?: number) => Promise<WorkoutDay[]>;
   getLastSessionSets: (exerciseName: string) => Promise<{ weight: number; reps: number }[]>;
+  editWorkout: (workoutId: string) => Promise<void>;
 }
 
 export const useWorkoutStore = create<WorkoutState>((set, get) => ({
@@ -497,6 +498,54 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
       .eq('id', activeWorkout.id);
     
     set({ activeWorkout: null, exercises: [], isSaving: false });
+  },
+
+  editWorkout: async (workoutId: string) => {
+    set({ isLoading: true });
+
+    // Mark workout as not completed so it becomes editable
+    await supabase
+      .from('workouts')
+      .update({ is_completed: false })
+      .eq('id', workoutId);
+
+    // Fetch the workout
+    const { data: workout } = await supabase
+      .from('workouts')
+      .select('*')
+      .eq('id', workoutId)
+      .single();
+
+    if (!workout) {
+      set({ isLoading: false });
+      return;
+    }
+
+    // Fetch exercises with sets and conditioning sets
+    const { data: exercisesData } = await supabase
+      .from('workout_exercises')
+      .select('*, sets:exercise_sets(*), conditioning_sets:conditioning_sets(*)')
+      .eq('workout_id', workoutId)
+      .order('order_index');
+
+    const exercises = (exercisesData || []).map(e => ({
+      ...e,
+      exercise_type: (e.exercise_type as 'strength' | 'conditioning') || 'strength',
+      sets: e.sets?.sort((a: ExerciseSet, b: ExerciseSet) => a.set_number - b.set_number) || [],
+      conditioning_sets: (e.conditioning_sets || []).map((cs: any) => ({
+        ...cs,
+        distance_unit: (cs.distance_unit as 'miles' | 'km' | 'meters') || 'miles'
+      })).sort((a: ConditioningSet, b: ConditioningSet) => a.set_number - b.set_number),
+    })) as WorkoutExercise[];
+
+    set({
+      activeWorkout: workout,
+      exercises,
+      viewingWorkout: null,
+      viewingExercises: [],
+      selectedDate: new Date(),
+      isLoading: false,
+    });
   },
   
   cancelWorkout: async () => {
