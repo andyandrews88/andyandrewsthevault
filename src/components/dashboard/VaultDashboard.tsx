@@ -1,9 +1,10 @@
 import { useEffect } from "react";
 import { TodaySnapshot } from "./TodaySnapshot";
+import { TrainingSuggestion } from "./TrainingSuggestion";
 import { WeeklyReview } from "./WeeklyReview";
+import { GoalsPanel } from "@/components/goals/GoalsPanel";
 import { useDashboardStore } from "@/stores/dashboardStore";
 import { Badge } from "@/components/ui/badge";
-
 export function VaultDashboard() {
   const { fetchAll, isLoading } = useDashboardStore();
 
@@ -32,6 +33,8 @@ export function VaultDashboard() {
         <Badge variant="elite" className="mb-2">TODAY'S OVERVIEW</Badge>
       </div>
       <TodaySnapshot />
+      <TrainingSuggestion />
+      <GoalsPanel />
       <WeeklyReview />
     </div>
   );

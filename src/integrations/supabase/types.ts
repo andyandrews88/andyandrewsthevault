@@ -406,6 +406,54 @@ export type Database = {
         }
         Relationships: []
       }
+      user_goals: {
+        Row: {
+          achieved_at: string | null
+          created_at: string
+          current_value: number
+          exercise_name: string | null
+          goal_type: string
+          id: string
+          start_value: number
+          status: string
+          target_date: string
+          target_value: number
+          title: string
+          unit: string
+          user_id: string
+        }
+        Insert: {
+          achieved_at?: string | null
+          created_at?: string
+          current_value: number
+          exercise_name?: string | null
+          goal_type: string
+          id?: string
+          start_value: number
+          status?: string
+          target_date: string
+          target_value: number
+          title: string
+          unit?: string
+          user_id: string
+        }
+        Update: {
+          achieved_at?: string | null
+          created_at?: string
+          current_value?: number
+          exercise_name?: string | null
+          goal_type?: string
+          id?: string
+          start_value?: number
+          status?: string
+          target_date?: string
+          target_value?: number
+          title?: string
+          unit?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_meals: {
         Row: {
           created_at: string
