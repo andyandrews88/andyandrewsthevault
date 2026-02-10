@@ -1,49 +1,40 @@
 
 
-# Fix: Goal Sync Not Working from Workouts
+# Fix: Workout Data Not Populating on Initial Load
 
 ## Root Cause
 
-The `syncGoalsAfterPR()` and `syncGoalsAfterBodyEntry()` methods in `goalStore.ts` filter against the in-memory `goals` array. But that array is only populated when `fetchGoals()` runs (when the Dashboard/Goals panel mounts). If a user goes straight to Workouts and logs a PR without visiting the Dashboard first, the `goals` array is empty -- so the sync silently does nothing.
+In `WorkoutLogger.tsx` (line 76-80), the `useEffect` on mount calls:
+- `fetchActiveWorkout()` -- checks for an in-progress workout
+- `fetchPersonalRecords()` -- loads PRs
+- `fetchWorkoutDays(12)` -- loads calendar dots
+
+But it **never calls `fetchWorkoutByDate(selectedDate)`** for the current date. So `viewingWorkout` remains `null` until the user changes dates, which is the only action that triggers `fetchWorkoutByDate`.
 
 ## Fix
 
-Instead of relying on the cached in-memory array, both sync methods should **query the database directly** for matching active goals. This guarantees the sync works regardless of which tab the user visited first.
+Add `fetchWorkoutByDate(selectedDate)` to the initial `useEffect` in `WorkoutLogger.tsx`, so completed workouts for today load immediately on mount.
 
-## Changes
+### File: `src/components/workout/WorkoutLogger.tsx`
 
-### `src/stores/goalStore.ts`
+Update the `useEffect` (lines 76-80) to also fetch the workout for the initially selected date:
 
-**`syncGoalsAfterPR`** -- Replace `get().goals` filtering with a direct Supabase query:
-
-```
-const { data: matching } = await supabase
-  .from('user_goals')
-  .select('*')
-  .eq('user_id', user.id)
-  .eq('status', 'active')
-  .eq('goal_type', 'strength')
-  .ilike('exercise_name', exerciseName);
+```typescript
+useEffect(() => {
+  fetchActiveWorkout();
+  fetchPersonalRecords();
+  fetchWorkoutDays(12);
+  fetchWorkoutByDate(selectedDate);
+}, []);
 ```
 
-Then loop through results and call `updateGoalProgress` for each where `newWeight > current_value`.
+We also need to add `fetchWorkoutByDate` to the destructured imports from `useWorkoutStore` (it's already in the store but not imported in the component).
 
-**`syncGoalsAfterBodyEntry`** -- Same approach: query the database for active body_weight goals instead of filtering the in-memory array.
+## One File Changed
 
-After updating, call `fetchGoals()` to refresh the in-memory cache so the dashboard reflects changes immediately if it's mounted.
+| File | Change |
+|------|--------|
+| `src/components/workout/WorkoutLogger.tsx` | Import `fetchWorkoutByDate` from store; call it on mount |
 
-### No other files need to change
+No database or store logic changes needed -- the fetch function already exists and works correctly, it just wasn't being called on initial load.
 
-The integration points in `workoutStore.ts` and `progressStore.ts` are already correct.
-
----
-
-## Technical Detail
-
-The updated `syncGoalsAfterPR` method will:
-1. Get the current user
-2. Query `user_goals` table directly for active strength goals matching the exercise name (case-insensitive)
-3. For each match where `newWeight > current_value`, call `updateGoalProgress`
-4. Refresh the in-memory goals cache with `fetchGoals()`
-
-The same pattern applies to `syncGoalsAfterBodyEntry` for body_weight goals.
