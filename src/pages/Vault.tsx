@@ -51,10 +51,16 @@ export function VaultDashboard() {
           </div>
           <h1 className="text-xl md:text-3xl font-bold">Welcome to The Vault</h1>
           <p className="text-muted-foreground mb-4 hidden sm:block">Your performance architecture command center</p>
-          <Button variant="elite" size="sm" className="sm:size-default">
-            <Crown className="w-4 h-4 mr-2" />
-            Apply for 1-on-1 Coaching
-          </Button>
+          <a 
+            href="https://docs.google.com/forms/d/e/1FAIpQLSeNZfnUe0PaxJFym_OJehlxbNmvbo9SPA6GDd6GIegdIaAD9Q/viewform?usp=header" 
+            target="_blank" 
+            rel="noopener noreferrer"
+          >
+            <Button variant="elite" size="sm" className="sm:size-default">
+              <Crown className="w-4 h-4 mr-2" />
+              Apply for 1-on-1 Coaching
+            </Button>
+          </a>
         </div>
 
         {/* Main tabs */}
