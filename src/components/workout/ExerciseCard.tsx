@@ -79,7 +79,7 @@ export function ExerciseCard({ exercise, onRemove }: ExerciseCardProps) {
       
       <CardContent className="p-0">
         {/* Header Row */}
-        <div className="grid grid-cols-[40px_1fr_1fr_1fr_44px_32px] gap-2 items-center py-2 px-4 border-b border-border bg-muted/30 text-xs font-medium text-muted-foreground">
+        <div className="grid grid-cols-[32px_1fr_1fr_1fr_40px_28px] gap-1.5 sm:gap-2 items-center py-2 px-4 border-b border-border bg-muted/30 text-xs font-medium text-muted-foreground">
           <span className="text-center">Set</span>
           <span className="text-center">Prev</span>
           <span className="text-center">{preferredUnit === 'kg' ? 'Kg' : 'Lbs'}</span>

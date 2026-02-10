@@ -215,7 +215,7 @@ export function DailyCheckin() {
                       <button
                         key={n}
                         onClick={() => setScore(metric.key, n)}
-                        className={`flex-1 py-2.5 rounded-md text-sm font-medium transition-all ${
+                        className={`flex-1 py-3 rounded-md text-sm font-medium transition-all min-h-[48px] ${
                           val === n
                             ? "bg-primary text-primary-foreground shadow-md"
                             : "bg-secondary hover:bg-secondary/80 text-secondary-foreground"

@@ -61,7 +61,7 @@ export function WeekStrip({
               key={day.toISOString()}
               onClick={() => onDateSelect(day)}
               className={cn(
-                "flex flex-col items-center py-2 px-1 rounded-lg transition-colors",
+                "flex flex-col items-center justify-center min-h-[56px] py-2 px-1 rounded-lg transition-colors",
                 isSelected ? "bg-primary text-primary-foreground" : "hover:bg-muted",
                 isTodayDate && !isSelected && "ring-1 ring-primary"
               )}

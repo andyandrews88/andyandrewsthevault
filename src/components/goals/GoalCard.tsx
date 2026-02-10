@@ -39,7 +39,7 @@ export function GoalCard({ goal, projection }: GoalCardProps) {
   return (
     <Card variant="elevated" className="card-interactive">
       <CardContent className="p-4">
-        <div className="flex items-start justify-between mb-3">
+        <div className="flex flex-wrap items-start gap-2 mb-3">
           <div className="flex-1 min-w-0">
             <h4 className="font-semibold text-sm truncate">{goal.title}</h4>
             <p className="text-xs text-muted-foreground mt-0.5">
@@ -47,7 +47,7 @@ export function GoalCard({ goal, projection }: GoalCardProps) {
               {goal.exercise_name && ` · ${goal.exercise_name}`}
             </p>
           </div>
-          <Badge variant={config.variant} className="ml-2 shrink-0">
+          <Badge variant={config.variant} className="shrink-0 text-[10px] sm:text-xs">
             <StatusIcon className="w-3 h-3 mr-1" />
             {config.label}
           </Badge>
@@ -64,7 +64,7 @@ export function GoalCard({ goal, projection }: GoalCardProps) {
         </div>
 
         {/* Stats row */}
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
           <span>{projection.daysRemaining}d remaining</span>
           {projection.weeklyRate > 0 && (
             <span className="font-mono">

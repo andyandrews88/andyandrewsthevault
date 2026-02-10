@@ -32,13 +32,13 @@ export function VaultDashboard() {
 
   return (
     <div className="min-h-screen pt-24 pb-12">
-      <div className="container mx-auto px-6 max-w-6xl">
+      <div className="container mx-auto px-4 md:px-6 max-w-6xl">
         {/* Header with Logo */}
-        <div className="flex flex-col items-center text-center mb-8">
+        <div className="flex flex-col items-center text-center mb-6 md:mb-8">
           <img 
             src={logo} 
             alt="Andy Andrews" 
-            className="h-20 md:h-28 w-auto invert brightness-100 mb-4 drop-shadow-[0_0_20px_hsl(var(--primary)/0.3)]"
+            className="h-14 md:h-28 w-auto invert brightness-100 mb-3 md:mb-4 drop-shadow-[0_0_20px_hsl(var(--primary)/0.3)]"
           />
           <div className="flex items-center gap-2 mb-2">
             <Badge variant="elite">VAULT MEMBER</Badge>
@@ -49,9 +49,9 @@ export function VaultDashboard() {
               </Badge>
             )}
           </div>
-          <h1 className="text-2xl md:text-3xl font-bold">Welcome to The Vault</h1>
-          <p className="text-muted-foreground mb-4">Your performance architecture command center</p>
-          <Button variant="elite">
+          <h1 className="text-xl md:text-3xl font-bold">Welcome to The Vault</h1>
+          <p className="text-muted-foreground mb-4 hidden sm:block">Your performance architecture command center</p>
+          <Button variant="elite" size="sm" className="sm:size-default">
             <Crown className="w-4 h-4 mr-2" />
             Apply for 1-on-1 Coaching
           </Button>
@@ -59,44 +59,44 @@ export function VaultDashboard() {
 
         {/* Main tabs */}
         <Tabs defaultValue="dashboard" className="space-y-6">
-          <div className="overflow-x-auto scrollbar-hide -mx-6 px-6">
-            <TabsList className="inline-flex w-max min-w-full gap-1 h-auto p-1">
-              <TabsTrigger value="dashboard" className="flex items-center gap-2 px-3 py-2.5 whitespace-nowrap">
+          <div className="overflow-x-auto scrollbar-hide -mx-4 px-4 md:-mx-6 md:px-6">
+            <TabsList className="inline-flex w-max min-w-full gap-0.5 sm:gap-1 h-auto p-1">
+              <TabsTrigger value="dashboard" className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2.5 whitespace-nowrap" aria-label="Dashboard">
                 <LayoutDashboard className="w-4 h-4" />
-                <span className="text-xs sm:text-sm">Dashboard</span>
+                <span className="hidden sm:inline text-sm">Dashboard</span>
               </TabsTrigger>
-              <TabsTrigger value="library" className="flex items-center gap-2 px-3 py-2.5 whitespace-nowrap">
+              <TabsTrigger value="library" className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2.5 whitespace-nowrap" aria-label="Library">
                 <Library className="w-4 h-4" />
-                <span className="text-xs sm:text-sm">Library</span>
+                <span className="hidden sm:inline text-sm">Library</span>
               </TabsTrigger>
-              <TabsTrigger value="progress" className="flex items-center gap-2 px-3 py-2.5 whitespace-nowrap">
+              <TabsTrigger value="progress" className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2.5 whitespace-nowrap" aria-label="Progress">
                 <Activity className="w-4 h-4" />
-                <span className="text-xs sm:text-sm">Progress</span>
+                <span className="hidden sm:inline text-sm">Progress</span>
               </TabsTrigger>
-              <TabsTrigger value="lifestyle" className="flex items-center gap-2 px-3 py-2.5 whitespace-nowrap">
+              <TabsTrigger value="lifestyle" className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2.5 whitespace-nowrap" aria-label="Lifestyle">
                 <Heart className="w-4 h-4" />
-                <span className="text-xs sm:text-sm">Lifestyle</span>
+                <span className="hidden sm:inline text-sm">Lifestyle</span>
               </TabsTrigger>
-              <TabsTrigger value="workouts" className="flex items-center gap-2 px-3 py-2.5 whitespace-nowrap">
+              <TabsTrigger value="workouts" className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2.5 whitespace-nowrap" aria-label="Workouts">
                 <Dumbbell className="w-4 h-4" />
-                <span className="text-xs sm:text-sm">Workouts</span>
+                <span className="hidden sm:inline text-sm">Workouts</span>
               </TabsTrigger>
-              <TabsTrigger value="podcast" className="flex items-center gap-2 px-3 py-2.5 whitespace-nowrap">
+              <TabsTrigger value="podcast" className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2.5 whitespace-nowrap" aria-label="Podcast">
                 <Radio className="w-4 h-4" />
-                <span className="text-xs sm:text-sm">Podcast</span>
+                <span className="hidden sm:inline text-sm">Podcast</span>
               </TabsTrigger>
-              <TabsTrigger value="community" className="flex items-center gap-2 px-3 py-2.5 whitespace-nowrap">
+              <TabsTrigger value="community" className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2.5 whitespace-nowrap" aria-label="Community">
                 <Users className="w-4 h-4" />
-                <span className="text-xs sm:text-sm">Community</span>
+                <span className="hidden sm:inline text-sm">Community</span>
               </TabsTrigger>
-              <TabsTrigger value="tracks" className="flex items-center gap-2 px-3 py-2.5 whitespace-nowrap">
+              <TabsTrigger value="tracks" className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2.5 whitespace-nowrap" aria-label="Tracks">
                 <Target className="w-4 h-4" />
-                <span className="text-xs sm:text-sm">Tracks</span>
+                <span className="hidden sm:inline text-sm">Tracks</span>
               </TabsTrigger>
               {isAdmin && (
-                <TabsTrigger value="admin" className="flex items-center gap-2 px-3 py-2.5 whitespace-nowrap">
+                <TabsTrigger value="admin" className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2.5 whitespace-nowrap" aria-label="Admin">
                   <Shield className="w-4 h-4" />
-                  <span className="text-xs sm:text-sm">Admin</span>
+                  <span className="hidden sm:inline text-sm">Admin</span>
                 </TabsTrigger>
               )}
             </TabsList>

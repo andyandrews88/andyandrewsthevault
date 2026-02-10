@@ -15,9 +15,9 @@ export function WorkoutTab() {
     <div className="space-y-6">
       {/* Page Description */}
       <div className="text-center">
-        <Badge variant="elite" className="mb-3">WORKOUT TRACKER</Badge>
-        <h2 className="text-xl md:text-2xl font-bold mb-2">Training Log & Analytics</h2>
-        <p className="text-muted-foreground text-sm md:text-base max-w-xl mx-auto mb-4">
+        <Badge variant="elite" className="mb-2 sm:mb-3">WORKOUT TRACKER</Badge>
+        <h2 className="text-lg sm:text-xl md:text-2xl font-bold mb-2">Training Log & Analytics</h2>
+        <p className="text-muted-foreground text-sm md:text-base max-w-xl mx-auto mb-4 hidden sm:block">
           Log your workouts, track PRs in real-time, and visualize your strength progress over time.
         </p>
       </div>

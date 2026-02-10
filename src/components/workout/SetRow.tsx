@@ -89,7 +89,7 @@ export function SetRow({
 
   return (
     <>
-      <div className="grid grid-cols-[40px_1fr_1fr_1fr_44px_32px] gap-2 items-center py-2 border-b border-border/50 last:border-0">
+      <div className="grid grid-cols-[32px_1fr_1fr_1fr_40px_28px] gap-1.5 sm:gap-2 items-center py-2 border-b border-border/50 last:border-0">
         {/* Set Number */}
         <span className="text-center text-sm font-medium text-muted-foreground">
           {set.set_number}
