@@ -3,15 +3,19 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
 
 export function useAdminCheck() {
-  const { user, isAuthenticated } = useAuthStore();
+  const { user, isAuthenticated, isInitialized } = useAuthStore();
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    let isCancelled = false;
+
     async function checkAdminRole() {
-      if (!isAuthenticated || !user) {
-        setIsAdmin(false);
-        setIsLoading(false);
+      if (!isInitialized || !isAuthenticated || !user) {
+        if (!isCancelled) {
+          setIsAdmin(false);
+          setIsLoading(false);
+        }
         return;
       }
 
@@ -23,6 +27,8 @@ export function useAdminCheck() {
           .eq('role', 'admin')
           .maybeSingle();
 
+        if (isCancelled) return;
+
         if (error) {
           console.error('Error checking admin role:', error);
           setIsAdmin(false);
@@ -30,15 +36,23 @@ export function useAdminCheck() {
           setIsAdmin(!!data);
         }
       } catch (err) {
-        console.error('Error checking admin role:', err);
-        setIsAdmin(false);
+        if (!isCancelled) {
+          console.error('Error checking admin role:', err);
+          setIsAdmin(false);
+        }
       } finally {
-        setIsLoading(false);
+        if (!isCancelled) {
+          setIsLoading(false);
+        }
       }
     }
 
     checkAdminRole();
-  }, [user, isAuthenticated]);
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [user, isAuthenticated, isInitialized]);
 
   return { isAdmin, isLoading };
 }
