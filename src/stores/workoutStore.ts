@@ -46,7 +46,7 @@ interface WorkoutState {
   fetchWorkoutByDate: (date: Date) => Promise<void>;
   
   // Workout session actions
-  startWorkout: (name: string) => Promise<void>;
+  startWorkout: (name: string, date?: Date) => Promise<void>;
   addExercise: (name: string) => Promise<void>;
   removeExercise: (exerciseId: string) => Promise<void>;
   addSet: (exerciseId: string) => Promise<void>;
@@ -135,18 +135,20 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
     }
   },
   
-  startWorkout: async (name: string) => {
+  startWorkout: async (name: string, date?: Date) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     
     set({ isSaving: true });
+    
+    const workoutDate = date || new Date();
     
     const { data: workout, error } = await supabase
       .from('workouts')
       .insert({
         user_id: user.id,
         workout_name: name,
-        date: format(new Date(), 'yyyy-MM-dd'),
+        date: format(workoutDate, 'yyyy-MM-dd'),
       })
       .select()
       .single();

@@ -83,7 +83,7 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
 
   const handleStartWorkout = async () => {
     if (workoutName.trim()) {
-      await startWorkout(workoutName.trim());
+      await startWorkout(workoutName.trim(), selectedDate);
       setShowStartDialog(false);
       setWorkoutName("");
     }
@@ -183,14 +183,20 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
           />
         )}
         
-        {/* Start workout prompt for today */}
-        {!viewingWorkout && format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd') && (
+        {/* Start workout prompt for any date without a workout */}
+        {!viewingWorkout && (
           <Card variant="elevated" className="text-center py-12">
             <CardContent>
               <Dumbbell className="h-16 w-16 mx-auto mb-4 text-primary opacity-50" />
-              <h3 className="text-xl font-semibold mb-2">Ready to Train?</h3>
+              <h3 className="text-xl font-semibold mb-2">
+                {format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
+                  ? "Ready to Train?"
+                  : `Log a Workout for ${format(selectedDate, 'MMMM d')}`}
+              </h3>
               <p className="text-muted-foreground mb-6">
-                Start a new workout session to log your exercises and track PRs
+                {format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
+                  ? "Start a new workout session to log your exercises and track PRs"
+                  : "Add a workout retroactively for this date"}
               </p>
               
               <Dialog open={showStartDialog} onOpenChange={setShowStartDialog}>
@@ -205,6 +211,9 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
                     <DialogTitle>Name Your Workout</DialogTitle>
                   </DialogHeader>
                   <div className="space-y-4 pt-4">
+                    <p className="text-sm text-muted-foreground">
+                      Logging for: <span className="font-medium text-foreground">{format(selectedDate, 'EEEE, MMMM d, yyyy')}</span>
+                    </p>
                     <Input
                       placeholder="e.g., Upper Body A, Leg Day, Push..."
                       value={workoutName}
@@ -234,19 +243,6 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
                   </div>
                 </DialogContent>
               </Dialog>
-            </CardContent>
-          </Card>
-        )}
-        
-        {/* Empty state for past dates without workouts */}
-        {!viewingWorkout && format(selectedDate, 'yyyy-MM-dd') !== format(new Date(), 'yyyy-MM-dd') && (
-          <Card variant="elevated" className="text-center py-12">
-            <CardContent>
-              <Dumbbell className="h-16 w-16 mx-auto mb-4 text-muted-foreground opacity-50" />
-              <h3 className="text-lg font-semibold mb-2">No Workout</h3>
-              <p className="text-muted-foreground">
-                No workout was logged on {format(selectedDate, 'MMMM d, yyyy')}
-              </p>
             </CardContent>
           </Card>
         )}
