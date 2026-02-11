@@ -24,7 +24,7 @@ import { WorkoutTab } from "@/components/workout/WorkoutTab";
 import { CommunityFeed } from "@/components/community/CommunityFeed";
 import { LifestyleTab } from "@/components/lifestyle/LifestyleTab";
 import { VaultDashboard as DashboardView } from "@/components/dashboard/VaultDashboard";
-import logo from "@/assets/vault-logo.png";
+import logo from "@/assets/logo.png";
 import { useAdminCheck } from "@/hooks/useAdminCheck";
 import { OnboardingWalkthrough } from "@/components/vault/OnboardingWalkthrough";
 
@@ -39,7 +39,7 @@ export function VaultDashboard() {
         <div className="flex flex-col items-center text-center mb-6 md:mb-8">
           <img 
             src={logo} 
-            alt="The Vault" 
+            alt="Andy Andrews" 
             className="h-14 md:h-28 w-auto invert brightness-100 mb-3 md:mb-4 drop-shadow-[0_0_20px_hsl(var(--primary)/0.3)]"
           />
           <div className="flex items-center gap-2 mb-2">

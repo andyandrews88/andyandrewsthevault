@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowRight, Activity } from "lucide-react";
 import { Link } from "react-router-dom";
-import logo from "@/assets/vault-logo.png";
+import logo from "@/assets/logo.png";
 
 export function HeroSection() {
   return (
@@ -27,7 +27,7 @@ export function HeroSection() {
           <div className="mb-8 flex justify-center px-4">
             <img 
               src={logo} 
-              alt="The Vault" 
+              alt="Andy Andrews" 
               className="h-auto w-full max-w-xs md:max-w-sm lg:max-w-md invert"
             />
           </div>

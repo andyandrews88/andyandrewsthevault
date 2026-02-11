@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Menu, X, User, LogOut } from "lucide-react";
 import { useState } from "react";
-import logo from "@/assets/vault-logo.png";
+import logo from "@/assets/logo.png";
 import { useAuthStore } from "@/stores/authStore";
 import { Button } from "@/components/ui/button";
 import {
@@ -38,7 +38,7 @@ export function Navbar() {
         <Link to="/" className="flex items-center">
           <img 
             src={logo} 
-            alt="The Vault" 
+            alt="Andy Andrews" 
             className="h-12 md:h-16 lg:h-20 w-auto invert brightness-100 hover:brightness-125 transition-all"
           />
         </Link>
