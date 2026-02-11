@@ -10,7 +10,8 @@ import {
   Lock,
   ExternalLink,
   Pencil,
-  Trash2
+  Trash2,
+  Star
 } from "lucide-react";
 
 interface ResourceCardProps {
@@ -18,8 +19,10 @@ interface ResourceCardProps {
   onClick: () => void;
   isLocked?: boolean;
   isAdmin?: boolean;
+  isFeatured?: boolean;
   onEdit?: () => void;
   onDelete?: () => void;
+  onToggleFeatured?: () => void;
 }
 
 const categoryVariants: Record<string, 'data' | 'success' | 'elite'> = {
@@ -42,8 +45,10 @@ export function ResourceCard({
   onClick, 
   isLocked = false, 
   isAdmin = false,
+  isFeatured = false,
   onEdit,
-  onDelete 
+  onDelete,
+  onToggleFeatured,
 }: ResourceCardProps) {
   const categoryVariant = categoryVariants[resource.category] || 'data';
   const typeIcon = typeIcons[resource.type] || <FileText className="w-4 h-4" />;
@@ -68,15 +73,29 @@ export function ResourceCard({
     onDelete?.();
   };
 
+  const handleToggleFeatured = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onToggleFeatured?.();
+  };
+
   return (
     <Card 
       variant="interactive" 
-      className={`p-4 relative ${isLocked ? 'opacity-75' : ''}`}
+      className={`p-4 relative ${isLocked ? 'opacity-75' : ''} ${isFeatured ? 'ring-1 ring-accent/40' : ''}`}
       onClick={handleClick}
     >
       {/* Admin actions */}
       {isAdmin && (
         <div className="absolute top-2 right-2 flex gap-1 z-10">
+          <Button
+            variant="ghost"
+            size="icon"
+            className={`h-7 w-7 ${isFeatured ? 'text-accent' : ''}`}
+            onClick={handleToggleFeatured}
+            title={isFeatured ? 'Remove from featured' : 'Feature on dashboard'}
+          >
+            <Star className={`w-3 h-3 ${isFeatured ? 'fill-accent' : ''}`} />
+          </Button>
           <Button
             variant="ghost"
             size="icon"

@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { TodaySnapshot } from "./TodaySnapshot";
 import { TrainingSuggestion } from "./TrainingSuggestion";
 import { WeeklyReview } from "./WeeklyReview";
+import { LatestUpdates } from "./LatestUpdates";
 import { GoalsPanel } from "@/components/goals/GoalsPanel";
 import { useDashboardStore } from "@/stores/dashboardStore";
 import { Badge } from "@/components/ui/badge";
@@ -34,6 +35,7 @@ export function VaultDashboard() {
       </div>
       <TodaySnapshot />
       <TrainingSuggestion />
+      <LatestUpdates />
       <GoalsPanel />
       <WeeklyReview />
     </div>

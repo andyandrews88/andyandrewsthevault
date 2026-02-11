@@ -678,6 +678,7 @@ export type Database = {
           duration: string | null
           episode_number: number | null
           id: string
+          is_featured: boolean
           is_premium: boolean
           published_at: string | null
           spotify_url: string | null
@@ -692,6 +693,7 @@ export type Database = {
           duration?: string | null
           episode_number?: number | null
           id?: string
+          is_featured?: boolean
           is_premium?: boolean
           published_at?: string | null
           spotify_url?: string | null
@@ -706,6 +708,7 @@ export type Database = {
           duration?: string | null
           episode_number?: number | null
           id?: string
+          is_featured?: boolean
           is_premium?: boolean
           published_at?: string | null
           spotify_url?: string | null
@@ -725,6 +728,7 @@ export type Database = {
           embed_url: string | null
           file_path: string | null
           id: string
+          is_featured: boolean
           is_premium: boolean
           leak_tags: string[] | null
           pages: number | null
@@ -741,6 +745,7 @@ export type Database = {
           embed_url?: string | null
           file_path?: string | null
           id?: string
+          is_featured?: boolean
           is_premium?: boolean
           leak_tags?: string[] | null
           pages?: number | null
@@ -757,6 +762,7 @@ export type Database = {
           embed_url?: string | null
           file_path?: string | null
           id?: string
+          is_featured?: boolean
           is_premium?: boolean
           leak_tags?: string[] | null
           pages?: number | null
