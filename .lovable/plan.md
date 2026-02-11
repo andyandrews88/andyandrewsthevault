@@ -1,102 +1,78 @@
 
 
-# Four-Part Update: Landing Page + Retroactive Workout Logging
+# Dashboard Content Feed: Fresh Drops + Top Recommendations
 
-This covers all four requests in a single implementation pass.
+## Overview
 
----
+Add two feed sections to the Vault Dashboard that keep users engaged with Knowledge Bank content:
 
-## Part 1: "What Is The Vault?" Section (Landing Page)
+1. **Fresh Drops** -- automatically shows the 5 most recently added resources/podcasts
+2. **Top Recommendations** -- admin-curated picks that you manually select from the Library
 
-Add a dedicated section between the Hero and the existing "Meet Andy" section that explains the app's purpose and differentiators in a scannable format.
+## What Changes
 
-**New file:** `src/components/landing/WhatIsTheVaultSection.tsx`
+### Database
 
-Content structure:
-- Headline: "What Is The Vault?"
-- 3-column layout with icons highlighting the core differentiators:
-  - "Coach-Built, Not Tech-Built" -- designed from a decade of coaching, not by a product team
-  - "One Place, Everything Connected" -- training, nutrition, lifestyle all feeding into each other
-  - "Free. No Paywall on the Basics." -- no hidden costs for core functionality
-- A short paragraph reinforcing the first-principles philosophy
+Add a `is_featured` boolean column to the `vault_resources` table (default `false`). When you toggle a resource as "featured" from the Library, it appears in the Top Recommendations section on everyone's dashboard.
 
-**Modified file:** `src/pages/Index.tsx` -- insert `<WhatIsTheVaultSection />` between `<HeroSection />` and `<MeetAndySection />`
+Similarly, add `is_featured` to `vault_podcasts`.
 
----
+No new tables needed -- just a flag on existing content.
 
-## Part 2: Features Section with Interactive Cards (Landing Page)
+### Library Tab (Admin Controls)
 
-Replace the current static feature list inside `MeetAndySection` with a richer, interactive "Features" section that links directly into the Vault tabs.
+When you're logged in as admin, each resource card in the Library will show a small star/pin icon. Clicking it toggles `is_featured` on/off for that resource. Featured items get a subtle highlight so you can see at a glance what's currently promoted.
 
-**New file:** `src/components/landing/FeaturesSection.tsx`
+### Dashboard Feed Component
 
-- 6 feature cards in a responsive grid (2 cols mobile, 3 cols desktop)
-- Each card includes: icon, title, 2-line description, and a "Try It" link that navigates to `/vault` with the correct tab (using URL or in-app state)
-- Modules covered:
-  1. Workout Tracker -- log sessions, track PRs, visualize volume
-  2. Nutrition -- macro calculator, barcode scanning, meal plans
-  3. Progress Tracking -- bodyweight, body comp, measurements
-  4. Lifestyle & Readiness -- daily check-ins, readiness scores
-  5. Guided Breathwork -- 5 protocols with visual/audio guidance
-  6. Knowledge Bank -- curated coaching resources
+A new `LatestUpdates.tsx` component on the Dashboard with two sub-sections:
 
-**Modified file:** `src/pages/Index.tsx` -- add `<FeaturesSection />` after the "What Is The Vault?" section
+**Top Recommendations (shown first)**
+- Fetches all resources/podcasts where `is_featured = true`
+- Displayed as compact horizontal cards with type icon, title, category badge, and a CTA button (Watch / Listen / Read)
+- Clicking opens the content in the existing `ResourceModal` or external link for podcasts
+- Only visible when there are featured items; hidden otherwise
 
-The existing `MeetAndySection` stays as-is (the philosophy + "Why it exists" story) but its small feature list is kept as a lighter summary since the new section handles the detailed breakdown.
+**Fresh Drops (shown second)**
+- Fetches the 5 most recently created resources/podcasts (sorted by `created_at` desc), excluding any already shown in Top Recommendations
+- Same card format as above, plus a "time ago" label (e.g., "Added 3 days ago")
+- "View All" link at the bottom navigates to the Library tab
 
----
+## Technical Details
 
-## Part 3: New-User Onboarding Walkthrough
+### Migration SQL
 
-A lightweight, dismissible onboarding overlay that appears when a user first enters the Vault. It steps through the key modules with brief descriptions.
+```sql
+ALTER TABLE public.vault_resources ADD COLUMN is_featured boolean NOT NULL DEFAULT false;
+ALTER TABLE public.vault_podcasts ADD COLUMN is_featured boolean NOT NULL DEFAULT false;
+```
 
-**New file:** `src/components/vault/OnboardingWalkthrough.tsx`
+### New File: `src/components/dashboard/LatestUpdates.tsx`
 
-- A multi-step modal/dialog (not a full-page takeover) with 6 steps
-- Each step shows: module name, icon, 1-2 sentence description of what it does and why
-- Steps: Dashboard, Workouts, Nutrition, Progress, Lifestyle/Breathwork, Knowledge Bank
-- Navigation: Back / Next / Skip buttons, dot indicators for progress
-- On completion or skip, sets a flag in localStorage (`vault_onboarding_complete`) so it only shows once
-- Clean, minimal design consistent with the existing UI
+- Calls `fetchResources()` and `fetchPodcasts()` from `vaultService.ts`
+- Splits items into featured vs. recent
+- Renders two sections with shared card sub-component
+- Uses `date-fns` `formatDistanceToNow` for time-ago labels
+- Reuses `ResourceModal` for inline viewing
+- Shows skeleton loaders while fetching
 
-**Modified file:** `src/pages/Vault.tsx` -- render `<OnboardingWalkthrough />` at the top of the component, gated by the localStorage check
+### Modified Files
 
----
+| File | Change |
+|------|--------|
+| `src/components/dashboard/VaultDashboard.tsx` | Add `<LatestUpdates />` between `<TrainingSuggestion />` and `<GoalsPanel />` |
+| `src/components/vault/LibraryTab.tsx` | Add featured toggle button (star icon) on each resource card when admin |
+| `src/components/vault/ResourceCard.tsx` | Add optional `isFeatured` prop and `onToggleFeatured` callback; show star icon for admin |
+| `src/lib/vaultService.ts` | Add `toggleResourceFeatured(id, value)` and `togglePodcastFeatured(id, value)` helper functions |
+| `src/types/vaultResources.ts` | Add `is_featured` field to `VaultResource` and `VaultPodcast` interfaces |
 
-## Part 4: Retroactive Workout Logging (Critical Fix)
+### Dashboard Layout Order
 
-Currently, the "Start Workout" button only appears when `selectedDate` is today. When viewing a past date with no workout, users see a dead-end "No Workout" message. This fix allows starting a workout for any past date.
-
-### Changes to `src/components/workout/WorkoutLogger.tsx`:
-
-1. Remove the condition that restricts "Start Workout" to today only
-2. Show the "Start Workout" card for any date (past or today) that has no existing workout and no active workout in progress
-3. Pass `selectedDate` to `startWorkout` so the workout is created with the correct date
-
-### Changes to `src/stores/workoutStore.ts`:
-
-1. Modify `startWorkout` to accept an optional `date` parameter (defaults to today)
-2. Use that date in the database insert instead of hardcoded `new Date()`
-
-### Changes to `src/components/workout/WorkoutLogger.tsx` (detail):
-
-- The empty-state card at lines 244-256 (past dates with no workout) gets merged with the "Start Workout" card at lines 187-237
-- Both past dates and today show the same "Start Workout" prompt when no workout exists
-- The date shown in the dialog changes to reflect the selected date so users know what day they're logging for
-
----
-
-## File Summary
-
-| File | Action | Purpose |
-|------|--------|---------|
-| `src/components/landing/WhatIsTheVaultSection.tsx` | Create | "What Is The Vault?" explainer section |
-| `src/components/landing/FeaturesSection.tsx` | Create | Interactive feature cards with Vault links |
-| `src/components/vault/OnboardingWalkthrough.tsx` | Create | First-time user walkthrough modal |
-| `src/pages/Index.tsx` | Modify | Add new landing page sections |
-| `src/pages/Vault.tsx` | Modify | Add onboarding walkthrough |
-| `src/stores/workoutStore.ts` | Modify | Accept date param in `startWorkout` |
-| `src/components/workout/WorkoutLogger.tsx` | Modify | Allow starting workouts on past dates |
-
-No database changes required. No new dependencies.
+```
+TodaySnapshot
+TrainingSuggestion
+LatestUpdates (Top Recommendations + Fresh Drops)
+GoalsPanel
+WeeklyReview
+```
 
