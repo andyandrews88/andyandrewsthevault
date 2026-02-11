@@ -26,12 +26,14 @@ import { LifestyleTab } from "@/components/lifestyle/LifestyleTab";
 import { VaultDashboard as DashboardView } from "@/components/dashboard/VaultDashboard";
 import logo from "@/assets/logo.png";
 import { useAdminCheck } from "@/hooks/useAdminCheck";
+import { OnboardingWalkthrough } from "@/components/vault/OnboardingWalkthrough";
 
 export function VaultDashboard() {
   const { isAdmin } = useAdminCheck();
 
   return (
     <div className="min-h-screen pt-24 pb-12">
+      <OnboardingWalkthrough />
       <div className="container mx-auto px-4 md:px-6 max-w-6xl">
         {/* Header with Logo */}
         <div className="flex flex-col items-center text-center mb-6 md:mb-8">
