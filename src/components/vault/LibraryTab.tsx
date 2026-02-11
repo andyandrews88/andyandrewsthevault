@@ -11,7 +11,7 @@ import { ResourceCard } from "./ResourceCard";
 import { ResourceModal } from "./ResourceModal";
 import { CategoryFilter } from "./CategoryFilter";
 import { ResourceEditor } from "./ResourceEditor";
-import { fetchResources, createResource, updateResource, deleteResource, dbToResource } from "@/lib/vaultService";
+import { fetchResources, createResource, updateResource, deleteResource, dbToResource, toggleResourceFeatured } from "@/lib/vaultService";
 import { VaultResource, ResourceFormData } from "@/types/vaultResources";
 import { toast } from "sonner";
 import { useAuthStore } from "@/stores/authStore";
@@ -127,6 +127,21 @@ export function LibraryTab({ isPremiumMember = false, isAdmin = false }: Library
     } catch (error) {
       console.error('Error deleting resource:', error);
       toast.error('Failed to delete resource');
+    }
+  };
+
+  const handleToggleFeatured = async (resource: Resource) => {
+    const dbResource = dbResources.find(r => r.id === resource.id);
+    if (!dbResource) return;
+    
+    try {
+      const newValue = !dbResource.is_featured;
+      await toggleResourceFeatured(resource.id, newValue);
+      toast.success(newValue ? 'Added to Top Recommendations' : 'Removed from Top Recommendations');
+      loadResources();
+    } catch (error) {
+      console.error('Error toggling featured:', error);
+      toast.error('Failed to update featured status');
     }
   };
 
@@ -270,17 +285,22 @@ export function LibraryTab({ isPremiumMember = false, isAdmin = false }: Library
 
           {filteredResources.length > 0 ? (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredResources.map((resource) => (
-                <ResourceCard
-                  key={resource.id}
-                  resource={resource}
-                  onClick={() => handleResourceClick(resource)}
-                  isLocked={!isPremiumMember && resource.isPremium}
-                  isAdmin={isAdmin}
-                  onEdit={() => handleEdit(resource)}
-                  onDelete={() => handleDelete(resource)}
-                />
-              ))}
+              {filteredResources.map((resource) => {
+                const dbRes = dbResources.find(r => r.id === resource.id);
+                return (
+                  <ResourceCard
+                    key={resource.id}
+                    resource={resource}
+                    onClick={() => handleResourceClick(resource)}
+                    isLocked={!isPremiumMember && resource.isPremium}
+                    isAdmin={isAdmin}
+                    isFeatured={dbRes?.is_featured ?? false}
+                    onEdit={() => handleEdit(resource)}
+                    onDelete={() => handleDelete(resource)}
+                    onToggleFeatured={() => handleToggleFeatured(resource)}
+                  />
+                );
+              })}
             </div>
           ) : (
             <div className="text-center py-12">

@@ -234,3 +234,23 @@ export async function deletePodcast(id: string): Promise<void> {
 
   if (error) throw error;
 }
+
+// Toggle featured status for a resource
+export async function toggleResourceFeatured(id: string, isFeatured: boolean): Promise<void> {
+  const { error } = await supabase
+    .from('vault_resources')
+    .update({ is_featured: isFeatured } as any)
+    .eq('id', id);
+
+  if (error) throw error;
+}
+
+// Toggle featured status for a podcast
+export async function togglePodcastFeatured(id: string, isFeatured: boolean): Promise<void> {
+  const { error } = await supabase
+    .from('vault_podcasts')
+    .update({ is_featured: isFeatured } as any)
+    .eq('id', id);
+
+  if (error) throw error;
+}

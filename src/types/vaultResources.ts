@@ -14,6 +14,7 @@ export interface VaultResource {
   duration: string | null;
   pages: number | null;
   is_premium: boolean;
+  is_featured: boolean;
   file_path: string | null;
   created_at: string;
   updated_at: string;
@@ -30,6 +31,7 @@ export interface VaultPodcast {
   duration: string | null;
   published_at: string | null;
   is_premium: boolean;
+  is_featured: boolean;
   created_at: string;
   updated_at: string;
 }
