@@ -1,160 +1,102 @@
 
 
-# Guided Breathwork Section -- Inside the Lifestyle Tab
+# Four-Part Update: Landing Page + Retroactive Workout Logging
 
-## Overview
+This covers all four requests in a single implementation pass.
 
-A new "Breathwork" card/section will appear in the Lifestyle tab below the Daily Check-In and Readiness Chart. Users pick a breathing method, read what it does, then launch a full-screen guided session with a visual breathing circle animation, phase labels ("Inhale", "Hold", "Exhale"), a timer, round counter, and optional audio cues -- all built with pure CSS animations and the Web Audio API (no external dependencies needed).
+---
 
-## Breathwork Methods Included
+## Part 1: "What Is The Vault?" Section (Landing Page)
 
-| Method | Purpose | Pattern |
-|--------|---------|---------|
-| Box Breathing | Calm focus, stress reduction, used by Navy SEALs | 4s in, 4s hold, 4s out, 4s hold |
-| 4-7-8 Breathing | Sleep preparation, deep relaxation (Dr. Andrew Weil) | 4s in, 7s hold, 8s out |
-| Wim Hof Method | Sympathetic activation, energy, cold tolerance | 30 power breaths (fast in/out), then hold after exhale, recovery breath + hold |
-| Physiological Sigh | Rapid stress relief in under 1 minute (Stanford/Huberman) | Double inhale (nose), long exhale (mouth), 3-5 cycles |
-| Alternate Nostril (Nadi Shodhana) | Balance, calm, pre-meditation | 4s left in, 4s hold, 4s right out, 4s right in, 4s hold, 4s left out |
+Add a dedicated section between the Hero and the existing "Meet Andy" section that explains the app's purpose and differentiators in a scannable format.
 
-## User Flow
+**New file:** `src/components/landing/WhatIsTheVaultSection.tsx`
 
-```text
-Lifestyle Tab
-  |-- Daily Check-In (existing)
-  |-- Readiness Chart (existing)
-  |-- Breathwork Section (NEW)
-        |-- Method selection cards (grid of 5 methods)
-        |   Each card shows: name, icon, purpose tag, 1-line description
-        |
-        |-- On card click -> Method detail view
-        |   Shows: full description, science/purpose, pattern breakdown
-        |   "Begin Session" button
-        |
-        |-- On "Begin Session" -> Full-screen guided session
-            |-- Animated breathing circle (expands/contracts)
-            |-- Phase label: "Inhale" / "Hold" / "Exhale"
-            |-- Phase timer countdown
-            |-- Round counter (e.g., "Round 3 of 4")
-            |-- Pause / Stop controls
-            |-- Audio cues: gentle tone on phase transitions (Web Audio API)
-            |-- Session complete screen with duration summary
-```
+Content structure:
+- Headline: "What Is The Vault?"
+- 3-column layout with icons highlighting the core differentiators:
+  - "Coach-Built, Not Tech-Built" -- designed from a decade of coaching, not by a product team
+  - "One Place, Everything Connected" -- training, nutrition, lifestyle all feeding into each other
+  - "Free. No Paywall on the Basics." -- no hidden costs for core functionality
+- A short paragraph reinforcing the first-principles philosophy
 
-## New Files
+**Modified file:** `src/pages/Index.tsx` -- insert `<WhatIsTheVaultSection />` between `<HeroSection />` and `<MeetAndySection />`
 
-### 1. `src/components/lifestyle/BreathworkSection.tsx`
-The main container component. Renders the method selection grid and manages which view is active (selection, detail, or active session).
+---
 
-### 2. `src/components/lifestyle/BreathworkMethodCard.tsx`
-A small card for each method showing the name, a purpose badge (e.g., "Relaxation", "Activation"), and a brief description. Clicking opens the detail view.
+## Part 2: Features Section with Interactive Cards (Landing Page)
 
-### 3. `src/components/lifestyle/BreathworkSession.tsx`
-The full-screen guided session component. This is the core of the feature:
-- Uses `useRef` + `useEffect` with `requestAnimationFrame` or `setInterval` to drive the breathing cycle timer
-- CSS `transform: scale()` animation on a circle element, with `transition-duration` dynamically set to match the current phase duration
-- Phase label and countdown rendered as overlays on the circle
-- Web Audio API `OscillatorNode` plays a short gentle tone (sine wave, ~400Hz, 200ms fade) on each phase transition -- no audio files needed
-- Wim Hof mode has a special "power breathing" phase with faster animations before the retention hold
-- Pause/resume and stop buttons
-- On completion, shows a summary (total time, rounds completed)
+Replace the current static feature list inside `MeetAndySection` with a richer, interactive "Features" section that links directly into the Vault tabs.
 
-### 4. `src/data/breathworkMethods.ts`
-Static data file defining each method's metadata and phase sequences:
+**New file:** `src/components/landing/FeaturesSection.tsx`
 
-```typescript
-interface BreathPhase {
-  name: string;         // "Inhale", "Hold", "Exhale"
-  duration: number;     // seconds
-  instruction: string;  // "Breathe in slowly through your nose"
-}
+- 6 feature cards in a responsive grid (2 cols mobile, 3 cols desktop)
+- Each card includes: icon, title, 2-line description, and a "Try It" link that navigates to `/vault` with the correct tab (using URL or in-app state)
+- Modules covered:
+  1. Workout Tracker -- log sessions, track PRs, visualize volume
+  2. Nutrition -- macro calculator, barcode scanning, meal plans
+  3. Progress Tracking -- bodyweight, body comp, measurements
+  4. Lifestyle & Readiness -- daily check-ins, readiness scores
+  5. Guided Breathwork -- 5 protocols with visual/audio guidance
+  6. Knowledge Bank -- curated coaching resources
 
-interface BreathworkMethod {
-  id: string;
-  name: string;
-  purpose: string;      // "Relaxation" | "Activation" | "Sleep" | "Focus" | "Balance"
-  shortDescription: string;
-  fullDescription: string;
-  science: string;      // Why it works
-  phases: BreathPhase[];
-  rounds: number;       // Default number of rounds
-  icon: string;         // Lucide icon name
-}
-```
+**Modified file:** `src/pages/Index.tsx` -- add `<FeaturesSection />` after the "What Is The Vault?" section
 
-## Modified Files
+The existing `MeetAndySection` stays as-is (the philosophy + "Why it exists" story) but its small feature list is kept as a lighter summary since the new section handles the detailed breakdown.
 
-### `src/components/lifestyle/LifestyleTab.tsx`
-Add `<BreathworkSection />` as the third section:
+---
 
-```typescript
-import { BreathworkSection } from "./BreathworkSection";
+## Part 3: New-User Onboarding Walkthrough
 
-export function LifestyleTab() {
-  return (
-    <div className="space-y-6">
-      <DailyCheckin />
-      <ReadinessChart />
-      <BreathworkSection />
-    </div>
-  );
-}
-```
+A lightweight, dismissible onboarding overlay that appears when a user first enters the Vault. It steps through the key modules with brief descriptions.
 
-### `src/index.css`
-Add keyframes for the breathing circle animation:
+**New file:** `src/components/vault/OnboardingWalkthrough.tsx`
 
-```css
-@keyframes breathe-in {
-  from { transform: scale(0.6); }
-  to { transform: scale(1); }
-}
-@keyframes breathe-out {
-  from { transform: scale(1); }
-  to { transform: scale(0.6); }
-}
-```
+- A multi-step modal/dialog (not a full-page takeover) with 6 steps
+- Each step shows: module name, icon, 1-2 sentence description of what it does and why
+- Steps: Dashboard, Workouts, Nutrition, Progress, Lifestyle/Breathwork, Knowledge Bank
+- Navigation: Back / Next / Skip buttons, dot indicators for progress
+- On completion or skip, sets a flag in localStorage (`vault_onboarding_complete`) so it only shows once
+- Clean, minimal design consistent with the existing UI
 
-## Visual Design
+**Modified file:** `src/pages/Vault.tsx` -- render `<OnboardingWalkthrough />` at the top of the component, gated by the localStorage check
 
-The breathing circle will follow the existing design system:
-- Circle uses `border-primary` with a subtle `shadow-glow` effect
-- During inhale: circle expands with a cyan glow intensifying
-- During hold: circle stays still, glow pulses gently
-- During exhale: circle contracts, glow dims
-- Phase text uses `font-mono` for the countdown timer
-- Background uses a subtle radial gradient overlay for immersion in full-screen mode
-- Full-screen mode uses a fixed overlay with `bg-background/95 backdrop-blur-xl`
+---
 
-## Audio (No External Files)
+## Part 4: Retroactive Workout Logging (Critical Fix)
 
-Phase transition tones are generated using the Web Audio API:
+Currently, the "Start Workout" button only appears when `selectedDate` is today. When viewing a past date with no workout, users see a dead-end "No Workout" message. This fix allows starting a workout for any past date.
 
-```typescript
-function playTransitionTone(frequency = 396, duration = 0.2) {
-  const ctx = new AudioContext();
-  const osc = ctx.createOscillator();
-  const gain = ctx.createGain();
-  osc.type = 'sine';
-  osc.frequency.value = frequency;
-  gain.gain.setValueAtTime(0.3, ctx.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
-  osc.connect(gain).connect(ctx.destination);
-  osc.start();
-  osc.stop(ctx.currentTime + duration);
-}
-```
+### Changes to `src/components/workout/WorkoutLogger.tsx`:
 
-Different tones for different phases (lower for exhale, higher for inhale) to provide subtle audio guidance without needing any sound files.
+1. Remove the condition that restricts "Start Workout" to today only
+2. Show the "Start Workout" card for any date (past or today) that has no existing workout and no active workout in progress
+3. Pass `selectedDate` to `startWorkout` so the workout is created with the correct date
 
-## Summary
+### Changes to `src/stores/workoutStore.ts`:
 
-| Area | Change |
-|------|--------|
-| `src/data/breathworkMethods.ts` | New -- method definitions and phase data |
-| `src/components/lifestyle/BreathworkSection.tsx` | New -- main container with method grid and detail view |
-| `src/components/lifestyle/BreathworkMethodCard.tsx` | New -- individual method selection card |
-| `src/components/lifestyle/BreathworkSession.tsx` | New -- full-screen guided session with animation, timer, audio |
-| `src/components/lifestyle/LifestyleTab.tsx` | Modified -- add BreathworkSection |
-| `src/index.css` | Modified -- add breathing animation keyframes |
+1. Modify `startWorkout` to accept an optional `date` parameter (defaults to today)
+2. Use that date in the database insert instead of hardcoded `new Date()`
 
-No database changes. No new dependencies. Pure client-side feature using CSS animations and Web Audio API.
+### Changes to `src/components/workout/WorkoutLogger.tsx` (detail):
+
+- The empty-state card at lines 244-256 (past dates with no workout) gets merged with the "Start Workout" card at lines 187-237
+- Both past dates and today show the same "Start Workout" prompt when no workout exists
+- The date shown in the dialog changes to reflect the selected date so users know what day they're logging for
+
+---
+
+## File Summary
+
+| File | Action | Purpose |
+|------|--------|---------|
+| `src/components/landing/WhatIsTheVaultSection.tsx` | Create | "What Is The Vault?" explainer section |
+| `src/components/landing/FeaturesSection.tsx` | Create | Interactive feature cards with Vault links |
+| `src/components/vault/OnboardingWalkthrough.tsx` | Create | First-time user walkthrough modal |
+| `src/pages/Index.tsx` | Modify | Add new landing page sections |
+| `src/pages/Vault.tsx` | Modify | Add onboarding walkthrough |
+| `src/stores/workoutStore.ts` | Modify | Accept date param in `startWorkout` |
+| `src/components/workout/WorkoutLogger.tsx` | Modify | Allow starting workouts on past dates |
+
+No database changes required. No new dependencies.
+
