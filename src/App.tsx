@@ -12,6 +12,7 @@ import Nutrition from "./pages/Nutrition";
 import AuthPageWrapper from "./pages/AuthPageWrapper";
 import NotFound from "./pages/NotFound";
 import AdminDashboard from "./pages/AdminDashboard";
+import AdminUserProfile from "./pages/AdminUserProfile";
 import { useAuthStore } from "./stores/authStore";
 import { useUserDataSync } from "./hooks/useUserDataSync";
 
@@ -37,6 +38,7 @@ function AppContent() {
       <Route path="/vault" element={<VaultPage />} />
       <Route path="/nutrition" element={<Nutrition />} />
       <Route path="/admin" element={<AdminDashboard />} />
+      <Route path="/admin/user/:userId" element={<AdminUserProfile />} />
       {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
       <Route path="*" element={<NotFound />} />
     </Routes>

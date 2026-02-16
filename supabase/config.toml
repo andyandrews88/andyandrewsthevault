@@ -2,3 +2,15 @@ project_id = "tefnxjvxsbzxbiagpbvj"
 
 [functions.weekly-review]
 verify_jwt = false
+
+[functions.admin-analytics]
+verify_jwt = false
+
+[functions.admin-detail]
+verify_jwt = false
+
+[functions.admin-user-profile]
+verify_jwt = false
+
+[functions.admin-weekly-report]
+verify_jwt = false

@@ -11,10 +11,13 @@ import {
   TrendingUp, Award, Heart, Calendar, ChevronLeft
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { format, formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow } from "date-fns";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import { AdminWeeklyReport } from "@/components/admin/AdminWeeklyReport";
+import { AnnouncementManager } from "@/components/admin/AnnouncementManager";
+import { AdminDetailDrawer } from "@/components/admin/AdminDetailDrawer";
 
 interface Analytics {
   users: { total: number; newThisMonth: number; newThisWeek: number; recentSignups: { id: string; displayName: string; createdAt: string }[] };
@@ -26,9 +29,11 @@ interface Analytics {
   content: { totalResources: number; totalPodcasts: number };
 }
 
-function StatCard({ icon: Icon, label, value, sub }: { icon: React.ElementType; label: string; value: string | number; sub?: string }) {
+type Section = "users" | "training" | "nutrition" | "lifestyle" | "community" | "content";
+
+function StatCard({ icon: Icon, label, value, sub, onClick }: { icon: React.ElementType; label: string; value: string | number; sub?: string; onClick?: () => void }) {
   return (
-    <Card className="glass border-border/50">
+    <Card className={`glass border-border/50 ${onClick ? "cursor-pointer hover:bg-muted/30 transition-colors" : ""}`} onClick={onClick}>
       <CardContent className="p-4 flex items-start gap-3">
         <div className="p-2 rounded-lg bg-primary/10">
           <Icon className="h-5 w-5 text-primary" />
@@ -49,6 +54,13 @@ export default function AdminDashboard() {
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [drawerSection, setDrawerSection] = useState<Section | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  const openDrawer = (s: Section) => {
+    setDrawerSection(s);
+    setDrawerOpen(true);
+  };
 
   useEffect(() => {
     if (adminLoading) return;
@@ -110,14 +122,17 @@ export default function AdminDashboard() {
           </div>
         </div>
 
+        {/* AI Weekly Report */}
+        <AdminWeeklyReport />
+
         {/* Users Overview */}
         <section className="space-y-3">
           <Badge variant="outline" className="text-xs">USERS</Badge>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <StatCard icon={Users} label="Total Users" value={a.users.total} />
-            <StatCard icon={TrendingUp} label="New This Week" value={a.users.newThisWeek} />
-            <StatCard icon={TrendingUp} label="New This Month" value={a.users.newThisMonth} />
-            <StatCard icon={Users} label="Active (Training)" value={a.training.activeUsersThisWeek} sub="Last 7 days" />
+            <StatCard icon={Users} label="Total Users" value={a.users.total} onClick={() => openDrawer("users")} />
+            <StatCard icon={TrendingUp} label="New This Week" value={a.users.newThisWeek} onClick={() => openDrawer("users")} />
+            <StatCard icon={TrendingUp} label="New This Month" value={a.users.newThisMonth} onClick={() => openDrawer("users")} />
+            <StatCard icon={Users} label="Active (Training)" value={a.training.activeUsersThisWeek} sub="Last 7 days" onClick={() => openDrawer("users")} />
           </div>
         </section>
 
@@ -125,10 +140,10 @@ export default function AdminDashboard() {
         <section className="space-y-3">
           <Badge variant="outline" className="text-xs">TRAINING</Badge>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <StatCard icon={Dumbbell} label="Total Workouts" value={a.training.totalWorkouts} />
-            <StatCard icon={Calendar} label="This Week" value={a.training.workoutsThisWeek} />
-            <StatCard icon={Dumbbell} label="Avg/User" value={a.training.avgWorkoutsPerUser} />
-            <StatCard icon={Award} label="Total PRs" value={a.training.totalPRs} />
+            <StatCard icon={Dumbbell} label="Total Workouts" value={a.training.totalWorkouts} onClick={() => openDrawer("training")} />
+            <StatCard icon={Calendar} label="This Week" value={a.training.workoutsThisWeek} onClick={() => openDrawer("training")} />
+            <StatCard icon={Dumbbell} label="Avg/User" value={a.training.avgWorkoutsPerUser} onClick={() => openDrawer("training")} />
+            <StatCard icon={Award} label="Total PRs" value={a.training.totalPRs} onClick={() => openDrawer("training")} />
           </div>
           {a.training.topExercises.length > 0 && (
             <Card className="glass border-border/50">
@@ -154,16 +169,16 @@ export default function AdminDashboard() {
         <section className="space-y-3">
           <Badge variant="outline" className="text-xs">NUTRITION & LIFESTYLE</Badge>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <StatCard icon={Apple} label="Calculator Users" value={a.nutrition.usersWithCalculator} />
-            <StatCard icon={Apple} label="Saved Meals" value={a.nutrition.totalSavedMeals} />
-            <StatCard icon={Brain} label="Audits Done" value={a.nutrition.auditsCompleted} />
-            <StatCard icon={Heart} label="Daily Check-ins" value={a.lifestyle.totalCheckins} sub={`${a.lifestyle.checkinsThisWeek} this week`} />
+            <StatCard icon={Apple} label="Calculator Users" value={a.nutrition.usersWithCalculator} onClick={() => openDrawer("nutrition")} />
+            <StatCard icon={Apple} label="Saved Meals" value={a.nutrition.totalSavedMeals} onClick={() => openDrawer("nutrition")} />
+            <StatCard icon={Brain} label="Audits Done" value={a.nutrition.auditsCompleted} onClick={() => openDrawer("nutrition")} />
+            <StatCard icon={Heart} label="Daily Check-ins" value={a.lifestyle.totalCheckins} sub={`${a.lifestyle.checkinsThisWeek} this week`} onClick={() => openDrawer("lifestyle")} />
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <StatCard icon={Users} label="Users Who Check-in" value={a.lifestyle.usersWhoCheckin} />
-            <StatCard icon={TrendingUp} label="Body Entries" value={a.lifestyle.totalBodyEntries} />
-            <StatCard icon={Target} label="Goals Set" value={a.goals.totalGoals} />
-            <StatCard icon={Award} label="Goals Achieved" value={`${goalRate}%`} sub={`${a.goals.achievedGoals} of ${a.goals.totalGoals}`} />
+            <StatCard icon={Users} label="Users Who Check-in" value={a.lifestyle.usersWhoCheckin} onClick={() => openDrawer("lifestyle")} />
+            <StatCard icon={TrendingUp} label="Body Entries" value={a.lifestyle.totalBodyEntries} onClick={() => openDrawer("lifestyle")} />
+            <StatCard icon={Target} label="Goals Set" value={a.goals.totalGoals} onClick={() => openDrawer("lifestyle")} />
+            <StatCard icon={Award} label="Goals Achieved" value={`${goalRate}%`} sub={`${a.goals.achievedGoals} of ${a.goals.totalGoals}`} onClick={() => openDrawer("lifestyle")} />
           </div>
         </section>
 
@@ -171,10 +186,10 @@ export default function AdminDashboard() {
         <section className="space-y-3">
           <Badge variant="outline" className="text-xs">COMMUNITY</Badge>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <StatCard icon={MessageSquare} label="Total Posts" value={a.community.totalPosts} />
-            <StatCard icon={MessageSquare} label="Posts This Week" value={a.community.postsThisWeek} />
-            <StatCard icon={Heart} label="Total Likes" value={a.community.totalLikes} />
-            <StatCard icon={TrendingUp} label="Avg Likes/Post" value={a.community.avgLikesPerPost} />
+            <StatCard icon={MessageSquare} label="Total Posts" value={a.community.totalPosts} onClick={() => openDrawer("community")} />
+            <StatCard icon={MessageSquare} label="Posts This Week" value={a.community.postsThisWeek} onClick={() => openDrawer("community")} />
+            <StatCard icon={Heart} label="Total Likes" value={a.community.totalLikes} onClick={() => openDrawer("community")} />
+            <StatCard icon={TrendingUp} label="Avg Likes/Post" value={a.community.avgLikesPerPost} onClick={() => openDrawer("community")} />
           </div>
         </section>
 
@@ -182,9 +197,15 @@ export default function AdminDashboard() {
         <section className="space-y-3">
           <Badge variant="outline" className="text-xs">KNOWLEDGE BANK</Badge>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <StatCard icon={BookOpen} label="Resources" value={a.content.totalResources} />
-            <StatCard icon={BookOpen} label="Podcasts" value={a.content.totalPodcasts} />
+            <StatCard icon={BookOpen} label="Resources" value={a.content.totalResources} onClick={() => openDrawer("content")} />
+            <StatCard icon={BookOpen} label="Podcasts" value={a.content.totalPodcasts} onClick={() => openDrawer("content")} />
           </div>
+        </section>
+
+        {/* Announcements */}
+        <section className="space-y-3">
+          <Badge variant="outline" className="text-xs">ANNOUNCEMENTS</Badge>
+          <AnnouncementManager />
         </section>
 
         {/* Recent Signups */}
@@ -202,7 +223,7 @@ export default function AdminDashboard() {
                   </TableHeader>
                   <TableBody>
                     {a.users.recentSignups.map((u) => (
-                      <TableRow key={u.id}>
+                      <TableRow key={u.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/admin/user/${u.id}`)}>
                         <TableCell className="font-medium">{u.displayName}</TableCell>
                         <TableCell className="text-right text-muted-foreground text-sm">
                           {formatDistanceToNow(new Date(u.createdAt), { addSuffix: true })}
@@ -216,6 +237,12 @@ export default function AdminDashboard() {
           </section>
         )}
       </main>
+
+      <AdminDetailDrawer
+        section={drawerSection}
+        open={drawerOpen}
+        onClose={() => { setDrawerOpen(false); setDrawerSection(null); }}
+      />
     </div>
   );
 }

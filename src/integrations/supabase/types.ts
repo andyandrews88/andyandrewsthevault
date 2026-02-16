@@ -14,6 +14,65 @@ export type Database = {
   }
   public: {
     Tables: {
+      announcement_dismissals: {
+        Row: {
+          announcement_id: string
+          dismissed_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          announcement_id: string
+          dismissed_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          announcement_id?: string
+          dismissed_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "announcement_dismissals_announcement_id_fkey"
+            columns: ["announcement_id"]
+            isOneToOne: false
+            referencedRelation: "announcements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      announcements: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          message: string
+          title: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          message: string
+          title: string
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          message?: string
+          title?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       community_likes: {
         Row: {
           created_at: string
