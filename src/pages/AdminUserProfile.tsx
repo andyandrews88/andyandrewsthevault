@@ -1,0 +1,309 @@
+import { useEffect, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { Navbar } from "@/components/layout/Navbar";
+import { useAdminCheck } from "@/hooks/useAdminCheck";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  ChevronLeft, User, Dumbbell, Award, Heart, Target, MessageSquare, Scale, Mail, Calendar,
+} from "lucide-react";
+import { format, formatDistanceToNow } from "date-fns";
+
+export default function AdminUserProfile() {
+  const { userId } = useParams<{ userId: string }>();
+  const { isAdmin, isLoading: adminLoading } = useAdminCheck();
+  const navigate = useNavigate();
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (adminLoading) return;
+    if (!isAdmin) { navigate("/"); return; }
+    if (!userId) return;
+
+    async function fetchProfile() {
+      try {
+        const { data: result, error } = await supabase.functions.invoke("admin-user-profile", {
+          body: { userId },
+        });
+        if (error) throw error;
+        setData(result);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Failed to load");
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchProfile();
+  }, [isAdmin, adminLoading, userId, navigate]);
+
+  if (adminLoading || loading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <main className="container mx-auto px-4 pt-24 pb-12 space-y-6">
+          <Skeleton className="h-8 w-64" />
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-48 w-full" />
+        </main>
+      </div>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <main className="container mx-auto px-4 pt-24 text-center">
+          <p className="text-destructive">{error || "User not found"}</p>
+          <Button variant="ghost" className="mt-4" onClick={() => navigate("/admin")}>Back to Admin</Button>
+        </main>
+      </div>
+    );
+  }
+
+  const p = data.profile;
+  const daysSince = data.joinDate ? Math.floor((Date.now() - new Date(data.joinDate).getTime()) / 86400000) : 0;
+
+  return (
+    <div className="min-h-screen bg-background">
+      <Navbar />
+      <main className="container mx-auto px-4 pt-24 pb-12 space-y-6">
+        {/* Header */}
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={() => navigate("/admin")}>
+            <ChevronLeft className="h-5 w-5" />
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <User className="h-6 w-6" />
+              {p?.display_name || "Unknown User"}
+            </h1>
+            <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
+              {data.email && <span className="flex items-center gap-1"><Mail className="h-3.5 w-3.5" />{data.email}</span>}
+              <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" />Joined {data.joinDate ? formatDistanceToNow(new Date(data.joinDate), { addSuffix: true }) : "unknown"}</span>
+              <span>{daysSince} days on platform</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Stats Summary */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <Card className="glass border-border/50">
+            <CardContent className="p-3 text-center">
+              <Dumbbell className="h-4 w-4 mx-auto text-primary mb-1" />
+              <p className="text-xl font-bold">{data.training.completedCount}</p>
+              <p className="text-xs text-muted-foreground">Workouts</p>
+            </CardContent>
+          </Card>
+          <Card className="glass border-border/50">
+            <CardContent className="p-3 text-center">
+              <Award className="h-4 w-4 mx-auto text-primary mb-1" />
+              <p className="text-xl font-bold">{data.training.prs.length}</p>
+              <p className="text-xs text-muted-foreground">PRs</p>
+            </CardContent>
+          </Card>
+          <Card className="glass border-border/50">
+            <CardContent className="p-3 text-center">
+              <Heart className="h-4 w-4 mx-auto text-primary mb-1" />
+              <p className="text-xl font-bold">{data.checkins.streak}</p>
+              <p className="text-xs text-muted-foreground">Day Streak</p>
+            </CardContent>
+          </Card>
+          <Card className="glass border-border/50">
+            <CardContent className="p-3 text-center">
+              <Target className="h-4 w-4 mx-auto text-primary mb-1" />
+              <p className="text-xl font-bold">{data.goals.length}</p>
+              <p className="text-xs text-muted-foreground">Goals</p>
+            </CardContent>
+          </Card>
+          <Card className="glass border-border/50">
+            <CardContent className="p-3 text-center">
+              <MessageSquare className="h-4 w-4 mx-auto text-primary mb-1" />
+              <p className="text-xl font-bold">{data.community.totalPosts}</p>
+              <p className="text-xs text-muted-foreground">Posts</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Training */}
+        {data.training.workouts.length > 0 && (
+          <section className="space-y-3">
+            <Badge variant="outline" className="text-xs">TRAINING</Badge>
+            <Card className="glass border-border/50">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Recent Workouts (Total Volume: {data.training.totalVolume.toLocaleString()} kg)</CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Workout</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead className="text-right">Volume</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {data.training.workouts.slice(0, 15).map((w: any) => (
+                      <TableRow key={w.id}>
+                        <TableCell className="text-sm font-medium">{w.workout_name}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{format(new Date(w.date), "MMM d, yyyy")}</TableCell>
+                        <TableCell className="text-right text-sm">{Number(w.total_volume || 0).toLocaleString()}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+            {data.training.prs.length > 0 && (
+              <Card className="glass border-border/50">
+                <CardHeader className="pb-2"><CardTitle className="text-sm">Personal Records</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="space-y-1.5">
+                    {data.training.prs.map((pr: any) => (
+                      <div key={pr.id} className="flex justify-between text-sm">
+                        <span>{pr.exercise_name}</span>
+                        <span className="text-muted-foreground">{pr.max_weight}kg × {pr.max_reps || 1} — {format(new Date(pr.achieved_at), "MMM d")}</span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </section>
+        )}
+
+        {/* Check-ins */}
+        {data.checkins.totalCount > 0 && (
+          <section className="space-y-3">
+            <Badge variant="outline" className="text-xs">CHECK-IN HISTORY</Badge>
+            <Card className="glass border-border/50">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">
+                  {data.checkins.totalCount} check-ins · {data.checkins.streak} day streak
+                  {data.checkins.avgScores && (
+                    <span className="text-muted-foreground font-normal"> · Avg: Energy {data.checkins.avgScores.energy} · Sleep {data.checkins.avgScores.sleep} · Stress {data.checkins.avgScores.stress} · Drive {data.checkins.avgScores.drive}</span>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead className="text-center">Energy</TableHead>
+                      <TableHead className="text-center">Sleep</TableHead>
+                      <TableHead className="text-center">Stress</TableHead>
+                      <TableHead className="text-center">Drive</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {data.checkins.entries.slice(0, 14).map((c: any) => (
+                      <TableRow key={c.id}>
+                        <TableCell className="text-sm">{format(new Date(c.check_date), "MMM d")}</TableCell>
+                        <TableCell className="text-center text-sm">{c.energy_score}</TableCell>
+                        <TableCell className="text-center text-sm">{c.sleep_score}</TableCell>
+                        <TableCell className="text-center text-sm">{c.stress_score}</TableCell>
+                        <TableCell className="text-center text-sm">{c.drive_score}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </section>
+        )}
+
+        {/* Goals */}
+        {data.goals.length > 0 && (
+          <section className="space-y-3">
+            <Badge variant="outline" className="text-xs">GOALS</Badge>
+            <div className="space-y-2">
+              {data.goals.map((g: any) => (
+                <Card key={g.id} className="glass border-border/50">
+                  <CardContent className="p-3 flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium">{g.title}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {g.current_value}/{g.target_value} {g.unit} · Due {format(new Date(g.target_date), "MMM d, yyyy")}
+                      </p>
+                    </div>
+                    <Badge variant={g.status === "achieved" ? "default" : "secondary"} className="capitalize">{g.status}</Badge>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Nutrition */}
+        <section className="space-y-3">
+          <Badge variant="outline" className="text-xs">NUTRITION</Badge>
+          <Card className="glass border-border/50">
+            <CardContent className="p-4 text-sm space-y-1">
+              <p>Calculator: {data.nutrition.calculatorData ? "✓ Set up" : "✗ Not set up"}</p>
+              <p>Saved Meals: {data.nutrition.meals.length}</p>
+              <p>Audit: {data.nutrition.auditData ? "✓ Completed" : "✗ Not done"}</p>
+            </CardContent>
+          </Card>
+        </section>
+
+        {/* Community */}
+        {data.community.messages.length > 0 && (
+          <section className="space-y-3">
+            <Badge variant="outline" className="text-xs">COMMUNITY ({data.community.totalPosts} posts · {data.community.totalLikes} likes received)</Badge>
+            <div className="space-y-2">
+              {data.community.messages.filter((m: any) => m.is_thread_root).slice(0, 10).map((m: any) => (
+                <Card key={m.id} className="glass border-border/50">
+                  <CardContent className="p-3">
+                    <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                      <span>{format(new Date(m.created_at), "MMM d, yyyy")}</span>
+                      <span>{m.likes_count} ❤️</span>
+                    </div>
+                    <p className="text-sm">{m.content.slice(0, 200)}</p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Body Entries */}
+        {data.bodyEntries.length > 0 && (
+          <section className="space-y-3">
+            <Badge variant="outline" className="text-xs">BODY ENTRIES</Badge>
+            <Card className="glass border-border/50">
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead className="text-right">Weight</TableHead>
+                      <TableHead className="text-right">Body Fat</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {data.bodyEntries.slice(0, 15).map((e: any) => (
+                      <TableRow key={e.id}>
+                        <TableCell className="text-sm">{format(new Date(e.entry_date), "MMM d, yyyy")}</TableCell>
+                        <TableCell className="text-right text-sm">
+                          {e.weight_kg ? (e.uses_imperial ? `${Math.round(e.weight_kg * 2.20462 * 10) / 10} lbs` : `${e.weight_kg} kg`) : "—"}
+                        </TableCell>
+                        <TableCell className="text-right text-sm">{e.body_fat_percent ? `${e.body_fat_percent}%` : "—"}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </section>
+        )}
+      </main>
+    </div>
+  );
+}
