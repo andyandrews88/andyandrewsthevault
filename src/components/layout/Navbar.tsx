@@ -1,8 +1,9 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Menu, X, User, LogOut } from "lucide-react";
+import { Menu, X, User, LogOut, Shield } from "lucide-react";
 import { useState } from "react";
 import logo from "@/assets/logo.png";
 import { useAuthStore } from "@/stores/authStore";
+import { useAdminCheck } from "@/hooks/useAdminCheck";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -17,6 +18,7 @@ export function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { isAuthenticated, user, signOut, isLoading } = useAuthStore();
+  const { isAdmin } = useAdminCheck();
 
   const navLinks = [
     { href: "/", label: "Home" },
@@ -71,6 +73,12 @@ export function Navbar() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                {isAdmin && (
+                  <DropdownMenuItem onClick={() => navigate('/admin')} className="gap-2 cursor-pointer">
+                    <Shield className="w-4 h-4" />
+                    Admin Dashboard
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem onClick={handleSignOut} className="gap-2 cursor-pointer">
                   <LogOut className="w-4 h-4" />
                   Sign Out
@@ -120,16 +128,28 @@ export function Navbar() {
             {/* Mobile auth button */}
             <div className="pt-2 border-t border-border mt-2">
               {isAuthenticated ? (
-                <button
-                  onClick={() => {
-                    handleSignOut();
-                    setIsOpen(false);
-                  }}
-                  className="flex items-center gap-2 py-3 px-4 rounded-lg text-base text-muted-foreground hover:text-foreground hover:bg-muted/50 w-full"
-                >
-                  <LogOut className="w-4 h-4" />
-                  Sign Out
-                </button>
+                <>
+                  {isAdmin && (
+                    <Link
+                      to="/admin"
+                      className="flex items-center gap-2 py-3 px-4 rounded-lg text-base text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                      onClick={() => setIsOpen(false)}
+                    >
+                      <Shield className="w-4 h-4" />
+                      Admin Dashboard
+                    </Link>
+                  )}
+                  <button
+                    onClick={() => {
+                      handleSignOut();
+                      setIsOpen(false);
+                    }}
+                    className="flex items-center gap-2 py-3 px-4 rounded-lg text-base text-muted-foreground hover:text-foreground hover:bg-muted/50 w-full"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Sign Out
+                  </button>
+                </>
               ) : (
                 <Link
                   to="/auth"
