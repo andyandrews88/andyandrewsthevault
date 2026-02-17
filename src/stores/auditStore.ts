@@ -1,25 +1,38 @@
 import { create } from 'zustand';
 
 export interface AuditData {
-  // Biometrics
+  // Biometrics (required)
   weight: number;
   age: number;
   height: number;
   
-  // Big 4 Ratios
-  backSquat: number;
-  frontSquat: number;
-  strictPress: number;
-  deadlift: number;
+  // Big 4 Ratios (all optional)
+  backSquat?: number;
+  frontSquat?: number;
+  strictPress?: number;
+  deadlift?: number;
   
-  // Engine Check
-  mileRunTime: number; // in seconds
+  // Estimation tracking
+  estimatedLifts?: Record<string, boolean>;
+  substitutions?: Record<string, string>;
   
-  // Lifestyle Diagnostic
+  // Engine Check (optional)
+  mileRunTime?: number;
+  cardioTest?: 'mile' | '2k-row' | '500m-row' | '2k-bike' | 'none';
+  cardioTime?: number;
+  
+  // Lifestyle (required)
   sleep: '<6' | '6-7' | '7-8' | '8+';
   protein: 'yes' | 'no' | 'unsure';
-  stress: number; // 1-10 scale
+  stress: number;
   experience: '<1' | '1-3' | '3-5' | '5+';
+  
+  // New lifestyle questions
+  trainingFrequency?: '1-2' | '3-4' | '5-6' | '7';
+  primaryGoal?: 'strength' | 'conditioning' | 'body-comp' | 'sport' | 'health';
+  injuryHistory?: 'none' | 'upper' | 'lower' | 'back' | 'multiple';
+  waterIntake?: '<1L' | '1-2L' | '2-3L' | '3L+';
+  alcohol?: 'never' | '1-2x' | '3-4x' | 'daily';
 }
 
 export interface ResourceLink {
@@ -51,6 +64,7 @@ export interface AuditResults {
   overallScore: number;
   foundationRecommended?: boolean;
   foundationReason?: string;
+  skippedAreas?: string[];
 }
 
 interface AuditStore {
@@ -63,64 +77,93 @@ interface AuditStore {
   reset: () => void;
 }
 
-// Logic gates for leak detection
-function detectLeaks(data: AuditData): Leak[] {
+// Cardio equivalence: convert alternative tests to equivalent mile time in seconds
+function convertCardioToMileEquivalent(test: AuditData['cardioTest'], timeSeconds?: number): number | undefined {
+  if (!timeSeconds || !test || test === 'none') return undefined;
+  switch (test) {
+    case 'mile': return timeSeconds;
+    case '2k-row': return Math.round(timeSeconds * 0.95); // ~similar aerobic demand
+    case '500m-row': return Math.round(timeSeconds * 3.5); // short burst → extrapolate
+    case '2k-bike': return Math.round(timeSeconds * 1.1); // bike erg slightly easier
+    default: return undefined;
+  }
+}
+
+function detectLeaks(data: AuditData): { leaks: Leak[]; skippedAreas: string[] } {
   const leaks: Leak[] = [];
-  
-  // Front Squat < 85% of Back Squat = Thoracic/Core Stability Leak
-  const frontSquatRatio = (data.frontSquat / data.backSquat) * 100;
-  if (frontSquatRatio < 85) {
-    leaks.push({
-      id: 'thoracic-core',
-      title: 'Thoracic/Core Stability Leak',
-      description: `Your Front Squat is ${frontSquatRatio.toFixed(0)}% of your Back Squat (target: ≥85%)`,
-      severity: frontSquatRatio < 75 ? 'critical' : 'warning',
-      metric: `${frontSquatRatio.toFixed(0)}%`,
-      recommendation: 'Focus on thoracic mobility drills and core bracing exercises. Priority: Front-loaded carries, pause front squats, and thoracic spine work.',
-    });
+  const skippedAreas: string[] = [];
+
+  // Front Squat < 85% of Back Squat
+  if (data.backSquat && data.frontSquat) {
+    const frontSquatRatio = (data.frontSquat / data.backSquat) * 100;
+    if (frontSquatRatio < 85) {
+      leaks.push({
+        id: 'thoracic-core',
+        title: 'Thoracic/Core Stability Leak',
+        description: `Your Front Squat is ${frontSquatRatio.toFixed(0)}% of your Back Squat (target: ≥85%)`,
+        severity: frontSquatRatio < 75 ? 'critical' : 'warning',
+        metric: `${frontSquatRatio.toFixed(0)}%`,
+        recommendation: 'Focus on thoracic mobility drills and core bracing exercises. Priority: Front-loaded carries, pause front squats, and thoracic spine work.',
+      });
+    }
+  } else if (!data.backSquat || !data.frontSquat) {
+    skippedAreas.push('Thoracic/Core Stability (missing squat data)');
   }
 
-  // Mile Run > 9:00 with high squat = Aerobic Power Leak
-  const mileMinutes = data.mileRunTime / 60;
-  const bodyweightSquatRatio = data.backSquat / data.weight;
-  if (mileMinutes > 9 && bodyweightSquatRatio > 1.5) {
-    leaks.push({
-      id: 'aerobic-power',
-      title: 'Aerobic Power Leak',
-      description: `Mile time of ${formatTime(data.mileRunTime)} with strong squat numbers indicates underdeveloped aerobic capacity`,
-      severity: mileMinutes > 10 ? 'critical' : 'warning',
-      metric: formatTime(data.mileRunTime),
-      recommendation: 'Implement Zone 2 conditioning 3-4x weekly. Add tempo intervals and long aerobic pieces to develop engine without sacrificing strength.',
-    });
+  // Aerobic Power Leak
+  const effectiveMileTime = data.mileRunTime || convertCardioToMileEquivalent(data.cardioTest, data.cardioTime);
+  if (effectiveMileTime && data.backSquat && data.weight) {
+    const mileMinutes = effectiveMileTime / 60;
+    const bodyweightSquatRatio = data.backSquat / data.weight;
+    if (mileMinutes > 9 && bodyweightSquatRatio > 1.5) {
+      leaks.push({
+        id: 'aerobic-power',
+        title: 'Aerobic Power Leak',
+        description: `Cardio time of ${formatTime(effectiveMileTime)} with strong squat numbers indicates underdeveloped aerobic capacity`,
+        severity: mileMinutes > 10 ? 'critical' : 'warning',
+        metric: formatTime(effectiveMileTime),
+        recommendation: 'Implement Zone 2 conditioning 3-4x weekly. Add tempo intervals and long aerobic pieces to develop engine without sacrificing strength.',
+      });
+    }
+  } else if (!effectiveMileTime) {
+    skippedAreas.push('Aerobic Power (no cardio benchmark provided)');
   }
 
-  // Strict Press < 65% of Bodyweight = Pressing Strength Leak
-  const pressRatio = (data.strictPress / data.weight) * 100;
-  if (pressRatio < 65) {
-    leaks.push({
-      id: 'pressing-strength',
-      title: 'Pressing Strength Leak',
-      description: `Strict Press at ${pressRatio.toFixed(0)}% of bodyweight (target: ≥65%)`,
-      severity: pressRatio < 55 ? 'critical' : 'warning',
-      metric: `${pressRatio.toFixed(0)}%`,
-      recommendation: 'Increase overhead pressing volume with strict press progressions, push press, and accessory work for shoulders and triceps.',
-    });
+  // Pressing Strength Leak
+  if (data.strictPress && data.weight) {
+    const pressRatio = (data.strictPress / data.weight) * 100;
+    if (pressRatio < 65) {
+      leaks.push({
+        id: 'pressing-strength',
+        title: 'Pressing Strength Leak',
+        description: `Strict Press at ${pressRatio.toFixed(0)}% of bodyweight (target: ≥65%)`,
+        severity: pressRatio < 55 ? 'critical' : 'warning',
+        metric: `${pressRatio.toFixed(0)}%`,
+        recommendation: 'Increase overhead pressing volume with strict press progressions, push press, and accessory work for shoulders and triceps.',
+      });
+    }
+  } else if (!data.strictPress) {
+    skippedAreas.push('Pressing Strength (no strict press data)');
   }
 
-  // Deadlift < 2x Bodyweight = Posterior Chain Leak
-  const deadliftRatio = data.deadlift / data.weight;
-  if (deadliftRatio < 2) {
-    leaks.push({
-      id: 'posterior-chain',
-      title: 'Posterior Chain Leak',
-      description: `Deadlift at ${deadliftRatio.toFixed(2)}x bodyweight (target: ≥2x)`,
-      severity: deadliftRatio < 1.75 ? 'critical' : 'warning',
-      metric: `${deadliftRatio.toFixed(2)}x BW`,
-      recommendation: 'Focus on hip hinge patterns, Romanian deadlifts, and glute-ham development. Add heavy pulling 2x weekly.',
-    });
+  // Posterior Chain Leak
+  if (data.deadlift && data.weight) {
+    const deadliftRatio = data.deadlift / data.weight;
+    if (deadliftRatio < 2) {
+      leaks.push({
+        id: 'posterior-chain',
+        title: 'Posterior Chain Leak',
+        description: `Deadlift at ${deadliftRatio.toFixed(2)}x bodyweight (target: ≥2x)`,
+        severity: deadliftRatio < 1.75 ? 'critical' : 'warning',
+        metric: `${deadliftRatio.toFixed(2)}x BW`,
+        recommendation: 'Focus on hip hinge patterns, Romanian deadlifts, and glute-ham development. Add heavy pulling 2x weekly.',
+      });
+    }
+  } else if (!data.deadlift) {
+    skippedAreas.push('Posterior Chain (no deadlift data)');
   }
 
-  // Systemic Recovery Leak: Sleep <6 AND Stress >8
+  // Systemic Recovery Leak
   if (data.sleep === '<6' && data.stress > 8) {
     leaks.push({
       id: 'systemic-recovery',
@@ -136,16 +179,34 @@ function detectLeaks(data: AuditData): Leak[] {
     });
   }
 
-  return leaks;
+  return { leaks, skippedAreas };
 }
 
 function calculateScores(data: AuditData): AuditResults['scores'] {
-  // Normalize metrics to 0-100 scale based on benchmarks
-  const strengthScore = Math.min(100, ((data.backSquat + data.deadlift) / data.weight / 4) * 100);
-  const enduranceScore = Math.min(100, Math.max(0, 100 - ((data.mileRunTime / 60) - 5) * 15));
-  const mobilityScore = Math.min(100, (data.frontSquat / data.backSquat) * 100 + 15);
-  const powerScore = Math.min(100, (data.strictPress / data.weight) * 150);
-  const stabilityScore = Math.min(100, (data.frontSquat / data.backSquat) * 110);
+  const hasStrength = !!(data.backSquat && data.deadlift && data.weight);
+  const effectiveMileTime = data.mileRunTime || convertCardioToMileEquivalent(data.cardioTest, data.cardioTime);
+  const hasFrontSquat = !!(data.frontSquat && data.backSquat);
+  const hasPress = !!(data.strictPress && data.weight);
+
+  const strengthScore = hasStrength
+    ? Math.min(100, ((data.backSquat! + data.deadlift!) / data.weight! / 4) * 100)
+    : 50; // neutral default
+
+  const enduranceScore = effectiveMileTime
+    ? Math.min(100, Math.max(0, 100 - ((effectiveMileTime / 60) - 5) * 15))
+    : 50;
+
+  const mobilityScore = hasFrontSquat
+    ? Math.min(100, (data.frontSquat! / data.backSquat!) * 100 + 15)
+    : 50;
+
+  const powerScore = hasPress
+    ? Math.min(100, (data.strictPress! / data.weight!) * 150)
+    : 50;
+
+  const stabilityScore = hasFrontSquat
+    ? Math.min(100, (data.frontSquat! / data.backSquat!) * 110)
+    : 50;
 
   return {
     strength: Math.round(strengthScore),
@@ -157,11 +218,7 @@ function calculateScores(data: AuditData): AuditResults['scores'] {
 }
 
 function determineTier(scores: AuditResults['scores'], experience?: AuditData['experience']): AuditResults['tier'] {
-  // Foundation override for beginners regardless of scores
-  if (experience === '<1') {
-    return 'foundation';
-  }
-  
+  if (experience === '<1') return 'foundation';
   const avg = Object.values(scores).reduce((a, b) => a + b, 0) / 5;
   if (avg >= 85) return 'elite';
   if (avg >= 70) return 'performance';
@@ -190,12 +247,11 @@ export const useAuditStore = create<AuditStore>((set, get) => ({
     const { data } = get();
     const fullData = data as AuditData;
     
-    const leaks = detectLeaks(fullData);
+    const { leaks, skippedAreas } = detectLeaks(fullData);
     const scores = calculateScores(fullData);
     const tier = determineTier(scores, fullData.experience);
     const overallScore = Math.round(Object.values(scores).reduce((a, b) => a + b, 0) / 5);
 
-    // Check for foundation recommendation due to experience
     const foundationRecommended = fullData.experience === '<1';
     const foundationReason = foundationRecommended 
       ? 'With less than 1 year of consistent training, the Foundation track ensures long-term structural integrity and prevents injury.'
@@ -210,6 +266,7 @@ export const useAuditStore = create<AuditStore>((set, get) => ({
         overallScore,
         foundationRecommended,
         foundationReason,
+        skippedAreas,
       }
     });
   },

@@ -50,7 +50,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     return { error: error as Error | null };
   },
 
-  signUp: async (email: string, password: string) => {
+  signUp: async (email: string, password: string, name?: string) => {
     set({ isLoading: true });
     
     const redirectUrl = `${window.location.origin}/vault`;
@@ -59,7 +59,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       email,
       password,
       options: {
-        emailRedirectTo: redirectUrl
+        emailRedirectTo: redirectUrl,
+        data: { full_name: name || email.split('@')[0] }
       }
     });
 
