@@ -14,3 +14,6 @@ verify_jwt = false
 
 [functions.admin-weekly-report]
 verify_jwt = false
+
+[functions.audit-recap]
+verify_jwt = false

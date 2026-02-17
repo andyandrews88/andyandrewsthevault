@@ -7,68 +7,111 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useAuditStore, AuditData } from "@/stores/auditStore";
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, ArrowLeft, User, Dumbbell, Timer, CheckCircle, Heart } from "lucide-react";
+import { ArrowRight, ArrowLeft, User, Dumbbell, Timer, CheckCircle, Heart, Calculator } from "lucide-react";
 
 const steps = [
   { id: 'biometrics', title: 'Biometrics', icon: User, description: 'Basic measurements' },
-  { id: 'strength', title: 'The Big 4', icon: Dumbbell, description: 'Strength ratios' },
-  { id: 'engine', title: 'Engine Check', icon: Timer, description: 'Aerobic capacity' },
-  { id: 'lifestyle', title: 'Lifestyle', icon: Heart, description: 'Recovery factors' },
+  { id: 'strength', title: 'The Big 4', icon: Dumbbell, description: 'Strength ratios (optional)' },
+  { id: 'engine', title: 'Engine Check', icon: Timer, description: 'Aerobic capacity (optional)' },
+  { id: 'lifestyle', title: 'Lifestyle', icon: Heart, description: 'Recovery & habits' },
   { id: 'review', title: 'Review', icon: CheckCircle, description: 'Confirm data' },
 ];
 
-const sleepLabels: Record<AuditData['sleep'], string> = {
-  '<6': '< 6 hours',
-  '6-7': '6-7 hours',
-  '7-8': '7-8 hours',
-  '8+': '8+ hours',
+const sleepLabels: Record<string, string> = {
+  '<6': '< 6 hours', '6-7': '6-7 hours', '7-8': '7-8 hours', '8+': '8+ hours',
 };
 
-const experienceLabels: Record<AuditData['experience'], string> = {
-  '<1': '< 1 year',
-  '1-3': '1-3 years',
-  '3-5': '3-5 years',
-  '5+': '5+ years',
+const experienceLabels: Record<string, string> = {
+  '<1': '< 1 year', '1-3': '1-3 years', '3-5': '3-5 years', '5+': '5+ years',
 };
+
+const liftSubstitutions: Record<string, string[]> = {
+  backSquat: ['Back Squat', 'Safety Bar Squat', 'Box Squat'],
+  frontSquat: ['Front Squat', 'Goblet Squat', 'Zercher Squat'],
+  strictPress: ['Strict Press', 'Push Press', 'Seated DB Press'],
+  deadlift: ['Deadlift', 'Trap Bar Deadlift', 'Sumo Deadlift'],
+};
+
+const cardioTests = [
+  { value: 'mile', label: '1-Mile Run' },
+  { value: '2k-row', label: '2K Row' },
+  { value: '500m-row', label: '500m Row' },
+  { value: '2k-bike', label: '2K Bike Erg' },
+  { value: 'none', label: "I don't have a cardio benchmark" },
+];
+
+interface LiftEstimation {
+  weight: number;
+  reps: number;
+}
 
 export function AuditForm() {
   const navigate = useNavigate();
   const { currentStep, data, updateData, setStep, calculateResults } = useAuditStore();
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [skipLifts, setSkipLifts] = useState<Record<string, boolean>>({});
+  const [estimateMode, setEstimateMode] = useState<Record<string, boolean>>({});
+  const [estimations, setEstimations] = useState<Record<string, LiftEstimation>>({});
 
   const progress = ((currentStep + 1) / steps.length) * 100;
 
+  const calculateEpley = (weight: number, reps: number) => Math.round(weight * (1 + reps / 30));
+
+  const handleEstimationChange = (lift: string, field: 'weight' | 'reps', value: number) => {
+    const updated = { ...estimations, [lift]: { ...estimations[lift], [field]: value } };
+    setEstimations(updated);
+    const est = updated[lift];
+    if (est?.weight > 0 && est?.reps > 0) {
+      const estimated1RM = calculateEpley(est.weight, est.reps);
+      updateData({
+        [lift]: estimated1RM,
+        estimatedLifts: { ...(data.estimatedLifts as Record<string, boolean> || {}), [lift]: true }
+      });
+    }
+  };
+
+  const handleSkipLift = (lift: string, skip: boolean) => {
+    setSkipLifts(prev => ({ ...prev, [lift]: skip }));
+    if (skip) {
+      updateData({ [lift]: undefined });
+      setEstimateMode(prev => ({ ...prev, [lift]: false }));
+    }
+  };
+
+  const handleSubstitution = (lift: string, sub: string) => {
+    const defaultName = liftSubstitutions[lift][0];
+    if (sub === defaultName) {
+      const subs = { ...(data.substitutions as Record<string, string> || {}) };
+      delete subs[lift];
+      updateData({ substitutions: subs });
+    } else {
+      updateData({ substitutions: { ...(data.substitutions as Record<string, string> || {}), [lift]: sub } });
+    }
+  };
+
   const validateStep = (): boolean => {
     const newErrors: Record<string, string> = {};
-
     if (currentStep === 0) {
-      if (!data.weight || data.weight <= 0) newErrors.weight = 'Required';
-      if (!data.age || data.age <= 0) newErrors.age = 'Required';
-      if (!data.height || data.height <= 0) newErrors.height = 'Required';
-    } else if (currentStep === 1) {
-      if (!data.backSquat || data.backSquat <= 0) newErrors.backSquat = 'Required';
-      if (!data.frontSquat || data.frontSquat <= 0) newErrors.frontSquat = 'Required';
-      if (!data.strictPress || data.strictPress <= 0) newErrors.strictPress = 'Required';
-      if (!data.deadlift || data.deadlift <= 0) newErrors.deadlift = 'Required';
-    } else if (currentStep === 2) {
-      if (!data.mileRunTime || data.mileRunTime <= 0) newErrors.mileRunTime = 'Required';
+      if (!data.weight || (data.weight as number) <= 0) newErrors.weight = 'Required';
+      if (!data.age || (data.age as number) <= 0) newErrors.age = 'Required';
+      if (!data.height || (data.height as number) <= 0) newErrors.height = 'Required';
     } else if (currentStep === 3) {
       if (!data.sleep) newErrors.sleep = 'Required';
       if (!data.protein) newErrors.protein = 'Required';
       if (!data.stress) newErrors.stress = 'Required';
       if (!data.experience) newErrors.experience = 'Required';
     }
-
+    // Steps 1 and 2 are fully optional now
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleNext = () => {
     if (!validateStep()) return;
-    
     if (currentStep < steps.length - 1) {
       setStep(currentStep + 1);
     } else {
@@ -78,79 +121,155 @@ export function AuditForm() {
   };
 
   const handleBack = () => {
-    if (currentStep > 0) {
-      setStep(currentStep - 1);
-    }
+    if (currentStep > 0) setStep(currentStep - 1);
   };
 
-  const renderInput = (
-    name: keyof typeof data,
+  const renderNumericInput = (
+    name: string,
     label: string,
     placeholder: string,
     unit: string
   ) => (
     <div className="space-y-2">
-      <Label htmlFor={name} className="text-sm text-muted-foreground">
-        {label}
-      </Label>
+      <Label htmlFor={name} className="text-sm text-muted-foreground">{label}</Label>
       <div className="relative">
         <Input
           id={name}
           type="number"
           placeholder={placeholder}
-          value={data[name] || ''}
+          value={(data as any)[name] || ''}
           onChange={(e) => updateData({ [name]: parseFloat(e.target.value) || undefined })}
           className={`font-mono pr-12 ${errors[name] ? 'border-destructive' : ''}`}
         />
-        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-          {unit}
-        </span>
+        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{unit}</span>
       </div>
-      {errors[name] && (
-        <p className="text-xs text-destructive">{errors[name]}</p>
-      )}
+      {errors[name] && <p className="text-xs text-destructive">{errors[name]}</p>}
     </div>
   );
 
-  const renderTimeInput = () => {
-    const minutes = data.mileRunTime ? Math.floor(data.mileRunTime / 60) : '';
-    const seconds = data.mileRunTime ? data.mileRunTime % 60 : '';
-
-    const handleTimeChange = (mins: string, secs: string) => {
-      const m = parseInt(mins) || 0;
-      const s = parseInt(secs) || 0;
-      updateData({ mileRunTime: m * 60 + s });
-    };
+  const renderLiftInput = (liftKey: string, label: string, placeholder: string) => {
+    const isSkipped = skipLifts[liftKey];
+    const isEstimating = estimateMode[liftKey];
+    const subs = liftSubstitutions[liftKey];
 
     return (
-      <div className="space-y-2">
-        <Label className="text-sm text-muted-foreground">1-Mile Run Time</Label>
-        <div className="flex gap-2 items-center">
-          <Input
-            type="number"
-            placeholder="MM"
-            value={minutes}
-            onChange={(e) => handleTimeChange(e.target.value, seconds.toString())}
-            className={`font-mono w-20 text-center ${errors.mileRunTime ? 'border-destructive' : ''}`}
-            min={0}
-            max={30}
-          />
-          <span className="text-muted-foreground">:</span>
-          <Input
-            type="number"
-            placeholder="SS"
-            value={seconds}
-            onChange={(e) => handleTimeChange(minutes.toString(), e.target.value)}
-            className={`font-mono w-20 text-center ${errors.mileRunTime ? 'border-destructive' : ''}`}
-            min={0}
-            max={59}
-          />
+      <div className="space-y-3 p-4 rounded-lg border border-border/50 bg-secondary/20">
+        <div className="flex items-center justify-between">
+          <Label className="text-sm font-medium">{label}</Label>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">Skip</span>
+            <Switch checked={isSkipped} onCheckedChange={(v) => handleSkipLift(liftKey, v)} />
+          </div>
         </div>
-        {errors.mileRunTime && (
-          <p className="text-xs text-destructive">{errors.mileRunTime}</p>
+
+        {!isSkipped && (
+          <>
+            {/* Substitution dropdown */}
+            {subs.length > 1 && (
+              <Select
+                value={(data.substitutions as Record<string, string>)?.[liftKey] || subs[0]}
+                onValueChange={(v) => handleSubstitution(liftKey, v)}
+              >
+                <SelectTrigger className="font-mono text-xs h-8">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-border">
+                  {subs.map(s => (
+                    <SelectItem key={s} value={s} className="font-mono text-xs">{s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
+            {/* Toggle: Direct 1RM vs Estimate */}
+            <div className="flex items-center gap-2">
+              <Switch checked={isEstimating} onCheckedChange={(v) => setEstimateMode(prev => ({ ...prev, [liftKey]: v }))} />
+              <span className="text-xs text-muted-foreground flex items-center gap-1">
+                <Calculator className="w-3 h-3" /> Estimate my 1RM
+              </span>
+            </div>
+
+            {isEstimating ? (
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Weight used</Label>
+                  <Input
+                    type="number" placeholder="225" className="font-mono text-sm h-9"
+                    value={estimations[liftKey]?.weight || ''}
+                    onChange={(e) => handleEstimationChange(liftKey, 'weight', parseFloat(e.target.value) || 0)}
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Reps completed</Label>
+                  <Input
+                    type="number" placeholder="5" className="font-mono text-sm h-9"
+                    value={estimations[liftKey]?.reps || ''}
+                    onChange={(e) => handleEstimationChange(liftKey, 'reps', parseInt(e.target.value) || 0)}
+                  />
+                </div>
+                {estimations[liftKey]?.weight > 0 && estimations[liftKey]?.reps > 0 && (
+                  <div className="col-span-2 text-xs text-primary font-mono">
+                    Estimated 1RM: {calculateEpley(estimations[liftKey].weight, estimations[liftKey].reps)} lbs
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="relative">
+                <Input
+                  type="number" placeholder={placeholder} className="font-mono pr-12"
+                  value={(data as any)[liftKey] || ''}
+                  onChange={(e) => {
+                    updateData({
+                      [liftKey]: parseFloat(e.target.value) || undefined,
+                      estimatedLifts: { ...(data.estimatedLifts as Record<string, boolean> || {}), [liftKey]: false }
+                    });
+                  }}
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">lbs</span>
+              </div>
+            )}
+          </>
         )}
       </div>
     );
+  };
+
+  const renderTimeInput = (label: string, timeKey: string) => {
+    const timeValue = (data as any)[timeKey] as number | undefined;
+    const minutes = timeValue ? Math.floor(timeValue / 60) : '';
+    const seconds = timeValue ? timeValue % 60 : '';
+
+    return (
+      <div className="space-y-2">
+        <Label className="text-sm text-muted-foreground">{label}</Label>
+        <div className="flex gap-2 items-center">
+          <Input
+            type="number" placeholder="MM" min={0} max={30}
+            value={minutes} className="font-mono w-20 text-center"
+            onChange={(e) => {
+              const m = parseInt(e.target.value) || 0;
+              const s = typeof seconds === 'number' ? seconds : 0;
+              updateData({ [timeKey]: m * 60 + s });
+            }}
+          />
+          <span className="text-muted-foreground">:</span>
+          <Input
+            type="number" placeholder="SS" min={0} max={59}
+            value={seconds} className="font-mono w-20 text-center"
+            onChange={(e) => {
+              const m = typeof minutes === 'number' ? minutes : 0;
+              const s = parseInt(e.target.value) || 0;
+              updateData({ [timeKey]: m * 60 + s });
+            }}
+          />
+        </div>
+      </div>
+    );
+  };
+
+  const formatTimeDisplay = (seconds: number | undefined) => {
+    if (!seconds) return '-';
+    return `${Math.floor(seconds / 60)}:${(seconds % 60).toString().padStart(2, '0')}`;
   };
 
   return (
@@ -166,31 +285,25 @@ export function AuditForm() {
           </p>
         </div>
 
-        {/* Progress header - simplified for mobile */}
+        {/* Progress header */}
         <div className="mb-6 md:mb-8">
           <div className="flex justify-between items-center mb-3">
-            <Badge variant="data" className="text-xs">
-              STEP {currentStep + 1}/{steps.length}
-            </Badge>
+            <Badge variant="data" className="text-xs">STEP {currentStep + 1}/{steps.length}</Badge>
             <span className="font-mono text-sm text-primary">{progress.toFixed(0)}%</span>
           </div>
           <Progress value={progress} className="h-1.5" />
         </div>
 
-        {/* Step indicators - compact on mobile */}
+        {/* Step indicators */}
         <div className="flex justify-between mb-6 md:mb-8 gap-1">
           {steps.map((step, index) => {
             const Icon = step.icon;
             const isActive = index === currentStep;
             const isCompleted = index < currentStep;
-
             return (
-              <div
-                key={step.id}
-                className={`flex flex-col items-center gap-1.5 flex-1 ${
-                  isActive ? 'text-primary' : isCompleted ? 'text-success' : 'text-muted-foreground/50'
-                }`}
-              >
+              <div key={step.id} className={`flex flex-col items-center gap-1.5 flex-1 ${
+                isActive ? 'text-primary' : isCompleted ? 'text-success' : 'text-muted-foreground/50'
+              }`}>
                 <div className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center border transition-colors ${
                   isActive ? 'border-primary bg-primary/10' :
                   isCompleted ? 'border-success bg-success/10' : 'border-border/50'
@@ -207,10 +320,7 @@ export function AuditForm() {
         <Card variant="elevated" className="mb-6 md:mb-8">
           <CardHeader className="pb-4 md:pb-6">
             <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
-              {(() => {
-                const Icon = steps[currentStep].icon;
-                return <Icon className="w-4 h-4 md:w-5 md:h-5 text-primary" />;
-              })()}
+              {(() => { const Icon = steps[currentStep].icon; return <Icon className="w-4 h-4 md:w-5 md:h-5 text-primary" />; })()}
               {steps[currentStep].title}
             </CardTitle>
             <CardDescription className="text-sm">{steps[currentStep].description}</CardDescription>
@@ -220,52 +330,78 @@ export function AuditForm() {
             {/* Step 0: Biometrics */}
             {currentStep === 0 && (
               <div className="grid gap-4 md:gap-6">
-                {renderInput('weight', 'Body Weight', '175', 'lbs')}
-                {renderInput('age', 'Age', '28', 'years')}
-                {renderInput('height', 'Height', '70', 'inches')}
+                {renderNumericInput('weight', 'Body Weight', '175', 'lbs')}
+                {renderNumericInput('age', 'Age', '28', 'years')}
+                {renderNumericInput('height', 'Height', '70', 'inches')}
               </div>
             )}
 
-            {/* Step 1: Big 4 Ratios */}
+            {/* Step 1: Big 4 (all optional) */}
             {currentStep === 1 && (
-              <div className="grid gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2">
-                {renderInput('backSquat', 'Back Squat 1RM', '315', 'lbs')}
-                {renderInput('frontSquat', 'Front Squat 1RM', '275', 'lbs')}
-                {renderInput('strictPress', 'Strict Press 1RM', '145', 'lbs')}
-                {renderInput('deadlift', 'Deadlift 1RM', '405', 'lbs')}
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Enter your 1RM numbers, estimate them, or skip movements you haven't tested.
+                </p>
+                {renderLiftInput('backSquat', 'Back Squat 1RM', '315')}
+                {renderLiftInput('frontSquat', 'Front Squat 1RM', '275')}
+                {renderLiftInput('strictPress', 'Strict Press 1RM', '145')}
+                {renderLiftInput('deadlift', 'Deadlift 1RM', '405')}
               </div>
             )}
 
-            {/* Step 2: Engine Check */}
+            {/* Step 2: Engine Check (optional) */}
             {currentStep === 2 && (
               <div className="space-y-6">
-                {renderTimeInput()}
                 <p className="text-sm text-muted-foreground">
-                  Enter your best all-out 1-mile run time. This tests your aerobic power ceiling.
+                  Choose a cardio test you've completed, or skip if you don't have a benchmark.
                 </p>
+                <div className="space-y-2">
+                  <Label className="text-sm text-muted-foreground">Cardio Test</Label>
+                  <Select
+                    value={data.cardioTest || 'mile'}
+                    onValueChange={(v) => {
+                      const test = v as AuditData['cardioTest'];
+                      updateData({ cardioTest: test, mileRunTime: undefined, cardioTime: undefined });
+                    }}
+                  >
+                    <SelectTrigger className="font-mono">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-card border-border">
+                      {cardioTests.map(t => (
+                        <SelectItem key={t.value} value={t.value} className="font-mono">{t.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {(!data.cardioTest || data.cardioTest === 'mile') && data.cardioTest !== 'none' && (
+                  renderTimeInput('1-Mile Run Time', 'mileRunTime')
+                )}
+                {data.cardioTest && data.cardioTest !== 'mile' && data.cardioTest !== 'none' && (
+                  renderTimeInput(`${cardioTests.find(t => t.value === data.cardioTest)?.label} Time`, 'cardioTime')
+                )}
+                {data.cardioTest === 'none' && (
+                  <p className="text-sm text-muted-foreground italic">
+                    No problem — aerobic capacity will be scored neutrally and noted in your results.
+                  </p>
+                )}
               </div>
             )}
 
-            {/* Step 3: Lifestyle Diagnostic */}
+            {/* Step 3: Lifestyle Diagnostic (expanded) */}
             {currentStep === 3 && (
               <div className="space-y-6 md:space-y-8">
                 {/* Sleep */}
                 <div className="space-y-2">
-                  <Label className="text-sm text-muted-foreground">
-                    Average hours of sleep per night?
-                  </Label>
-                  <Select
-                    value={data.sleep || ''}
-                    onValueChange={(value) => updateData({ sleep: value as AuditData['sleep'] })}
-                  >
+                  <Label className="text-sm text-muted-foreground">Average hours of sleep per night?</Label>
+                  <Select value={data.sleep || ''} onValueChange={(v) => updateData({ sleep: v as AuditData['sleep'] })}>
                     <SelectTrigger className={`font-mono ${errors.sleep ? 'border-destructive' : ''}`}>
                       <SelectValue placeholder="Select hours" />
                     </SelectTrigger>
                     <SelectContent className="bg-card border-border">
-                      {(Object.keys(sleepLabels) as AuditData['sleep'][]).map((key) => (
-                        <SelectItem key={key} value={key} className="font-mono">
-                          {sleepLabels[key]}
-                        </SelectItem>
+                      {Object.entries(sleepLabels).map(([key, label]) => (
+                        <SelectItem key={key} value={key} className="font-mono">{label}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -274,91 +410,115 @@ export function AuditForm() {
 
                 {/* Protein */}
                 <div className="space-y-3">
-                  <Label className="text-sm text-muted-foreground">
-                    Do you consume at least 1.6g of protein per kg daily?
-                  </Label>
-                  <ToggleGroup
-                    type="single"
-                    value={data.protein || ''}
-                    onValueChange={(value) => {
-                      if (value) updateData({ protein: value as AuditData['protein'] });
-                    }}
-                    className="justify-start flex-wrap gap-2"
-                  >
-                    <ToggleGroupItem
-                      value="yes"
-                      variant="outline"
-                      className={`font-mono px-4 py-2 text-sm ${data.protein === 'yes' ? 'bg-primary/20 border-primary text-primary' : ''} ${errors.protein ? 'border-destructive' : ''}`}
-                    >
-                      Yes
-                    </ToggleGroupItem>
-                    <ToggleGroupItem
-                      value="no"
-                      variant="outline"
-                      className={`font-mono px-4 py-2 text-sm ${data.protein === 'no' ? 'bg-primary/20 border-primary text-primary' : ''} ${errors.protein ? 'border-destructive' : ''}`}
-                    >
-                      No
-                    </ToggleGroupItem>
-                    <ToggleGroupItem
-                      value="unsure"
-                      variant="outline"
-                      className={`font-mono px-4 py-2 text-sm ${data.protein === 'unsure' ? 'bg-primary/20 border-primary text-primary' : ''} ${errors.protein ? 'border-destructive' : ''}`}
-                    >
-                      Unsure
-                    </ToggleGroupItem>
+                  <Label className="text-sm text-muted-foreground">Do you consume at least 1.6g of protein per kg daily?</Label>
+                  <ToggleGroup type="single" value={data.protein || ''} onValueChange={(v) => { if (v) updateData({ protein: v as AuditData['protein'] }); }} className="justify-start flex-wrap gap-2">
+                    {['yes', 'no', 'unsure'].map(v => (
+                      <ToggleGroupItem key={v} value={v} variant="outline"
+                        className={`font-mono px-4 py-2 text-sm ${data.protein === v ? 'bg-primary/20 border-primary text-primary' : ''} ${errors.protein ? 'border-destructive' : ''}`}>
+                        {v.charAt(0).toUpperCase() + v.slice(1)}
+                      </ToggleGroupItem>
+                    ))}
                   </ToggleGroup>
                   {errors.protein && <p className="text-xs text-destructive">{errors.protein}</p>}
                 </div>
 
                 {/* Stress */}
                 <div className="space-y-4">
-                  <Label className="text-sm text-muted-foreground">
-                    Current non-training stress level (Work/Life)?
-                  </Label>
+                  <Label className="text-sm text-muted-foreground">Current non-training stress level?</Label>
                   <div className="space-y-3">
                     <div className="flex justify-between text-xs text-muted-foreground">
                       <span>Low</span>
                       <span className="font-mono text-primary text-base">{data.stress || 5}</span>
                       <span>High</span>
                     </div>
-                    <Slider
-                      value={[data.stress || 5]}
-                      onValueChange={([value]) => updateData({ stress: value })}
-                      min={1}
-                      max={10}
-                      step={1}
-                      className={errors.stress ? 'border-destructive' : ''}
-                    />
-                    <div className="flex justify-between text-xs text-muted-foreground font-mono">
-                      <span>1</span>
-                      <span>5</span>
-                      <span>10</span>
-                    </div>
+                    <Slider value={[data.stress as number || 5]} onValueChange={([v]) => updateData({ stress: v })} min={1} max={10} step={1} />
                   </div>
                   {errors.stress && <p className="text-xs text-destructive">{errors.stress}</p>}
                 </div>
 
                 {/* Experience */}
                 <div className="space-y-2">
-                  <Label className="text-sm text-muted-foreground">
-                    Years of consistent strength training (3+ days/week)?
-                  </Label>
-                  <Select
-                    value={data.experience || ''}
-                    onValueChange={(value) => updateData({ experience: value as AuditData['experience'] })}
-                  >
+                  <Label className="text-sm text-muted-foreground">Years of consistent strength training (3+ days/week)?</Label>
+                  <Select value={data.experience || ''} onValueChange={(v) => updateData({ experience: v as AuditData['experience'] })}>
                     <SelectTrigger className={`font-mono ${errors.experience ? 'border-destructive' : ''}`}>
                       <SelectValue placeholder="Select years" />
                     </SelectTrigger>
                     <SelectContent className="bg-card border-border">
-                      {(Object.keys(experienceLabels) as AuditData['experience'][]).map((key) => (
-                        <SelectItem key={key} value={key} className="font-mono">
-                          {experienceLabels[key]}
-                        </SelectItem>
+                      {Object.entries(experienceLabels).map(([key, label]) => (
+                        <SelectItem key={key} value={key} className="font-mono">{label}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                   {errors.experience && <p className="text-xs text-destructive">{errors.experience}</p>}
+                </div>
+
+                {/* Training Frequency */}
+                <div className="space-y-2">
+                  <Label className="text-sm text-muted-foreground">How many days per week do you train?</Label>
+                  <ToggleGroup type="single" value={data.trainingFrequency || ''} onValueChange={(v) => { if (v) updateData({ trainingFrequency: v as AuditData['trainingFrequency'] }); }} className="justify-start flex-wrap gap-2">
+                    {['1-2', '3-4', '5-6', '7'].map(v => (
+                      <ToggleGroupItem key={v} value={v} variant="outline"
+                        className={`font-mono px-4 py-2 text-sm ${data.trainingFrequency === v ? 'bg-primary/20 border-primary text-primary' : ''}`}>
+                        {v} days
+                      </ToggleGroupItem>
+                    ))}
+                  </ToggleGroup>
+                </div>
+
+                {/* Primary Goal */}
+                <div className="space-y-2">
+                  <Label className="text-sm text-muted-foreground">What's your main training focus?</Label>
+                  <Select value={data.primaryGoal || ''} onValueChange={(v) => updateData({ primaryGoal: v as AuditData['primaryGoal'] })}>
+                    <SelectTrigger className="font-mono"><SelectValue placeholder="Select goal" /></SelectTrigger>
+                    <SelectContent className="bg-card border-border">
+                      <SelectItem value="strength" className="font-mono">Strength</SelectItem>
+                      <SelectItem value="conditioning" className="font-mono">Conditioning</SelectItem>
+                      <SelectItem value="body-comp" className="font-mono">Body Composition</SelectItem>
+                      <SelectItem value="sport" className="font-mono">Sport Performance</SelectItem>
+                      <SelectItem value="health" className="font-mono">General Health</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Injury History */}
+                <div className="space-y-2">
+                  <Label className="text-sm text-muted-foreground">Do you have any current injuries or limitations?</Label>
+                  <Select value={data.injuryHistory || ''} onValueChange={(v) => updateData({ injuryHistory: v as AuditData['injuryHistory'] })}>
+                    <SelectTrigger className="font-mono"><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectContent className="bg-card border-border">
+                      <SelectItem value="none" className="font-mono">None</SelectItem>
+                      <SelectItem value="upper" className="font-mono">Upper Body</SelectItem>
+                      <SelectItem value="lower" className="font-mono">Lower Body</SelectItem>
+                      <SelectItem value="back" className="font-mono">Back / Spine</SelectItem>
+                      <SelectItem value="multiple" className="font-mono">Multiple</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Water Intake */}
+                <div className="space-y-2">
+                  <Label className="text-sm text-muted-foreground">How much water do you drink daily?</Label>
+                  <ToggleGroup type="single" value={data.waterIntake || ''} onValueChange={(v) => { if (v) updateData({ waterIntake: v as AuditData['waterIntake'] }); }} className="justify-start flex-wrap gap-2">
+                    {['<1L', '1-2L', '2-3L', '3L+'].map(v => (
+                      <ToggleGroupItem key={v} value={v} variant="outline"
+                        className={`font-mono px-3 py-2 text-sm ${data.waterIntake === v ? 'bg-primary/20 border-primary text-primary' : ''}`}>
+                        {v}
+                      </ToggleGroupItem>
+                    ))}
+                  </ToggleGroup>
+                </div>
+
+                {/* Alcohol */}
+                <div className="space-y-2">
+                  <Label className="text-sm text-muted-foreground">How often do you consume alcohol?</Label>
+                  <ToggleGroup type="single" value={data.alcohol || ''} onValueChange={(v) => { if (v) updateData({ alcohol: v as AuditData['alcohol'] }); }} className="justify-start flex-wrap gap-2">
+                    {[{ v: 'never', l: 'Never' }, { v: '1-2x', l: '1-2x/week' }, { v: '3-4x', l: '3-4x/week' }, { v: 'daily', l: 'Daily' }].map(({ v, l }) => (
+                      <ToggleGroupItem key={v} value={v} variant="outline"
+                        className={`font-mono px-3 py-2 text-sm ${data.alcohol === v ? 'bg-primary/20 border-primary text-primary' : ''}`}>
+                        {l}
+                      </ToggleGroupItem>
+                    ))}
+                  </ToggleGroup>
                 </div>
               </div>
             )}
@@ -375,35 +535,52 @@ export function AuditForm() {
                     <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5">Age</p>
                     <p className="font-mono text-base md:text-lg">{data.age} years</p>
                   </div>
+                  {data.backSquat && (
+                    <div className="p-3 md:p-4 rounded-lg bg-secondary/50">
+                      <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5">
+                        {(data.substitutions as Record<string, string>)?.backSquat || 'Back Squat'}
+                        {(data.estimatedLifts as Record<string, boolean>)?.backSquat ? ' (est.)' : ''}
+                      </p>
+                      <p className="font-mono text-base md:text-lg">{data.backSquat} lbs</p>
+                    </div>
+                  )}
+                  {data.frontSquat && (
+                    <div className="p-3 md:p-4 rounded-lg bg-secondary/50">
+                      <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5">
+                        {(data.substitutions as Record<string, string>)?.frontSquat || 'Front Squat'}
+                        {(data.estimatedLifts as Record<string, boolean>)?.frontSquat ? ' (est.)' : ''}
+                      </p>
+                      <p className="font-mono text-base md:text-lg">{data.frontSquat} lbs</p>
+                    </div>
+                  )}
+                  {data.strictPress && (
+                    <div className="p-3 md:p-4 rounded-lg bg-secondary/50">
+                      <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5">
+                        Strict Press{(data.estimatedLifts as Record<string, boolean>)?.strictPress ? ' (est.)' : ''}
+                      </p>
+                      <p className="font-mono text-base md:text-lg">{data.strictPress} lbs</p>
+                    </div>
+                  )}
+                  {data.deadlift && (
+                    <div className="p-3 md:p-4 rounded-lg bg-secondary/50">
+                      <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5">
+                        {(data.substitutions as Record<string, string>)?.deadlift || 'Deadlift'}
+                        {(data.estimatedLifts as Record<string, boolean>)?.deadlift ? ' (est.)' : ''}
+                      </p>
+                      <p className="font-mono text-base md:text-lg">{data.deadlift} lbs</p>
+                    </div>
+                  )}
                   <div className="p-3 md:p-4 rounded-lg bg-secondary/50">
-                    <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5">Back Squat</p>
-                    <p className="font-mono text-base md:text-lg">{data.backSquat} lbs</p>
-                  </div>
-                  <div className="p-3 md:p-4 rounded-lg bg-secondary/50">
-                    <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5">Front Squat</p>
-                    <p className="font-mono text-base md:text-lg">{data.frontSquat} lbs</p>
-                  </div>
-                  <div className="p-3 md:p-4 rounded-lg bg-secondary/50">
-                    <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5">Strict Press</p>
-                    <p className="font-mono text-base md:text-lg">{data.strictPress} lbs</p>
-                  </div>
-                  <div className="p-3 md:p-4 rounded-lg bg-secondary/50">
-                    <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5">Deadlift</p>
-                    <p className="font-mono text-base md:text-lg">{data.deadlift} lbs</p>
-                  </div>
-                  <div className="p-3 md:p-4 rounded-lg bg-secondary/50">
-                    <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5">1-Mile Run</p>
+                    <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5">Cardio</p>
                     <p className="font-mono text-base md:text-lg">
-                      {data.mileRunTime ? `${Math.floor(data.mileRunTime / 60)}:${(data.mileRunTime % 60).toString().padStart(2, '0')}` : '-'}
+                      {data.cardioTest === 'none' ? 'Skipped' :
+                       data.mileRunTime ? formatTimeDisplay(data.mileRunTime as number) :
+                       data.cardioTime ? formatTimeDisplay(data.cardioTime as number) : '-'}
                     </p>
                   </div>
                   <div className="p-3 md:p-4 rounded-lg bg-secondary/50">
                     <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5">Sleep</p>
                     <p className="font-mono text-base md:text-lg">{data.sleep ? sleepLabels[data.sleep] : '-'}</p>
-                  </div>
-                  <div className="p-3 md:p-4 rounded-lg bg-secondary/50">
-                    <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5">Protein</p>
-                    <p className="font-mono text-base md:text-lg capitalize">{data.protein || '-'}</p>
                   </div>
                   <div className="p-3 md:p-4 rounded-lg bg-secondary/50">
                     <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5">Stress</p>
@@ -419,15 +596,9 @@ export function AuditForm() {
           </CardContent>
         </Card>
 
-        {/* Navigation buttons - fixed at bottom on mobile */}
+        {/* Navigation buttons */}
         <div className="flex justify-between gap-3">
-          <Button
-            variant="outline"
-            onClick={handleBack}
-            disabled={currentStep === 0}
-            size="lg"
-            className="flex-1 md:flex-none"
-          >
+          <Button variant="outline" onClick={handleBack} disabled={currentStep === 0} size="lg" className="flex-1 md:flex-none">
             <ArrowLeft className="w-4 h-4 mr-2" />
             <span className="hidden sm:inline">Back</span>
           </Button>
