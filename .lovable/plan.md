@@ -1,192 +1,159 @@
 
-
-# Admin Dashboard Upgrade: User Profiles, AI Weekly Report, Announcements, and Drill-Down Views
+# Fix Anonymous Names, Flexible Audit, and AI Results Recap
 
 ## Overview
 
-Four major features to transform the admin dashboard from a static overview into a fully interactive command center for running the platform solo.
+Four fixes addressing: (1) users showing as "Anonymous" everywhere, (2) admin dashboard also showing "Anonymous", (3) audit requiring metrics users may not have, and (4) audit results lacking a personalized written review.
 
 ---
 
-## Feature 1: Clickable Stat Cards with Detailed Drill-Down Views
+## Issue 1 & 2: Anonymous Names (Community + Dashboard)
 
-**What it does:** Every stat card on the admin dashboard becomes clickable. Tapping a card opens a detailed drawer/modal showing granular data for that metric.
+**Root Cause:** The `signUp` function in `authStore.ts` accepts a `name` parameter from the signup form but never passes it to the auth API. The database trigger `handle_new_user_profile` tries to read `raw_user_meta_data->>'full_name'` which is always null, so every user gets "Anonymous".
 
-**Drill-down details per section:**
+**Fix:**
+- Update `authStore.ts` `signUp` method to include `data: { full_name: name }` in the `options` passed to `supabase.auth.signUp()`
+- Write a one-time database migration to backfill existing "Anonymous" profiles using the email prefix (everything before the @) as a fallback display name
+- Existing users who already have profiles will get updated; new signups will work correctly going forward
 
-- **Users cards** (Total, New This Week, New This Month, Active) -- Opens a full user list table with columns: Name, Joined Date, Last Active, Workouts Count, Check-in Streak. Each row is clickable to open the User Profile (Feature 2).
-- **Training cards** (Total Workouts, This Week, Avg/User, Total PRs) -- Opens a breakdown showing workout counts by day (bar chart), PR leaderboard, and per-user workout frequency table.
-- **Nutrition cards** (Calculator Users, Saved Meals, Audits Done) -- Opens list of users with their nutrition calculator status, meal count, and audit completion.
-- **Lifestyle cards** (Check-ins, Body Entries, Goals) -- Opens check-in frequency table, goals progress list with status badges.
-- **Community cards** (Posts, Likes) -- Opens recent posts list with engagement metrics, top posters table.
-- **Content cards** (Resources, Podcasts) -- Opens content list with view/engagement counts.
-
-**Implementation:**
-- Make `StatCard` accept an `onClick` prop
-- Create a `AdminDetailDrawer` component using the existing Sheet/Drawer UI
-- Create a new edge function `admin-detail` that accepts a `section` parameter and returns detailed data for that section
-- The drawer renders different table/chart views based on which card was clicked
-
----
-
-## Feature 2: Individual User Profile Pages
-
-**What it does:** Click any user's name anywhere in the admin dashboard to open a full profile view showing everything that user has ever done on the platform.
-
-**Profile sections:**
-- **Header**: Name, email, join date, days since signup
-- **Training**: All workouts listed chronologically, total volume, PR list with dates
-- **Check-in History**: Readiness score timeline, streak count, average scores
-- **Goals**: All goals with status (active/achieved), progress bars
-- **Nutrition**: Calculator data summary, saved meals count, audit results
-- **Community**: All posts with like counts, total engagement
-- **Body Entries**: Weight history, measurement timeline
-
-**Implementation:**
-- New route: `/admin/user/:userId`
-- New page: `src/pages/AdminUserProfile.tsx`
-- New edge function: `admin-user-profile` -- accepts a `userId`, verifies admin role, returns all data for that user across every table using service role
-- Add route to `App.tsx`
-- User names in the Recent Signups table and drill-down views become clickable links
+**Backfill migration:**
+```sql
+UPDATE public.user_profiles
+SET display_name = split_part(
+  (SELECT email FROM auth.users WHERE auth.users.id = user_profiles.id),
+  '@', 1
+)
+WHERE display_name = 'Anonymous';
+```
 
 ---
 
-## Feature 3: Weekly AI Admin Report
+## Issue 3: Flexible Audit Inputs
 
-**What it does:** An AI-generated summary at the top of the admin dashboard that analyses the past 7 days of platform-wide activity and highlights what needs your attention.
+**Problem:** The audit currently requires exact 1RM numbers for Back Squat, Front Squat, Strict Press, Deadlift, and a precise mile time. Many users won't know these.
 
-**Report includes:**
-- New signup count and trend vs. previous week
-- User activity changes (who became inactive, who's on a streak)
-- Training trends (popular exercises shifting, volume trends)
-- Community engagement changes
-- Actionable recommendations ("3 users haven't logged in for 14+ days", "Bench Press is trending up 40% this week")
+**Solution -- make strength/engine fields optional with alternatives:**
 
-**Implementation:**
-- New edge function: `admin-weekly-report` -- aggregates the same data as `admin-analytics` but for current vs. previous week comparison, then sends it to the Lovable AI gateway (same pattern as `weekly-review`) with a system prompt tailored for platform admin insights
-- Uses `google/gemini-3-flash-preview` model (already proven in `weekly-review`)
-- New component: `src/components/admin/AdminWeeklyReport.tsx` -- displays in a card at the top of the dashboard with a "Regenerate" button
-- Report is generated on-demand (not stored), with loading skeleton while AI processes
+### Strength Step Changes
+- Each of the 4 lifts becomes optional (remove validation requiring them)
+- Add an "I don't know my 1RM" toggle per lift that reveals an **estimated 1RM calculator**: user enters weight used and reps completed, and we calculate estimated 1RM using the Epley formula: `weight x (1 + reps/30)`
+- Add a "Skip this movement" option that excludes it from the analysis entirely
+- Allow users to substitute movements (e.g., swap Front Squat for Goblet Squat, swap Deadlift for Trap Bar Deadlift) via a dropdown -- the ratios adjust accordingly
+
+### Engine Step Changes
+- Make mile run optional
+- Add alternative cardio tests: 2K Row, 500m Row, 2000m Bike Erg, or "I don't have a cardio benchmark"
+- Each alternative maps to an equivalent aerobic capacity score
+
+### Store/Logic Changes
+- Update `AuditData` interface to make strength and engine fields optional (using `?`)
+- Add new fields: `estimatedLifts` (object tracking which lifts used estimation), `substitutions` (which movements were swapped), `cardioTest` (which test was used)
+- Update `detectLeaks()` to skip analysis for missing data points and note which areas couldn't be assessed
+- Update `calculateScores()` to handle partial data -- score only what's available and clearly mark gaps
+- Update validation in `AuditForm` to only require biometrics (weight, age, height) and lifestyle questions
+
+### Additional Audit Questions (Lifestyle Step)
+Add these to gather a richer picture for the AI recap:
+
+- **Training frequency**: "How many days per week do you train?" (1-2, 3-4, 5-6, 7)
+- **Primary training goal**: "What's your main focus?" (Strength, Conditioning, Body Composition, Sport Performance, General Health)
+- **Injury history**: "Do you have any current injuries or limitations?" (None, Upper body, Lower body, Back/Spine, Multiple)
+- **Water intake**: "How much water do you drink daily?" (Less than 1L, 1-2L, 2-3L, 3L+)
+- **Alcohol consumption**: "How often do you consume alcohol?" (Never, 1-2x/week, 3-4x/week, Daily)
+
+These go into the `AuditData` interface and get passed to the AI for the recap.
 
 ---
 
-## Feature 4: Announcement Banner System
+## Issue 4: AI-Powered Results Recap
 
-**What it does:** Lets you post platform-wide announcements that appear at the top of every user's dashboard. Users can dismiss them individually.
+**Problem:** Results page only shows a radar chart, leak cards, and recommended videos. No personalized written analysis.
 
-**Admin side:**
-- A new "Announcements" section on the admin dashboard
-- Form with: title, message (textarea), type (info/warning/success), and active toggle
-- List of existing announcements with ability to edit/deactivate/delete
+**Solution:**
 
-**User side:**
-- Active announcements appear as a banner at the top of the Vault Dashboard
-- Each banner has a dismiss (X) button
-- Dismissed announcements are tracked per-user so they don't reappear
-- Multiple announcements stack vertically
+### New Edge Function: `audit-recap`
+- Receives the full `AuditResults` object (scores, leaks, tier, all input data including new lifestyle questions)
+- Sends it to the Lovable AI gateway (same pattern as `weekly-review`) using `google/gemini-3-flash-preview`
+- System prompt instructs the AI to write a personalized 3-section recap:
+  1. **Overall Assessment** -- Plain-language summary of where the user stands
+  2. **Key Findings** -- Interpretation of each leak, why it matters, and what it means for their training
+  3. **Action Plan** -- 3-5 prioritized, specific recommendations based on their data
+- Returns markdown text
 
-**Implementation:**
-- New database table: `announcements` with columns: id, title, message, type (info/warning/success), is_active, created_at, updated_at
-- New database table: `announcement_dismissals` with columns: id, announcement_id, user_id, dismissed_at
-- RLS policies: Anyone authenticated can read active announcements; only admins can insert/update/delete; users can insert their own dismissals
-- New component: `src/components/admin/AnnouncementManager.tsx` -- CRUD form on admin dashboard
-- New component: `src/components/dashboard/AnnouncementBanner.tsx` -- renders on user dashboard, fetches active announcements minus dismissed ones
-- Add `AnnouncementBanner` to `VaultDashboard.tsx` at the very top
+### Results Page Changes
+- Add an "AI Analysis" card between the radar chart and the leaks section
+- On page load, automatically call the `audit-recap` edge function with the results data
+- Show a loading skeleton with "Generating your personalized analysis..." while processing
+- Render the returned markdown in a styled card
+- Add a "Regenerate Analysis" button
 
 ---
 
 ## Technical Details
 
-### New Database Tables
-
-```sql
--- Announcements table
-CREATE TABLE public.announcements (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  title text NOT NULL,
-  message text NOT NULL,
-  type text NOT NULL DEFAULT 'info' CHECK (type IN ('info', 'warning', 'success')),
-  is_active boolean NOT NULL DEFAULT true,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now()
-);
-
-ALTER TABLE public.announcements ENABLE ROW LEVEL SECURITY;
-
--- Anyone authenticated can read active announcements
-CREATE POLICY "Authenticated users can view active announcements"
-  ON public.announcements FOR SELECT
-  USING (is_active = true);
-
--- Only admins can manage
-CREATE POLICY "Admins can insert announcements"
-  ON public.announcements FOR INSERT
-  WITH CHECK (has_role(auth.uid(), 'admin'));
-
-CREATE POLICY "Admins can update announcements"
-  ON public.announcements FOR UPDATE
-  USING (has_role(auth.uid(), 'admin'));
-
-CREATE POLICY "Admins can delete announcements"
-  ON public.announcements FOR DELETE
-  USING (has_role(auth.uid(), 'admin'));
-
--- Dismissals table
-CREATE TABLE public.announcement_dismissals (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  announcement_id uuid NOT NULL REFERENCES public.announcements(id) ON DELETE CASCADE,
-  user_id uuid NOT NULL,
-  dismissed_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE(announcement_id, user_id)
-);
-
-ALTER TABLE public.announcement_dismissals ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Users can view their own dismissals"
-  ON public.announcement_dismissals FOR SELECT
-  USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can dismiss announcements"
-  ON public.announcement_dismissals FOR INSERT
-  WITH CHECK (auth.uid() = user_id);
-```
-
-### New Edge Functions
-
-| Function | Purpose |
-|----------|---------|
-| `admin-user-profile` | Returns full user data across all tables for a given userId |
-| `admin-detail` | Returns detailed drill-down data for a given section (users, training, nutrition, etc.) |
-| `admin-weekly-report` | Aggregates week-over-week metrics and sends to AI for summary |
-
-All three follow the same auth pattern as `admin-analytics`: verify JWT, check admin role, use service role for data access.
-
-### New Files
-
-| File | Purpose |
-|------|---------|
-| `src/pages/AdminUserProfile.tsx` | Full user profile view |
-| `src/components/admin/AdminDetailDrawer.tsx` | Drill-down drawer for stat cards |
-| `src/components/admin/AdminWeeklyReport.tsx` | AI-generated weekly summary card |
-| `src/components/admin/AnnouncementManager.tsx` | Admin CRUD for announcements |
-| `src/components/dashboard/AnnouncementBanner.tsx` | User-facing banner display |
-| `supabase/functions/admin-user-profile/index.ts` | Edge function for user data |
-| `supabase/functions/admin-detail/index.ts` | Edge function for section drill-downs |
-| `supabase/functions/admin-weekly-report/index.ts` | Edge function for AI report |
-
-### Modified Files
+### Files to Modify
 
 | File | Change |
 |------|--------|
-| `src/pages/AdminDashboard.tsx` | Make StatCards clickable, add AdminWeeklyReport at top, add AnnouncementManager section |
-| `src/components/dashboard/VaultDashboard.tsx` | Add AnnouncementBanner at top |
-| `src/App.tsx` | Add `/admin/user/:userId` route |
-| `supabase/config.toml` | Add verify_jwt = false for new edge functions |
+| `src/stores/authStore.ts` | Pass `full_name` metadata in signUp |
+| `src/stores/auditStore.ts` | Make lift/engine fields optional, add new lifestyle fields, update leak detection and scoring for partial data |
+| `src/components/audit/AuditForm.tsx` | Add skip/estimate/substitute UI for lifts, add alternative cardio tests, add new lifestyle questions, update validation |
+| `src/components/audit/ResultsPage.tsx` | Add AI recap card with loading state, call new edge function |
 
-### Route Structure
+### Files to Create
 
-```text
-/admin                  -- Main admin dashboard (existing, enhanced)
-/admin/user/:userId     -- Individual user profile deep-dive (new)
+| File | Purpose |
+|------|---------|
+| `supabase/functions/audit-recap/index.ts` | Edge function that sends audit results to AI for personalized analysis |
+
+### Database Migration
+
+- Backfill existing "Anonymous" user profiles with email-derived names
+- No new tables needed
+
+### Updated AuditData Interface
+
+```typescript
+export interface AuditData {
+  // Biometrics (required)
+  weight: number;
+  age: number;
+  height: number;
+  
+  // Big 4 Ratios (all optional)
+  backSquat?: number;
+  frontSquat?: number;
+  strictPress?: number;
+  deadlift?: number;
+  
+  // Estimation tracking
+  estimatedLifts?: Record<string, boolean>;
+  substitutions?: Record<string, string>;
+  
+  // Engine Check (optional)
+  mileRunTime?: number;
+  cardioTest?: 'mile' | '2k-row' | '500m-row' | '2k-bike' | 'none';
+  cardioTime?: number;
+  
+  // Lifestyle (required)
+  sleep: '<6' | '6-7' | '7-8' | '8+';
+  protein: 'yes' | 'no' | 'unsure';
+  stress: number;
+  experience: '<1' | '1-3' | '3-5' | '5+';
+  
+  // New lifestyle questions
+  trainingFrequency?: '1-2' | '3-4' | '5-6' | '7';
+  primaryGoal?: 'strength' | 'conditioning' | 'body-comp' | 'sport' | 'health';
+  injuryHistory?: 'none' | 'upper' | 'lower' | 'back' | 'multiple';
+  waterIntake?: '<1L' | '1-2L' | '2-3L' | '3L+';
+  alcohol?: 'never' | '1-2x' | '3-4x' | 'daily';
+}
 ```
 
+### Estimation Formula (Epley)
+
+```text
+Estimated 1RM = weight x (1 + reps / 30)
+```
+
+Used when a user enters "I did 225 lbs for 5 reps" instead of a true 1RM.
