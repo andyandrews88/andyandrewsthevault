@@ -771,11 +771,12 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
       .eq('is_completed', true)
       .gte('date', fromDate);
 
-    // 2. Program calendar workouts (past AND future scheduled)
+    // 2. Program calendar workouts (past AND future scheduled) — active enrollments only
     const { data: programWorkouts } = await supabase
       .from('user_calendar_workouts')
-      .select('scheduled_date, is_completed')
+      .select('scheduled_date, is_completed, enrollment:user_program_enrollments!inner(status)')
       .eq('user_id', user.id)
+      .eq('enrollment.status', 'active')
       .gte('scheduled_date', fromDate)
       .lte('scheduled_date', futureDate);
 

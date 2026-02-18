@@ -52,9 +52,10 @@ export function ProgramCalendarView({ onSwitchToLogger }: ProgramCalendarViewPro
       .select(`
         *,
         program_workout:program_workouts(*),
-        enrollment:user_program_enrollments(*, program:programs(*))
+        enrollment:user_program_enrollments!inner(*, program:programs(*))
       `)
       .eq('user_id', user.id)
+      .eq('enrollment.status', 'active')
       .gte('scheduled_date', start)
       .lte('scheduled_date', end);
 
