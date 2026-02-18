@@ -69,11 +69,17 @@ interface CommunityState {
   createReply: (content: string, parentId: string, userId: string) => Promise<void>;
   toggleLike: (messageId: string, userId: string) => Promise<void>;
   deletePost: (messageId: string) => Promise<void>;
+  updatePost: (messageId: string, content: string) => Promise<void>;
   openThreadDrawer: (message: CommunityMessage) => void;
   closeThreadDrawer: () => void;
   addRealtimePost: (post: CommunityMessage) => void;
   removeRealtimePost: (postId: string) => void;
   updateRealtimePost: (post: CommunityMessage) => void;
+
+  // Channel management (admin)
+  updateChannel: (channelId: string, updates: Partial<Pick<CommunityChannel, 'name' | 'description' | 'category' | 'is_locked'>>) => Promise<void>;
+  deleteChannel: (channelId: string) => Promise<void>;
+  createChannel: (name: string, description: string, category: string) => Promise<void>;
 
   // DM actions
   fetchDirectMessages: (currentUserId: string) => Promise<void>;
@@ -392,6 +398,101 @@ export const useCommunityStore = create<CommunityState>((set, get) => ({
       if (error) throw error;
     } catch (error) {
       console.error('Error deleting post:', error);
+    }
+  },
+
+  updatePost: async (messageId: string, content: string) => {
+    try {
+      const { error } = await supabase
+        .from('community_messages')
+        .update({ content })
+        .eq('id', messageId);
+
+      if (error) throw error;
+
+      set((state) => ({
+        posts: state.posts.map((p) =>
+          p.id === messageId ? { ...p, content } : p
+        ),
+        threadReplies: state.threadReplies.map((r) =>
+          r.id === messageId ? { ...r, content } : r
+        ),
+        currentThread:
+          state.currentThread?.id === messageId
+            ? { ...state.currentThread, content }
+            : state.currentThread,
+      }));
+    } catch (error) {
+      console.error('Error updating post:', error);
+    }
+  },
+
+  updateChannel: async (channelId, updates) => {
+    try {
+      const { data, error } = await supabase
+        .from('community_channels')
+        .update(updates)
+        .eq('id', channelId)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      set((state) => ({
+        channels: state.channels.map((ch) =>
+          ch.id === channelId ? { ...ch, ...data } : ch
+        ),
+      }));
+    } catch (error) {
+      console.error('Error updating channel:', error);
+      throw error;
+    }
+  },
+
+  deleteChannel: async (channelId) => {
+    try {
+      const { error } = await supabase
+        .from('community_channels')
+        .delete()
+        .eq('id', channelId);
+
+      if (error) throw error;
+
+      set((state) => {
+        const remaining = state.channels.filter((ch) => ch.id !== channelId);
+        const newActiveId =
+          state.activeChannelId === channelId
+            ? remaining[0]?.id || null
+            : state.activeChannelId;
+        return { channels: remaining, activeChannelId: newActiveId };
+      });
+
+      // Reload posts for the new active channel
+      const { activeChannelId } = get();
+      if (activeChannelId) get().fetchPosts();
+    } catch (error) {
+      console.error('Error deleting channel:', error);
+      throw error;
+    }
+  },
+
+  createChannel: async (name, description, category) => {
+    try {
+      const maxOrder = Math.max(0, ...get().channels.map((ch) => ch.order_index));
+      const { data, error } = await supabase
+        .from('community_channels')
+        .insert({ name, description, category, order_index: maxOrder + 1 })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      set((state) => ({
+        channels: [...state.channels, data as CommunityChannel],
+      }));
+    } catch (error) {
+      console.error('Error creating channel:', error);
+      throw error;
     }
   },
 
