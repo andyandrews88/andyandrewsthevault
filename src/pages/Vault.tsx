@@ -51,11 +51,10 @@ export function VaultDashboard() {
             href="https://docs.google.com/forms/d/e/1FAIpQLSeNZfnUe0PaxJFym_OJehlxbNmvbo9SPA6GDd6GIegdIaAD9Q/viewform?usp=header" 
             target="_blank" 
             rel="noopener noreferrer"
+            className="text-xs text-muted-foreground hover:text-accent flex items-center gap-1.5 transition-colors"
           >
-            <Button variant="elite" size="sm">
-              <Crown className="w-4 h-4 mr-2" />
-              Apply for 1-on-1 Coaching
-            </Button>
+            <Crown className="w-3 h-3 text-accent" />
+            Apply for 1-on-1 Coaching
           </a>
         </div>
 
@@ -63,42 +62,42 @@ export function VaultDashboard() {
         <Tabs defaultValue={defaultTab} className="space-y-6">
           <div className="overflow-x-auto scrollbar-hide -mx-4 px-4 md:-mx-6 md:px-6">
             <TabsList className="inline-flex w-max min-w-full gap-0.5 sm:gap-1 h-auto p-1">
-              <TabsTrigger value="dashboard" className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2.5 whitespace-nowrap" aria-label="Dashboard">
+              <TabsTrigger value="dashboard" className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-2 px-2 sm:px-3 py-2 sm:py-2.5 whitespace-nowrap min-w-[52px] sm:min-w-0" aria-label="Dashboard">
                 <LayoutDashboard className="w-4 h-4" />
-                <span className="hidden sm:inline text-sm">Dashboard</span>
+                <span className="text-[10px] sm:text-sm leading-none">Home</span>
               </TabsTrigger>
-              <TabsTrigger value="library" className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2.5 whitespace-nowrap" aria-label="Library">
-                <Library className="w-4 h-4" />
-                <span className="hidden sm:inline text-sm">Library</span>
-              </TabsTrigger>
-              <TabsTrigger value="progress" className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2.5 whitespace-nowrap" aria-label="Progress">
-                <Activity className="w-4 h-4" />
-                <span className="hidden sm:inline text-sm">Progress</span>
-              </TabsTrigger>
-              <TabsTrigger value="lifestyle" className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2.5 whitespace-nowrap" aria-label="Lifestyle">
-                <Heart className="w-4 h-4" />
-                <span className="hidden sm:inline text-sm">Lifestyle</span>
-              </TabsTrigger>
-              <TabsTrigger value="workouts" className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2.5 whitespace-nowrap" aria-label="Workouts">
+              <TabsTrigger value="workouts" className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-2 px-2 sm:px-3 py-2 sm:py-2.5 whitespace-nowrap min-w-[52px] sm:min-w-0" aria-label="Workouts">
                 <Dumbbell className="w-4 h-4" />
-                <span className="hidden sm:inline text-sm">Workouts</span>
+                <span className="text-[10px] sm:text-sm leading-none">Train</span>
               </TabsTrigger>
-              <TabsTrigger value="podcast" className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2.5 whitespace-nowrap" aria-label="Podcast">
+              <TabsTrigger value="library" className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-2 px-2 sm:px-3 py-2 sm:py-2.5 whitespace-nowrap min-w-[52px] sm:min-w-0" aria-label="Library">
+                <Library className="w-4 h-4" />
+                <span className="text-[10px] sm:text-sm leading-none">Library</span>
+              </TabsTrigger>
+              <TabsTrigger value="progress" className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-2 px-2 sm:px-3 py-2 sm:py-2.5 whitespace-nowrap min-w-[52px] sm:min-w-0" aria-label="Progress">
+                <Activity className="w-4 h-4" />
+                <span className="text-[10px] sm:text-sm leading-none">Progress</span>
+              </TabsTrigger>
+              <TabsTrigger value="lifestyle" className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-2 px-2 sm:px-3 py-2 sm:py-2.5 whitespace-nowrap min-w-[52px] sm:min-w-0" aria-label="Lifestyle">
+                <Heart className="w-4 h-4" />
+                <span className="text-[10px] sm:text-sm leading-none">Lifestyle</span>
+              </TabsTrigger>
+              <TabsTrigger value="podcast" className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-2 px-2 sm:px-3 py-2 sm:py-2.5 whitespace-nowrap min-w-[52px] sm:min-w-0" aria-label="Podcast">
                 <Radio className="w-4 h-4" />
-                <span className="hidden sm:inline text-sm">Podcast</span>
+                <span className="text-[10px] sm:text-sm leading-none">Podcast</span>
               </TabsTrigger>
-              <TabsTrigger value="community" className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2.5 whitespace-nowrap" aria-label="Community">
+              <TabsTrigger value="community" className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-2 px-2 sm:px-3 py-2 sm:py-2.5 whitespace-nowrap min-w-[52px] sm:min-w-0" aria-label="Community">
                 <Users className="w-4 h-4" />
-                <span className="hidden sm:inline text-sm">Community</span>
+                <span className="text-[10px] sm:text-sm leading-none">Community</span>
               </TabsTrigger>
-              <TabsTrigger value="tracks" className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2.5 whitespace-nowrap" aria-label="Tracks">
+              <TabsTrigger value="tracks" className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-2 px-2 sm:px-3 py-2 sm:py-2.5 whitespace-nowrap min-w-[52px] sm:min-w-0" aria-label="Tracks">
                 <Target className="w-4 h-4" />
-                <span className="hidden sm:inline text-sm">Tracks</span>
+                <span className="text-[10px] sm:text-sm leading-none">Tracks</span>
               </TabsTrigger>
               {isAdmin && (
-                <TabsTrigger value="admin" className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2.5 whitespace-nowrap" aria-label="Admin">
+                <TabsTrigger value="admin" className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-2 px-2 sm:px-3 py-2 sm:py-2.5 whitespace-nowrap min-w-[52px] sm:min-w-0" aria-label="Admin">
                   <Shield className="w-4 h-4" />
-                  <span className="hidden sm:inline text-sm">Admin</span>
+                  <span className="text-[10px] sm:text-sm leading-none">Admin</span>
                 </TabsTrigger>
               )}
             </TabsList>

@@ -76,6 +76,7 @@ export const useDashboardStore = create<DashboardState>((set) => ({
         weekWorkoutsRes,
         weekPRsRes,
         bodyEntriesRes,
+        todayCalendarRes,
       ] = await Promise.all([
         supabase.from("user_daily_checkins").select("*").eq("user_id", user.id).eq("check_date", today).maybeSingle(),
         supabase.from("user_daily_checkins").select("*").eq("user_id", user.id).gte("check_date", weekAgo).order("check_date"),
@@ -85,6 +86,7 @@ export const useDashboardStore = create<DashboardState>((set) => ({
         supabase.from("workouts").select("*").eq("user_id", user.id).eq("is_completed", true).gte("date", weekAgo),
         supabase.from("personal_records").select("id").eq("user_id", user.id).gte("achieved_at", weekAgo),
         supabase.from("user_body_entries").select("weight_kg, entry_date, uses_imperial").eq("user_id", user.id).order("entry_date", { ascending: false }).limit(10),
+        supabase.from("user_calendar_workouts").select("*, program_workout:program_workouts(workout_name, program:programs(name))").eq("user_id", user.id).eq("scheduled_date", today).eq("is_completed", false).limit(1).maybeSingle(),
       ]);
 
       // Today's readiness
@@ -97,14 +99,21 @@ export const useDashboardStore = create<DashboardState>((set) => ({
           }
         : { score: 0, sleep: 0, stress: 0, energy: 0, drive: 0, hasCheckin: false };
 
-      // Today's training
+      // Today's training — check completed workout first, then scheduled program session
       const tw = todayWorkoutRes.data;
       const lw = lastWorkoutRes.data;
+      const calEntry = todayCalendarRes.data as any;
+      
+      // Derive a friendly name: completed workout > scheduled program session > null
+      const scheduledName = calEntry
+        ? `${calEntry.program_workout?.program?.name || ''} — ${calEntry.program_workout?.workout_name || 'Workout'}`.trim()
+        : null;
+
       const todayTraining: TodayTraining = {
-        hasWorkout: !!tw,
-        workoutName: tw?.workout_name || null,
+        hasWorkout: !!tw || !!calEntry,
+        workoutName: tw?.workout_name || scheduledName,
         totalVolume: tw?.total_volume || 0,
-        lastWorkoutDate: !tw && lw ? lw.date : null,
+        lastWorkoutDate: !tw && !calEntry && lw ? lw.date : null,
       };
 
       // Body comp
