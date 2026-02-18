@@ -1182,7 +1182,42 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      user_wearable_connections_safe: {
+        Row: {
+          created_at: string | null
+          device_type: Database["public"]["Enums"]["wearable_device"] | null
+          external_user_id: string | null
+          id: string | null
+          is_connected: boolean | null
+          last_sync_at: string | null
+          sync_error: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          device_type?: Database["public"]["Enums"]["wearable_device"] | null
+          external_user_id?: string | null
+          id?: string | null
+          is_connected?: boolean | null
+          last_sync_at?: string | null
+          sync_error?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          device_type?: Database["public"]["Enums"]["wearable_device"] | null
+          external_user_id?: string | null
+          id?: string | null
+          is_connected?: boolean | null
+          last_sync_at?: string | null
+          sync_error?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       has_role: {
