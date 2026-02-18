@@ -1,15 +1,22 @@
-import { CheckCircle2, Dumbbell, Moon, Clock } from "lucide-react";
+import { useState } from "react";
+import { CheckCircle2, Dumbbell, Moon, Clock, Play, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useProgramStore, UserCalendarWorkout, ProgramExercise } from "@/stores/programStore";
+import { useWorkoutStore } from "@/stores/workoutStore";
 import { WendlerPercentageCalc } from "./WendlerPercentageCalc";
+import { toast } from "sonner";
 
 interface DailyProgramWorkoutProps {
   calendarWorkout: UserCalendarWorkout | undefined;
   programStyle: string | null | undefined;
   onComplete?: () => void;
+  /** Called after "Start Logging" creates the workout so WorkoutLogger can take over */
+  onStartLogging?: () => void;
+  /** The date this workout is for */
+  date?: Date;
 }
 
 function TempoExplanation({ tempo }: { tempo: string }) {
@@ -68,8 +75,17 @@ function ExerciseRow({ exercise, isFBB }: { exercise: ProgramExercise; isFBB: bo
   );
 }
 
-export function DailyProgramWorkout({ calendarWorkout, programStyle, onComplete }: DailyProgramWorkoutProps) {
-  const { markWorkoutComplete, isEnrolling } = useProgramStore();
+export function DailyProgramWorkout({
+  calendarWorkout,
+  programStyle,
+  onComplete,
+  onStartLogging,
+  date,
+}: DailyProgramWorkoutProps) {
+  const { markWorkoutComplete, isEnrolling, startProgramWorkoutSession, isStartingSession } = useProgramStore();
+  const { fetchActiveWorkout } = useWorkoutStore();
+  const [isStarting, setIsStarting] = useState(false);
+
   const isWendler = programStyle === "wendler";
   const isFBB = programStyle === "fbb";
 
@@ -89,10 +105,37 @@ export function DailyProgramWorkout({ calendarWorkout, programStyle, onComplete 
 
   const workout = calendarWorkout.program_workout;
   const exercises: ProgramExercise[] = Array.isArray(workout?.exercises) ? workout.exercises : [];
+  const programName = (calendarWorkout as any).enrollment?.program?.name;
+
+  const handleStartLogging = async () => {
+    setIsStarting(true);
+    try {
+      const sessionDate = date || new Date();
+      const workoutId = await startProgramWorkoutSession(calendarWorkout, sessionDate);
+      if (!workoutId) {
+        toast.error("Failed to start session. Please try again.");
+        return;
+      }
+      // Refresh the active workout in workoutStore so the logger takes over
+      await fetchActiveWorkout();
+      onStartLogging?.();
+    } catch (err) {
+      console.error("Error starting program session:", err);
+      toast.error("Something went wrong. Please try again.");
+    } finally {
+      setIsStarting(false);
+    }
+  };
 
   return (
     <Card variant="data" className="mt-4">
       <CardHeader className="pb-2">
+        {/* Program name badge */}
+        {programName && (
+          <Badge variant="outline" className="w-fit mb-1 text-xs font-semibold tracking-wide uppercase text-primary border-primary/40">
+            {programName}
+          </Badge>
+        )}
         <div className="flex items-start justify-between gap-2">
           <div>
             <div className="flex items-center gap-2">
@@ -122,18 +165,37 @@ export function DailyProgramWorkout({ calendarWorkout, programStyle, onComplete 
         </div>
 
         {!calendarWorkout.is_completed && (
-          <Button
-            variant="elite"
-            className="w-full mt-2"
-            onClick={async () => {
-              await markWorkoutComplete(calendarWorkout.id);
-              onComplete?.();
-            }}
-            disabled={isEnrolling}
-          >
-            <CheckCircle2 className="w-4 h-4 mr-2" />
-            Mark as Complete
-          </Button>
+          <div className="flex flex-col gap-2 mt-2">
+            {/* Primary: Start Logging (creates linked workout + hands off to ExerciseCard UI) */}
+            <Button
+              variant="elite"
+              className="w-full"
+              onClick={handleStartLogging}
+              disabled={isStarting || isStartingSession}
+            >
+              {isStarting || isStartingSession ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Play className="w-4 h-4 mr-2" />
+              )}
+              {isStarting || isStartingSession ? "Starting session…" : "Start Logging"}
+            </Button>
+
+            {/* Secondary: just mark done without logging weights */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full text-muted-foreground"
+              onClick={async () => {
+                await markWorkoutComplete(calendarWorkout.id);
+                onComplete?.();
+              }}
+              disabled={isEnrolling || isStarting}
+            >
+              <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
+              Mark as Complete (no logging)
+            </Button>
+          </div>
         )}
 
         {calendarWorkout.is_completed && (

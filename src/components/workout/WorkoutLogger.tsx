@@ -113,6 +113,19 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
 
   const handleFinish = async () => {
     await finishWorkout();
+    // Mark any matching calendar workouts as complete so they show "Done"
+    const dateStr = format(selectedDate, 'yyyy-MM-dd');
+    if (programWorkoutsForDate.length > 0) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase
+          .from('user_calendar_workouts')
+          .update({ is_completed: true, completed_at: new Date().toISOString() })
+          .eq('scheduled_date', dateStr)
+          .eq('user_id', user.id)
+          .eq('is_completed', false);
+      }
+    }
     fetchWorkoutDays(12);
     fetchProgramWorkoutsForDate(selectedDate);
     onBack();
@@ -204,9 +217,15 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
             key={cw.id}
             calendarWorkout={cw}
             programStyle={(cw as any).enrollment?.program?.program_style}
+            date={selectedDate}
             onComplete={() => {
               fetchWorkoutDays(12);
               fetchProgramWorkoutsForDate(selectedDate);
+            }}
+            onStartLogging={() => {
+              // fetchActiveWorkout was already called inside DailyProgramWorkout
+              // The component will re-render showing the active workout logger
+              fetchWorkoutDays(12);
             }}
           />
         ))}
