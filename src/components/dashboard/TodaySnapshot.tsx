@@ -39,7 +39,9 @@ export function TodaySnapshot() {
       icon: Dumbbell,
       value: todayTraining.hasWorkout ? todayTraining.workoutName || "Completed" : "Rest Day",
       subtitle: todayTraining.hasWorkout
-        ? `${todayTraining.totalVolume.toLocaleString()} lbs volume`
+        ? todayTraining.totalVolume > 0
+          ? `${todayTraining.totalVolume.toLocaleString()} lbs volume`
+          : "Scheduled today"
         : todayTraining.lastWorkoutDate
           ? `Last: ${format(new Date(todayTraining.lastWorkoutDate + "T12:00:00"), "MMM d")}`
           : "No recent workouts",

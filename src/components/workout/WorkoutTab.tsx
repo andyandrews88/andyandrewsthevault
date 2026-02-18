@@ -35,7 +35,7 @@ export function WorkoutTab() {
           </TabsTrigger>
           <TabsTrigger value="dashboard" className="flex items-center gap-2 py-2.5 px-3">
             <BarChart3 className="w-4 h-4" />
-            <span className="text-xs sm:text-sm">Dashboard</span>
+            <span className="text-xs sm:text-sm">Analytics</span>
           </TabsTrigger>
         </TabsList>
 

@@ -569,7 +569,9 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
     
     set({ isLoading: true });
     
-    // Find any incomplete workout (not restricted to today so program sessions on any date work)
+    const today = format(new Date(), 'yyyy-MM-dd');
+
+    // Find any incomplete workout
     const { data: workout } = await supabase
       .from('workouts')
       .select('*')
@@ -580,6 +582,16 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
       .maybeSingle();
     
     if (workout) {
+      // Auto-abandon stale workouts from past dates (more than 1 day old)
+      if (workout.date < today) {
+        await supabase
+          .from('workouts')
+          .update({ is_completed: true })
+          .eq('id', workout.id);
+        set({ activeWorkout: null, exercises: [], isLoading: false });
+        return;
+      }
+
       // Fetch exercises with sets
       const { data: exercisesData } = await supabase
         .from('workout_exercises')

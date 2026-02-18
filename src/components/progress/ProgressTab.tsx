@@ -100,8 +100,12 @@ export function ProgressTab() {
       {/* <WearableConnect /> */}
 
       {/* Main content tabs */}
+      {/* Determine if user has scan data */}
+      {(() => {
+        const hasScanData = bodyEntries.some(e => e.lean_mass_kg || e.fat_mass_kg);
+        return (
       <Tabs defaultValue="weight" className="space-y-4">
-        <TabsList className="grid w-full max-w-md grid-cols-3 h-auto p-1">
+        <TabsList className={`grid w-full max-w-md h-auto p-1 ${hasScanData ? 'grid-cols-3' : 'grid-cols-2'}`}>
           <TabsTrigger value="weight" className="flex items-center gap-2 py-2.5 px-3">
             <Scale className="w-4 h-4" />
             <span className="text-xs sm:text-sm">Weight</span>
@@ -110,10 +114,12 @@ export function ProgressTab() {
             <Ruler className="w-4 h-4" />
             <span className="text-xs sm:text-sm">Measures</span>
           </TabsTrigger>
-          <TabsTrigger value="scans" className="flex items-center gap-2 py-2.5 px-3">
-            <Scan className="w-4 h-4" />
-            <span className="text-xs sm:text-sm">Scans</span>
-          </TabsTrigger>
+          {hasScanData && (
+            <TabsTrigger value="scans" className="flex items-center gap-2 py-2.5 px-3">
+              <Scan className="w-4 h-4" />
+              <span className="text-xs sm:text-sm">Scans</span>
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="weight">
@@ -245,6 +251,8 @@ export function ProgressTab() {
           </Card>
         </TabsContent>
       </Tabs>
+        );
+      })()}
     </div>
   );
 }
