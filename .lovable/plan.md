@@ -1,147 +1,101 @@
 
-# My Honest Opinion on the Notification Policy — and a Better Architecture
+# In-App Notification System — Phase 1
 
-## First: My Candid Assessment
+## What We're Building
 
-Your plan is well thought-out and the intentions are exactly right. But before I recommend implementing it exactly as described, I want to be honest about what will work well, what has risks, and where I'd do it differently. This is a coaching platform for a relatively small, high-engagement community — that context changes what makes sense.
+Three tightly connected pieces:
 
----
+1. A `useNotificationStore` (Zustand) that tracks unread states for announcements and new PRs
+2. Red dot badges on the Community tab and the #announcements channel in the sidebar
+3. A Notification Settings panel in the user profile with 2 toggles (stored in `user_profiles.notification_preferences`)
 
-## The Four Items, One by One
-
-### 1. Push Notifications via OneSignal — My Recommendation: Defer This
-
-**The Reality of Push Notifications on a Web App**
-
-OneSignal push notifications for web apps require users to explicitly grant browser permission. In practice, fewer than 20% of web users ever grant this. Your athletes are already inside the app when they're active — the moment they most need a notification is when they're NOT in the app (e.g., someone replied to their thread). This is valuable for power users, but adds significant complexity for a feature most users will silently ignore.
-
-**What OneSignal Actually Requires**
-
-- A OneSignal account + App ID + REST API key stored as secrets
-- A Service Worker file (`public/OneSignalSDKWorker.js`) registered in the browser
-- A database table to store each user's OneSignal `player_id` (device token) — you'd need a new `user_push_tokens` table
-- A backend function to call OneSignal's REST API for each notification event
-- @mention detection logic: parsing message content for `@DisplayName` patterns on every single post/reply
-
-**The @mention problem specifically**: There is currently no @mention system in the community. Messages are stored as plain text — `"Great progress @John!"` is just a string. Implementing @mentions properly requires: an autocomplete dropdown as the user types, storing mentions as structured data (not just text parsing), and a lookup table of who was mentioned. This alone is a significant feature build — not a quick add.
-
-**My Recommendation**: Instead of OneSignal push, implement **in-app notifications first** (covered in point 2 below, which is much higher value and already 80% of the infrastructure exists). Defer push notifications until the community is larger and the demand is clearly there. When you do add push, OneSignal is the right choice.
+No email, no push notifications, no new database tables beyond the column already added.
 
 ---
 
-### 2. In-App Notification Red Dots — My Recommendation: Yes, Build This
+## Part 1 — Create `src/stores/notificationStore.ts`
 
-**This is the right call and the most impactful item on your list.** The infrastructure is almost there already:
+A new Zustand store that:
 
-- The DM section in `ChannelSidebar` already has an `unreadDmCount` red badge — the pattern exists
-- The `announcements` table and `announcement_dismissals` table already exist
-- The `personal_records` table already fires a `PRCelebration` component when a PR is set
+- Reads `notification_preferences` from `user_profiles` for the current user
+- Tracks `hasNewAnnouncement: boolean` — checks if there are active announcements that haven't been dismissed since the user last visited the Community tab
+- Tracks `unreadDmCount: number` — already exists in `communityStore`, the notification store will read from it via Zustand
+- Uses `localStorage` timestamps to know "did a new announcement appear since I last visited the Community tab?"
+- Exposes `markCommunityVisited()` — called when the user clicks the Community tab, clears the dot
+- Exposes `loadNotificationPrefs(userId)` — loads toggles from `user_profiles`
+- Exposes `saveNotificationPrefs(userId, prefs)` — saves toggles back to `user_profiles`
 
-What's missing is a unified notification state that drives red dots on:
-- The **Community tab** itself (in the main nav tabs)
-- The **#announcements channel** name in the sidebar
-- A **#pr-board** channel (which doesn't exist yet as a channel — PRs are in the workout section)
+The logic for `hasNewAnnouncement`:
+- On mount, query the `announcements` table for active, undismissed announcements
+- Compare the most recent announcement's `created_at` against `localStorage.getItem('community_last_visited')` timestamp
+- If a newer announcement exists → `hasNewAnnouncement = true`
+- When user visits the Community tab → store current timestamp in localStorage + set `hasNewAnnouncement = false`
 
-**What I'd build here:**
-
-A `useNotificationStore` (Zustand) that tracks:
-```typescript
-{
-  hasNewAnnouncement: boolean;   // new active announcement since user last visited
-  hasNewPR: boolean;             // a new PR was set since last viewed PR board
-  unreadDmCount: number;         // already exists in communityStore
-}
-```
-
-Stored in `localStorage` with timestamps — "user last visited community tab at X, any announcements/PRs since then?" — no new database table needed for the basic version.
-
-**The #pr-board clarification**: Right now PRs live in the Workout tab → PR Board component. If you want a #pr-board *channel* in the community where PRs auto-post (so others can see and react to them), that's a bigger feature. If you just want a red dot on the Workout tab when a new PR is set, that's trivial. I'd recommend clarifying which you mean before building it.
+This is entirely client-side with zero new database queries beyond what's already happening in `AnnouncementBanner`.
 
 ---
 
-### 3. Coach's Daily Digest Email via Resend — My Recommendation: Yes, Build This Exactly
+## Part 2 — Red Dot Badge on the Community Tab (Vault.tsx)
 
-**This is the cleanest item on the list** and maps perfectly to what already exists. You already have:
+Update the Community `TabsTrigger` in `src/pages/Vault.tsx` to:
 
-- The `admin-weekly-report` edge function that queries community messages, PRs, and user data
-- Resend is the right tool (developer-friendly, great deliverability, free tier is generous)
-- A scheduled cron job using Supabase's `pg_cron` extension to fire at 8 PM
+- Import `useNotificationStore`
+- Show a small red dot indicator when `hasNewAnnouncement || unreadDmCount > 0`
+- Call `markCommunityVisited()` when the Community tab is clicked (via `onValueChange` on the `Tabs` component)
 
-**What to build:**
-
-1. A new `daily-digest` edge function that:
-   - Queries community messages from the last 24 hours
-   - Queries new PRs from the last 24 hours  
-   - Formats a clean HTML email
-   - Sends via Resend to `andyandrewscf@gmail.com`
-
-2. A `pg_cron` job to call it at 8 PM (you'd need to specify timezone — I'd use `20:00 UTC` or adjust for your timezone)
-
-**One thing to note**: Resend requires you to have a verified sending domain (or use their `@resend.dev` sandbox domain for testing). You'll need a Resend account and API key, and ideally your own domain (e.g., sending from `digest@andyandrews.com`). This is a 10-minute setup on Resend's side.
+The dot appears as a small `w-2 h-2 rounded-full bg-destructive` positioned absolute top-right of the Users icon — same pattern as the existing DM badge in ChannelSidebar.
 
 ---
 
-### 4. User Notification Settings Toggle — My Recommendation: Yes, Simplified
+## Part 3 — Red Dot on #announcements Channel in Sidebar (ChannelSidebar.tsx)
 
-**This is the right idea but I'd simplify the scope:**
+Update `src/components/community/ChannelSidebar.tsx`:
 
-Your current plan: opt-out of PR alerts but keep Coach replies active.
+- Import `useNotificationStore`
+- When rendering the channel list, if the channel name is `announcements` and `hasNewAnnouncement` is `true`, show a small red dot badge next to the channel name (right side)
+- The dot clears when the user clicks into the announcements channel (call `markCommunityVisited()` or a dedicated `markAnnouncementsRead()`)
 
-My recommendation: Build a `notification_preferences` JSON column on `user_profiles` (no new table needed) with these simple toggles:
-
-```typescript
-{
-  email_digest: boolean;          // not relevant for users, only admin
-  pr_badge_alerts: boolean;       // red dot when new PR is set (default: true)
-  announcement_alerts: boolean;   // red dot for new announcements (default: true)
-}
-```
-
-This lives in a `Notification Settings` section inside the user's profile area. It's 2 toggle switches, stored in the existing `user_profiles` table as a JSONB column.
-
-**The "Coach replies" part**: Since there's no push notification system yet, "keeping Coach replies active" translates to keeping the existing DM unread count badge — which always shows and can't be turned off (intentionally, since it's the coach directly messaging you).
+This follows the exact same pattern as the existing `unreadDmCount` badge that already renders on the "Coach Messages" DM row.
 
 ---
 
-## Revised Build Order (What I'd Actually Implement)
+## Part 4 — Notification Settings Panel
 
-Given all of the above, here is the pragmatic sequence:
+Create a new component `src/components/vault/NotificationSettings.tsx`:
 
-### Phase 1 — High Value, Low Complexity (Build Now)
-
-1. **Daily Digest Email** — new `daily-digest` edge function + Resend integration + pg_cron at 8 PM
-2. **In-App Red Dots** — notification state for announcements and PRs, red dot on Community tab in the nav, red dot on #announcements channel in the sidebar
-3. **Notification Preferences toggle** — 2 switches in user profile, stored in `user_profiles` as JSONB
-
-### Phase 2 — Moderate Complexity (Build When Ready)
-
-4. **@mention system** — autocomplete dropdown when typing `@`, store mentions, highlight them in messages, drive in-app notifications for mentions and thread replies
-
-### Phase 3 — Defer Until Community Grows
-
-5. **OneSignal push notifications** — implement when you have 50+ active daily users who are requesting this feature
+- Two toggle rows using the existing `Switch` component:
+  - "Announcement alerts" — controls the red dot for new announcements (default: on)
+  - "PR badge alerts" — controls whether a future PR red dot would show (default: on)
+- Reads initial state from `notificationStore.prefs`
+- Saves on toggle via `saveNotificationPrefs(userId, prefs)` which upserts to `user_profiles`
 
 ---
 
-## What Needs to Be Built (Technical Summary)
+## Part 5 — Wire the Settings Into the Vault
 
-| Item | New DB | New Edge Function | Secrets Needed | Complexity |
-|------|--------|-------------------|----------------|------------|
-| Daily Digest Email | No | Yes (`daily-digest`) | `RESEND_API_KEY` | Low |
-| In-App Red Dots | No | No | None | Low |
-| Notification Prefs | Yes (column on `user_profiles`) | No | None | Low |
-| @mention system | Yes (`message_mentions` table) | No | None | High |
-| OneSignal Push | Yes (`user_push_tokens` table) | Yes | `ONESIGNAL_APP_ID`, `ONESIGNAL_API_KEY` | Very High |
+Add the `NotificationSettings` component to an appropriate location. The cleanest place: inside the existing **Dashboard tab** (`VaultDashboard` component) as a collapsed section at the bottom, or as a new Settings section inside the Community or Dashboard view.
+
+Given the existing layout, the best fit is to add a `Bell` icon button in the **Vault header** (next to the VAULT MEMBER badge row) that opens a small popover/sheet with the 2 toggles. This is non-intrusive and discoverable.
 
 ---
 
-## Summary
+## Files Changed
 
-Your instincts are correct. The notification policy makes total sense for a coaching platform. My advice:
+| File | Change |
+|------|--------|
+| `src/stores/notificationStore.ts` | New file — Zustand store for notification state + prefs |
+| `src/pages/Vault.tsx` | Add red dot on Community tab, wire `onValueChange` to clear dot |
+| `src/components/community/ChannelSidebar.tsx` | Add red dot on #announcements channel row |
+| `src/components/vault/NotificationSettings.tsx` | New component — 2 toggles for prefs |
+| `src/components/dashboard/VaultDashboard.tsx` | Add Bell icon + NotificationSettings popover in header |
 
-- **Build items 3 and 4 immediately** — they're high impact, low risk, and use existing infrastructure
-- **Build a simplified version of item 2** (in-app dots only, no #pr-board channel yet)
-- **Defer item 1 (OneSignal)** until you have @mention infrastructure and a larger user base — it's a significant build for currently marginal impact
-- **Ask me to clarify** what you mean by #pr-board before building it — it means different things depending on whether you want PRs visible in the community feed vs just a notification dot
+No new database tables. No edge functions. No secrets needed. The `notification_preferences` column was already added to `user_profiles` in the previous migration.
 
-Do you want me to proceed with Phase 1 (Daily Digest + In-App Dots + Notification Prefs), or would you like to adjust the scope first?
+---
+
+## What This Does NOT Include (intentionally deferred)
+
+- PR red dot on the Train tab (deferred until #pr-board channel decision is made)
+- Daily digest view inside the app (this can be a future Admin-only dashboard widget)
+- Any email sending
+- OneSignal or push of any kind
