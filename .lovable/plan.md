@@ -1,84 +1,109 @@
 
-# Bug Fix Plan: Program Re-Enrollment + Full Audit
+# Full Training Section Audit — Bugs & Fixes
 
-## Root Cause of the Screenshot Error
+## Bug 1: Programs Showing After Unenrolling / Program Switcher Not Toggling (Same Root Cause)
 
-The database has a `UNIQUE INDEX user_program_enrollments_user_id_program_id_key` on `(user_id, program_id)`. This means:
-- User enrolls in "Strength Foundation" → row created
-- User unenrolls → status set to `'cancelled'`, but the row **stays in the table**
-- User tries to re-enroll → `INSERT` fails with "duplicate key value violates unique constraint"
+**Root Cause:** The `activeProgramId` in `programStore` is set once on first load with a guard (`if (!get().activeProgramId)`) and is **never cleared or updated** when a user unenrolls. This causes two failures:
 
-This is a critical enrollment flow bug that completely blocks re-enrollment in any program.
+1. After unenrolling a program, `activeProgramId` still holds the cancelled program's ID. The Tabs component in `ActiveProgramSwitcher` receives a `value` that no longer matches any `TabsTrigger`, so the switcher renders blank and cannot toggle.
+2. Even with active programs, `setActiveProgram` updates the store correctly, but the stale `activeProgramId` from a previous session or unenroll can cause a mismatch on first render.
 
----
+**Fix — `src/stores/programStore.ts`:**
+- In `fetchEnrollments`: After filtering active enrollments, if `activeProgramId` is set but not in the current active list, reset it to the first active program's `program_id` (or null if none).
+- In `unenrollFromProgram`: After cancelling, explicitly reset `activeProgramId` to either the next active enrollment or `null`.
 
-## Fix 1: Upsert Enrollment Instead of Blind INSERT (Critical)
-
-**File:** `src/stores/programStore.ts` — `enrollInProgram()`
-
-Change the enrollment step from a plain `INSERT` to an `UPSERT` using Supabase's `upsert()` with `onConflict: 'user_id,program_id'`. This will:
-- **New enrollment:** Create a new row
-- **Re-enrollment after cancellation:** Update the existing row's `status` back to `'active'`, update `start_date`, `training_days`, and `addon_placement`
-
-After the upsert, the old calendar workouts (from the previous enrollment) need to be cleaned up. We'll delete the old `user_calendar_workouts` for this enrollment ID before inserting new ones, so the user gets a fresh schedule.
-
-**Logic flow:**
 ```
-1. UPSERT into user_program_enrollments (on conflict: update status='active', start_date, training_days, addon_placement)
-2. DELETE old user_calendar_workouts WHERE enrollment_id = enrollment.id
-3. Fetch program_workouts
-4. Build new calendar dates
-5. INSERT new calendar workouts
-6. Refresh state
+// fetchEnrollments — after setting enrollments:
+const currentActive = get().activeProgramId;
+const activeIds = data.map(e => e.program_id);
+if (!currentActive || !activeIds.includes(currentActive)) {
+  set({ activeProgramId: data.length > 0 ? data[0].program_id : null });
+}
+
+// unenrollFromProgram — after fetchEnrollments():
+const remaining = get().enrollments;
+set({ activeProgramId: remaining.length > 0 ? remaining[0].program_id : null });
 ```
 
 ---
 
-## Fix 2: Clear "Enrolled" Badge After Unenrolling (UX Bug)
+## Bug 2: Percentage Suggestions Not Calculating Automatically in Log Section
 
-**File:** `src/components/tracks/ProgramLibrary.tsx`
+**Root Cause:** When `startProgramWorkoutSession` creates the workout and pre-populates exercises, it only stores `exercise_name`, `order_index`, `exercise_type`, and `notes` in `workout_exercises`. The `percentage_of_1rm` field from the program template is **not persisted anywhere** — it lives only in the program workout's JSONB exercises array. Once the logger loads the workout via `loadWorkoutIntoActive`, that metadata is gone.
 
-Currently `enrolledProgramIds` is built from `enrollments` which only fetches `status = 'active'`. This is actually correct — so the ProgramCard correctly shows "Enrolled" only for active enrollments. After unenrolling and refreshing, the card should show "Select Program" again.
+The `SetRow` shows a "Prev" column pulling from `getLastSessionSets`, which returns previous session weights — not program percentages.
 
-However, `ProgramLibrary` calls `fetchEnrollments()` on mount but **not** after a re-fetch trigger. After unenrolling from `ActiveProgramSwitcher`, the library needs to re-fetch. This is handled because both components call `fetchEnrollments()` on mount, but since state is shared via the store, any `unenrollFromProgram()` call already triggers `fetchEnrollments()` — so the card updates correctly.
+**Fix — Two-part solution:**
 
-No change needed here.
+**Part A — Store percentage hint in exercise notes during session creation (`src/stores/programStore.ts`):**
 
----
+In `startProgramWorkoutSession`, when inserting `workout_exercises`, append the `percentage_of_1rm` info to the `notes` field so it's preserved:
 
-## Fix 3: Unenroll Properly Clears Calendar Workouts
+```typescript
+notes: [ex.notes, ex.percentage_of_1rm ? `@ ${ex.percentage_of_1rm}% TM` : null]
+  .filter(Boolean).join(' | ') || null,
+```
 
-**File:** `src/stores/programStore.ts` — `unenrollFromProgram()`
+**Part B — Surface the percentage suggestion in `ExerciseCard` / `SetRow` (`src/components/workout/ExerciseCard.tsx`):**
 
-Currently, unenrolling only sets `status = 'cancelled'` on the enrollment. The future calendar workouts remain in `user_calendar_workouts` (incomplete ones). This means:
-- The calendar still shows future program workout dots
-- The program switcher may show stale data
+Parse the `notes` field for `@ X% TM` pattern and display it as a suggestion chip above the sets header. When the user has a PR or known training max, we can show the calculated weight. Even without a training max, showing `@ 85% TM` visually reminds the athlete what load to target.
 
-**Fix:** When unenrolling, also DELETE future `user_calendar_workouts` (those with `scheduled_date >= today` and `is_completed = false`) for the given enrollment. Completed past sessions are preserved for history.
-
----
-
-## Fix 4: Error Message Exposes DB Constraint Name
-
-**File:** `src/components/tracks/ProgramAssignmentWizard.tsx`
-
-The current catch block passes `err?.message` directly to the toast, which surfaces raw database errors like:
-> "duplicate key value violates unique constraint 'user_program_enrollments_user_id_program_id_key'"
-
-This is bad UX and exposes internal schema names. After Fix 1 resolves the upsert, this scenario shouldn't happen — but as a safety net, we'll improve the error message to be user-friendly.
+Additionally, show the `percentage_of_1rm` hint on each `SetRow`'s "Prev" column as a badge when no previous weight exists for that exercise (i.e., first time doing the program exercise).
 
 ---
 
-## Summary of Changes
+## Bug 3: Loading Delays
 
-| File | Change |
-|------|--------|
-| `src/stores/programStore.ts` | `enrollInProgram`: upsert + delete old calendar entries before re-inserting |
-| `src/stores/programStore.ts` | `unenrollFromProgram`: also delete future incomplete calendar workouts |
-| `src/components/tracks/ProgramAssignmentWizard.tsx` | Better error message in catch block |
+**Root Causes identified:**
+1. `ActiveProgramSwitcher` calls `fetchEnrollments()` + `fetchTodaysWorkouts()` on every mount — this fires even when data is already in the store and fresh.
+2. `useEnrollmentProgress` in `ActiveProgramSwitcher` fires one independent Supabase query per enrolled program (N+1 pattern). With 3 programs enrolled = 3 separate round-trips just for progress rings.
+3. `WorkoutLogger`'s `useEffect` triggers 4 queries simultaneously: `fetchActiveWorkout`, `fetchPersonalRecords`, `fetchWorkoutDays`, `fetchWorkoutByDate`. These are sequential awaits inside independent functions but all fire on every `selectedDate` change.
+4. `ProgramCalendarView` calls `fetchEnrollments()` independently on mount, duplicating what `ActiveProgramSwitcher` already fetched.
+
+**Fixes:**
+
+**Fix A — Batch the enrollment progress query (`src/components/tracks/ActiveProgramSwitcher.tsx`):**
+
+Replace the N+1 `useEnrollmentProgress` per-enrollment hook with a single batched query at the `ActiveProgramSwitcher` level that fetches all progress data in one query, then distributes it to each enrollment tab.
+
+```typescript
+// Single query for all enrollment progress
+const { data } = await supabase
+  .from('user_calendar_workouts')
+  .select('enrollment_id, is_completed')
+  .in('enrollment_id', enrollments.map(e => e.id));
+
+// Build a map: { enrollmentId -> { completed, total } }
+```
+
+**Fix B — Guard duplicate fetches with a timestamp/flag (`src/stores/programStore.ts`):**
+
+Add a `lastFetchedAt` timestamp to the store. In `fetchEnrollments` and `fetchTodaysWorkouts`, skip re-fetching if data is < 30 seconds old. This prevents every component mount from hammering the database.
+
+**Fix C — Skip `ProgramCalendarView`'s independent `fetchEnrollments` call:**
+
+Since enrollments are already in the shared Zustand store (populated by `ActiveProgramSwitcher` which renders first on the logger tab), `ProgramCalendarView` should read from the store rather than fetching again. Remove the redundant `fetchEnrollments()` call from `ProgramCalendarView`'s `useEffect` and rely on the shared store state.
 
 ---
 
-## Why No DB Migration is Needed
+## Summary of All File Changes
 
-The unique constraint already exists and is correct behavior (one enrollment record per user per program). The fix is entirely in application logic — using `upsert` to handle the conflict gracefully rather than crashing on it.
+| File | Changes |
+|------|---------|
+| `src/stores/programStore.ts` | Fix `activeProgramId` reset on unenroll + after fetch; add lastFetched guard; encode `percentage_of_1rm` in exercise notes during session creation |
+| `src/components/tracks/ActiveProgramSwitcher.tsx` | Batch enrollment progress into a single query instead of N+1 per-program hooks; fix `UnenrollDialog` defined inside render (causes remount every render — move it outside) |
+| `src/components/workout/ExerciseCard.tsx` | Parse `% TM` hint from exercise notes; display it as a suggestion badge above the sets table |
+| `src/components/workout/ProgramCalendarView.tsx` | Remove redundant `fetchEnrollments()` call on mount |
+
+---
+
+## Additional Issues Found During Audit
+
+**Minor Bug — `UnenrollDialog` defined inside render:**
+In `ActiveProgramSwitcher`, `UnenrollDialog` is declared as `const UnenrollDialog = () => (...)` inside the component body. React re-creates this component function on every render, causing the `AlertDialog` to unmount and remount — this can cause the dialog to flash or not animate properly. It should be moved outside `ActiveProgramSwitcher` or converted to a conditional JSX block.
+
+**Minor Bug — Calendar dialog opens on rest days too:**
+In `ProgramCalendarView`, the dialog condition is `open={!!selectedDate && selectedWorkouts.length >= 0}` — the `>= 0` is always true, so clicking any day (even empty days) opens the dialog. This is intentional for rest day messaging, which is correct behaviour. No change needed.
+
+**Minor Bug — `fetchActiveWorkout` auto-abandons stale program workouts:**
+In `workoutStore.ts`, `fetchActiveWorkout` marks any incomplete workout from past dates as completed. However, when a user starts a program session for a past date (retroactive logging), this auto-abandon logic fires and closes the session before the user can log weights. This needs a guard: only auto-abandon workouts that are NOT program-linked (i.e., check if the workout name contains "—" which is the separator used by program sessions, or check the date difference is more than 1 day old rather than just less than today).
