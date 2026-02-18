@@ -68,6 +68,7 @@ interface ProgramState {
   activeProgramId: string | null;
   isLoading: boolean;
   isEnrolling: boolean;
+  isStartingSession: boolean;
 
   fetchPrograms: () => Promise<void>;
   fetchEnrollments: () => Promise<void>;
@@ -81,10 +82,14 @@ interface ProgramState {
   unenrollFromProgram: (enrollmentId: string) => Promise<void>;
   markWorkoutComplete: (calendarWorkoutId: string) => Promise<void>;
   setActiveProgram: (programId: string | null) => void;
+  startProgramWorkoutSession: (
+    calendarWorkout: UserCalendarWorkout,
+    date: Date
+  ) => Promise<string | null>;
 }
 
 // Build calendar dates for all program workouts
-// Algorithm: walk forward from startDate, placing each workout on the
+// Walk forward from startDate, placing each workout on the
 // nearest upcoming training day. cursor advances by 1 after each placement
 // so workouts never stack on the same day.
 function buildCalendarDates(
@@ -123,6 +128,7 @@ export const useProgramStore = create<ProgramState>((set, get) => ({
   activeProgramId: null,
   isLoading: false,
   isEnrolling: false,
+  isStartingSession: false,
 
   fetchPrograms: async () => {
     set({ isLoading: true });
@@ -252,4 +258,103 @@ export const useProgramStore = create<ProgramState>((set, get) => ({
   },
 
   setActiveProgram: (programId) => set({ activeProgramId: programId }),
+
+  /**
+   * Creates (or finds) a linked `workouts` row for this program session,
+   * pre-populates exercises & sets from the template, then returns the workoutId
+   * so WorkoutLogger's fetchActiveWorkout() can take over the UI.
+   */
+  startProgramWorkoutSession: async (calendarWorkout, date) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+
+    set({ isStartingSession: true });
+    try {
+      const programWorkout = calendarWorkout.program_workout;
+      const programName = (calendarWorkout as any).enrollment?.program?.name || 'Program';
+      if (!programWorkout) return null;
+
+      const workoutName = `${programName} — ${programWorkout.workout_name}`;
+      const dateStr = format(date, 'yyyy-MM-dd');
+
+      // 1. Check if a linked workout already exists for this date+name (idempotent)
+      const { data: existing } = await supabase
+        .from('workouts')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('date', dateStr)
+        .eq('workout_name', workoutName)
+        .eq('is_completed', false)
+        .maybeSingle();
+
+      if (existing) {
+        // Already started — just return the id so WorkoutLogger picks it up
+        return existing.id;
+      }
+
+      // 2. Create the workouts row
+      const { data: workout, error: workoutError } = await supabase
+        .from('workouts')
+        .insert({
+          user_id: user.id,
+          workout_name: workoutName,
+          date: dateStr,
+          is_completed: false,
+        })
+        .select()
+        .single();
+
+      if (workoutError || !workout) {
+        console.error('Error creating program workout:', workoutError);
+        return null;
+      }
+
+      // 3. Pre-populate workout_exercises + exercise_sets from template
+      const exercises: ProgramExercise[] = Array.isArray(programWorkout.exercises)
+        ? programWorkout.exercises
+        : [];
+
+      for (let i = 0; i < exercises.length; i++) {
+        const ex = exercises[i];
+
+        const { data: workoutExercise, error: exError } = await supabase
+          .from('workout_exercises')
+          .insert({
+            workout_id: workout.id,
+            exercise_name: ex.name,
+            order_index: i,
+            exercise_type: 'strength',
+            notes: ex.notes || null,
+          })
+          .select()
+          .single();
+
+        if (exError || !workoutExercise) continue;
+
+        // Pre-populate sets based on template sets count, with reps from template
+        const targetSets = ex.sets || 1;
+        // Parse reps: "5/3/1+" → use last variant, "3-5" → use first number, "5" → 5
+        const parseReps = (repsStr: string): number => {
+          const parts = repsStr.split(/[/,]/);
+          const last = parts[parts.length - 1].replace(/\+/g, '').trim();
+          const num = parseInt(last, 10);
+          return isNaN(num) ? 5 : num;
+        };
+        const targetReps = parseReps(ex.reps);
+
+        const setsToInsert = Array.from({ length: targetSets }, (_, idx) => ({
+          exercise_id: workoutExercise.id,
+          set_number: idx + 1,
+          reps: targetReps,
+          is_completed: false,
+        }));
+
+        await supabase.from('exercise_sets').insert(setsToInsert);
+      }
+
+      return workout.id;
+    } finally {
+      set({ isStartingSession: false });
+    }
+  },
 }));
