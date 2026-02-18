@@ -21,7 +21,11 @@ interface CalendarWorkoutMap {
   [dateStr: string]: UserCalendarWorkout[];
 }
 
-export function ProgramCalendarView() {
+interface ProgramCalendarViewProps {
+  onSwitchToLogger?: () => void;
+}
+
+export function ProgramCalendarView({ onSwitchToLogger }: ProgramCalendarViewProps) {
   const [viewMonth, setViewMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [workoutMap, setWorkoutMap] = useState<CalendarWorkoutMap>({});
@@ -73,6 +77,9 @@ export function ProgramCalendarView() {
     await fetchActiveWorkout();
     await fetchWorkoutDays(12);
     fetchMonthWorkouts(viewMonth);
+    // Close the detail dialog and switch to the Log Workout tab
+    setSelectedDate(null);
+    onSwitchToLogger?.();
   };
 
   const handleComplete = () => {

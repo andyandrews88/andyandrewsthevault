@@ -70,8 +70,8 @@ function EnrollmentTabLabel({ enrollment }: TabLabelProps) {
   return (
     <div className="flex items-center gap-2">
       <ProgressRing pct={pct} />
-      <div className="text-left hidden sm:block">
-        <p className="text-xs font-semibold leading-tight">{enrollment.program?.name}</p>
+      <div className="text-left">
+        <p className="text-xs font-semibold leading-tight line-clamp-1">{enrollment.program?.name}</p>
         <p className="text-[10px] text-muted-foreground">{completed}/{total} done</p>
       </div>
     </div>
