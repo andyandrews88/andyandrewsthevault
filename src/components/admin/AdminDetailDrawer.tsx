@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -24,31 +24,30 @@ export function AdminDetailDrawer({
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const prevKeyRef = useRef<string | null>(null);
 
-  const fetchData = async (s: Section) => {
-    setLoading(true);
+  useEffect(() => {
+    if (!open || !section) return;
+
+    // Avoid refetching for the same section when already loaded
+    const key = section;
+    if (prevKeyRef.current === key && data) return;
+
+    prevKeyRef.current = key;
     setData(null);
-    try {
-      const { data: result, error } = await supabase.functions.invoke("admin-detail", {
-        body: { section: s },
-      });
-      if (error) throw error;
-      setData(result);
-    } catch (e) {
-      toast({ title: "Failed to load details", variant: "destructive" });
-    } finally {
-      setLoading(false);
-    }
-  };
+    setLoading(true);
 
-  const handleOpen = (s: Section) => {
-    fetchData(s);
-  };
-
-  // Trigger fetch when section changes
-  if (open && section && !data && !loading) {
-    handleOpen(section);
-  }
+    supabase.functions
+      .invoke("admin-detail", { body: { section } })
+      .then(({ data: result, error }) => {
+        if (error) throw error;
+        setData(result);
+      })
+      .catch(() => {
+        toast({ title: "Failed to load details", variant: "destructive" });
+      })
+      .finally(() => setLoading(false));
+  }, [open, section]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const titles: Record<Section, string> = {
     users: "User Directory",
@@ -281,7 +280,7 @@ export function AdminDetailDrawer({
   };
 
   return (
-    <Sheet open={open} onOpenChange={() => { onClose(); setData(null); }}>
+    <Sheet open={open} onOpenChange={(isOpen) => { if (!isOpen) { prevKeyRef.current = null; setData(null); onClose(); } }}>
       <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
         <SheetHeader>
           <SheetTitle>{section ? titles[section] : ""}</SheetTitle>
