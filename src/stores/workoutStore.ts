@@ -65,6 +65,7 @@ interface WorkoutState {
   
   // Fetching
   fetchActiveWorkout: () => Promise<void>;
+  loadWorkoutIntoActive: (workoutId: string) => Promise<void>;
   fetchWorkoutHistory: (days?: number) => Promise<void>;
   fetchPersonalRecords: () => Promise<void>;
   fetchExerciseHistory: (exerciseName: string) => Promise<ExerciseHistory[]>;
@@ -568,13 +569,11 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
     
     set({ isLoading: true });
     
-    // Find any incomplete workout from today
-    const today = format(new Date(), 'yyyy-MM-dd');
+    // Find any incomplete workout (not restricted to today so program sessions on any date work)
     const { data: workout } = await supabase
       .from('workouts')
       .select('*')
       .eq('user_id', user.id)
-      .eq('date', today)
       .eq('is_completed', false)
       .order('created_at', { ascending: false })
       .limit(1)
@@ -584,7 +583,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
       // Fetch exercises with sets
       const { data: exercisesData } = await supabase
         .from('workout_exercises')
-        .select('*, sets:exercise_sets(*)')
+        .select('*, sets:exercise_sets(*), conditioning_sets:conditioning_sets(*)')
         .eq('workout_id', workout.id)
         .order('order_index');
       
@@ -592,13 +591,45 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
         ...e,
         exercise_type: (e.exercise_type as 'strength' | 'conditioning') || 'strength',
         sets: e.sets?.sort((a: ExerciseSet, b: ExerciseSet) => a.set_number - b.set_number) || [],
-        conditioning_sets: []
+        conditioning_sets: (e.conditioning_sets || []).map((cs: any) => ({
+          ...cs,
+          distance_unit: (cs.distance_unit as 'miles' | 'km' | 'meters') || 'miles'
+        })).sort((a: ConditioningSet, b: ConditioningSet) => a.set_number - b.set_number),
       })) as WorkoutExercise[];
       
       set({ activeWorkout: workout, exercises, isLoading: false });
     } else {
       set({ activeWorkout: null, exercises: [], isLoading: false });
     }
+  },
+
+  // Load a specific workout by ID into active state (used by program sessions)
+  loadWorkoutIntoActive: async (workoutId: string) => {
+    const { data: workout } = await supabase
+      .from('workouts')
+      .select('*')
+      .eq('id', workoutId)
+      .single();
+
+    if (!workout) return;
+
+    const { data: exercisesData } = await supabase
+      .from('workout_exercises')
+      .select('*, sets:exercise_sets(*), conditioning_sets:conditioning_sets(*)')
+      .eq('workout_id', workoutId)
+      .order('order_index');
+
+    const exercises = (exercisesData || []).map(e => ({
+      ...e,
+      exercise_type: (e.exercise_type as 'strength' | 'conditioning') || 'strength',
+      sets: e.sets?.sort((a: ExerciseSet, b: ExerciseSet) => a.set_number - b.set_number) || [],
+      conditioning_sets: (e.conditioning_sets || []).map((cs: any) => ({
+        ...cs,
+        distance_unit: (cs.distance_unit as 'miles' | 'km' | 'meters') || 'miles'
+      })).sort((a: ConditioningSet, b: ConditioningSet) => a.set_number - b.set_number),
+    })) as WorkoutExercise[];
+
+    set({ activeWorkout: workout, exercises, viewingWorkout: null, viewingExercises: [] });
   },
   
   fetchWorkoutHistory: async (days = 30) => {

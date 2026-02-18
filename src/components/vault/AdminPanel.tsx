@@ -13,7 +13,8 @@ import {
   FileText,
   Video,
   Headphones,
-  Shield
+  Shield,
+  Dumbbell
 } from 'lucide-react';
 import { VaultResource, VaultPodcast, ResourceFormData, PodcastFormData } from '@/types/vaultResources';
 import { 
@@ -29,6 +30,7 @@ import {
 } from '@/lib/vaultService';
 import { ResourceEditor } from './ResourceEditor';
 import { PodcastEditor } from './PodcastEditor';
+import { ProgramAdmin } from '@/components/admin/ProgramAdmin';
 import { toast } from 'sonner';
 import {
   AlertDialog,
@@ -272,6 +274,10 @@ export function AdminPanel() {
             <TabsTrigger value="podcasts">
               Podcasts ({filteredPodcasts.length})
             </TabsTrigger>
+            <TabsTrigger value="programs" className="flex items-center gap-1.5">
+              <Dumbbell className="w-3.5 h-3.5" />
+              Programs
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="resources" className="mt-4">
@@ -384,6 +390,10 @@ export function AdminPanel() {
                 ))}
               </div>
             )}
+          </TabsContent>
+
+          <TabsContent value="programs" className="mt-4">
+            <ProgramAdmin />
           </TabsContent>
         </Tabs>
       </CardContent>
