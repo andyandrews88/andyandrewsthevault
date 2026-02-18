@@ -30,12 +30,10 @@ export function ProgramCalendarView({ onSwitchToLogger }: ProgramCalendarViewPro
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [workoutMap, setWorkoutMap] = useState<CalendarWorkoutMap>({});
   const [isLoading, setIsLoading] = useState(false);
-  const { enrollments, fetchEnrollments } = useProgramStore();
+  // Read enrollments from shared store — no need to re-fetch here since
+  // ActiveProgramSwitcher (which renders first) already fetched them.
+  const { enrollments } = useProgramStore();
   const { fetchActiveWorkout, fetchWorkoutDays } = useWorkoutStore();
-
-  useEffect(() => {
-    fetchEnrollments();
-  }, [fetchEnrollments]);
 
   useEffect(() => {
     fetchMonthWorkouts(viewMonth);
