@@ -9,6 +9,7 @@ import { WendlerPercentageCalc } from "./WendlerPercentageCalc";
 interface DailyProgramWorkoutProps {
   calendarWorkout: UserCalendarWorkout | undefined;
   programStyle: string | null | undefined;
+  onComplete?: () => void;
 }
 
 function TempoExplanation({ tempo }: { tempo: string }) {
@@ -67,7 +68,7 @@ function ExerciseRow({ exercise, isFBB }: { exercise: ProgramExercise; isFBB: bo
   );
 }
 
-export function DailyProgramWorkout({ calendarWorkout, programStyle }: DailyProgramWorkoutProps) {
+export function DailyProgramWorkout({ calendarWorkout, programStyle, onComplete }: DailyProgramWorkoutProps) {
   const { markWorkoutComplete, isEnrolling } = useProgramStore();
   const isWendler = programStyle === "wendler";
   const isFBB = programStyle === "fbb";
@@ -124,7 +125,10 @@ export function DailyProgramWorkout({ calendarWorkout, programStyle }: DailyProg
           <Button
             variant="elite"
             className="w-full mt-2"
-            onClick={() => markWorkoutComplete(calendarWorkout.id)}
+            onClick={async () => {
+              await markWorkoutComplete(calendarWorkout.id);
+              onComplete?.();
+            }}
             disabled={isEnrolling}
           >
             <CheckCircle2 className="w-4 h-4 mr-2" />

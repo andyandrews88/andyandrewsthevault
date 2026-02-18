@@ -84,6 +84,9 @@ interface ProgramState {
 }
 
 // Build calendar dates for all program workouts
+// Algorithm: walk forward from startDate, placing each workout on the
+// nearest upcoming training day. cursor advances by 1 after each placement
+// so workouts never stack on the same day.
 function buildCalendarDates(
   programWorkouts: { id: string }[],
   startDate: Date,
@@ -92,46 +95,21 @@ function buildCalendarDates(
   const sortedDays = [...trainingDays].sort((a, b) => a - b);
   const result: { program_workout_id: string; scheduled_date: string }[] = [];
 
-  let currentDate = new Date(startDate);
+  let cursor = new Date(startDate);
+  cursor.setHours(0, 0, 0, 0);
 
-  for (let i = 0; i < programWorkouts.length; i++) {
-    const targetDayOfWeek = sortedDays[i % sortedDays.length];
-
-    // If this is not the first iteration of a week cycle, advance past current date
-    if (i > 0 && i % sortedDays.length === 0) {
-      // Move to next week's cycle start
-      currentDate = addDays(currentDate, 1);
+  for (const pw of programWorkouts) {
+    // Walk forward from cursor until we land on a training day
+    let date = new Date(cursor);
+    while (!sortedDays.includes(date.getDay())) {
+      date = addDays(date, 1);
     }
-
-    // Find next occurrence of targetDayOfWeek from currentDate
-    let daysToAdd = (targetDayOfWeek - currentDate.getDay() + 7) % 7;
-    if (i === 0 && daysToAdd === 0) daysToAdd = 0; // start today if same day
-    else if (i > 0 && daysToAdd === 0 && i % sortedDays.length !== 0) daysToAdd = 7; // avoid same day repeat
-
-    // For sequential days within same week, just advance to next training day
-    if (i % sortedDays.length !== 0) {
-      const prevDayOfWeek = sortedDays[(i - 1) % sortedDays.length];
-      const nextDayOfWeek = sortedDays[i % sortedDays.length];
-      let diff = (nextDayOfWeek - prevDayOfWeek + 7) % 7;
-      if (diff === 0) diff = 7;
-      currentDate = addDays(currentDate, diff);
-    } else if (i === 0) {
-      // Start on or after startDate on the first training day
-      daysToAdd = (targetDayOfWeek - currentDate.getDay() + 7) % 7;
-      currentDate = addDays(currentDate, daysToAdd);
-    } else {
-      // Beginning of a new week cycle - advance from last date to next week's first training day
-      const prevDayOfWeek = sortedDays[sortedDays.length - 1];
-      const nextDayOfWeek = sortedDays[0];
-      let diff = (nextDayOfWeek - prevDayOfWeek + 7) % 7;
-      if (diff === 0) diff = 7;
-      currentDate = addDays(currentDate, diff);
-    }
-
     result.push({
-      program_workout_id: programWorkouts[i].id,
-      scheduled_date: format(currentDate, 'yyyy-MM-dd'),
+      program_workout_id: pw.id,
+      scheduled_date: format(date, 'yyyy-MM-dd'),
     });
+    // Advance cursor past this date so next workout must be on a later day
+    cursor = addDays(date, 1);
   }
 
   return result;

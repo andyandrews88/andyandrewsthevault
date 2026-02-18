@@ -35,8 +35,12 @@ import { PRCelebration } from "./PRCelebration";
 import { WeekStrip } from "./WeekStrip";
 import { WorkoutCalendar } from "./WorkoutCalendar";
 import { WorkoutHistoryView } from "./WorkoutHistoryView";
+import { DailyProgramWorkout } from "@/components/tracks/DailyProgramWorkout";
+import { supabase } from "@/integrations/supabase/client";
+import { UserCalendarWorkout } from "@/stores/programStore";
 import { format } from "date-fns";
 import { convertWeight } from "@/lib/weightConversion";
+
 
 interface WorkoutLoggerProps {
   onBack: () => void;
@@ -73,12 +77,30 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
   const [showCalendar, setShowCalendar] = useState(false);
   const [workoutName, setWorkoutName] = useState("");
   const [startTime] = useState(new Date());
+  const [programWorkoutsForDate, setProgramWorkoutsForDate] = useState<UserCalendarWorkout[]>([]);
+
+  const fetchProgramWorkoutsForDate = async (date: Date) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const dateStr = format(date, 'yyyy-MM-dd');
+    const { data } = await supabase
+      .from('user_calendar_workouts')
+      .select(`
+        *,
+        program_workout:program_workouts(*),
+        enrollment:user_program_enrollments(*, program:programs(*))
+      `)
+      .eq('scheduled_date', dateStr)
+      .eq('user_id', user.id);
+    setProgramWorkoutsForDate((data as unknown as UserCalendarWorkout[]) || []);
+  };
 
   useEffect(() => {
     fetchActiveWorkout();
     fetchPersonalRecords();
     fetchWorkoutDays(12);
     fetchWorkoutByDate(selectedDate);
+    fetchProgramWorkoutsForDate(selectedDate);
   }, [fetchActiveWorkout, fetchPersonalRecords, fetchWorkoutDays, fetchWorkoutByDate, selectedDate]);
 
   const handleStartWorkout = async () => {
@@ -91,7 +113,8 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
 
   const handleFinish = async () => {
     await finishWorkout();
-    fetchWorkoutDays(12); // Refresh the calendar
+    fetchWorkoutDays(12);
+    fetchProgramWorkoutsForDate(selectedDate);
     onBack();
   };
 
@@ -175,7 +198,20 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
           onMonthClick={() => setShowCalendar(true)}
         />
         
-        {/* Past workout for selected date */}
+        {/* Program workouts for selected date */}
+        {programWorkoutsForDate.map(cw => (
+          <DailyProgramWorkout
+            key={cw.id}
+            calendarWorkout={cw}
+            programStyle={(cw as any).enrollment?.program?.program_style}
+            onComplete={() => {
+              fetchWorkoutDays(12);
+              fetchProgramWorkoutsForDate(selectedDate);
+            }}
+          />
+        ))}
+
+        {/* Past free-log workout for selected date */}
         {viewingWorkout && (
           <WorkoutHistoryView 
             workout={viewingWorkout} 
@@ -183,25 +219,27 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
           />
         )}
         
-        {/* Start workout prompt for any date without a workout */}
+        {/* Start workout prompt */}
         {!viewingWorkout && (
-          <Card variant="elevated" className="text-center py-12">
+          <Card variant="elevated" className="text-center py-8">
             <CardContent>
-              <Dumbbell className="h-16 w-16 mx-auto mb-4 text-primary opacity-50" />
+              <Dumbbell className="h-12 w-12 mx-auto mb-4 text-primary opacity-50" />
               <h3 className="text-xl font-semibold mb-2">
                 {format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
-                  ? "Ready to Train?"
+                  ? programWorkoutsForDate.length > 0 ? "Log Your Own Work" : "Ready to Train?"
                   : `Log a Workout for ${format(selectedDate, 'MMMM d')}`}
               </h3>
               <p className="text-muted-foreground mb-6">
                 {format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
-                  ? "Start a new workout session to log your exercises and track PRs"
+                  ? programWorkoutsForDate.length > 0
+                    ? "Add extra free-log work on top of your program"
+                    : "Start a new workout session to log your exercises and track PRs"
                   : "Add a workout retroactively for this date"}
               </p>
               
               <Dialog open={showStartDialog} onOpenChange={setShowStartDialog}>
                 <DialogTrigger asChild>
-                  <Button variant="hero" size="lg">
+                  <Button variant={programWorkoutsForDate.length > 0 ? "outline" : "hero"} size="lg">
                     <Plus className="h-5 w-5 mr-2" />
                     Start Workout
                   </Button>
