@@ -11,6 +11,8 @@ import { PRBoard } from "./PRBoard";
 import { ProgramCalendarView } from "./ProgramCalendarView";
 
 export function WorkoutTab() {
+  const [activeTab, setActiveTab] = useState("logger");
+
   return (
     <div className="space-y-6">
       {/* Page Description */}
@@ -23,7 +25,7 @@ export function WorkoutTab() {
       </div>
 
       {/* Sub-tabs for Logger vs Dashboard vs Calendar */}
-      <Tabs defaultValue="logger" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="grid w-full max-w-md mx-auto grid-cols-3 h-auto p-1">
           <TabsTrigger value="logger" className="flex items-center gap-2 py-2.5 px-3">
             <Dumbbell className="w-4 h-4" />
@@ -47,7 +49,7 @@ export function WorkoutTab() {
         </TabsContent>
 
         <TabsContent value="calendar">
-          <ProgramCalendarView />
+          <ProgramCalendarView onSwitchToLogger={() => setActiveTab("logger")} />
         </TabsContent>
 
         <TabsContent value="dashboard">
