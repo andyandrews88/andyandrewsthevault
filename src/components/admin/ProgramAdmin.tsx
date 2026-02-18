@@ -692,17 +692,26 @@ function ProgramRow({
 
 // ─── ProgramAdmin (main export) ───────────────────────────────────────────────
 export function ProgramAdmin() {
-  const { programs, fetchPrograms } = useProgramStore();
+  const { fetchPrograms } = useProgramStore();
+  const [programs, setPrograms] = useState<Program[]>([]);
   const [editingProgram, setEditingProgram] = useState<Program | null>(null);
   const [creatingProgram, setCreatingProgram] = useState(false);
   const [deletingProgramId, setDeletingProgramId] = useState<string | null>(null);
 
+  // Admin fetches ALL programs (active + inactive) — store only fetches active ones
+  const loadAllPrograms = async () => {
+    const { data } = await supabase.from('programs').select('*').order('created_at');
+    if (data) setPrograms(data as Program[]);
+  };
+
   useEffect(() => {
-    fetchPrograms();
-  }, [fetchPrograms]);
+    loadAllPrograms();
+  }, []);
 
   const handleToggleActive = async (program: Program) => {
     await supabase.from('programs').update({ is_active: !program.is_active } as any).eq('id', program.id);
+    loadAllPrograms();
+    // Also refresh the user-facing store so the Tracks library updates
     fetchPrograms();
     toast.success(program.is_active ? "Program deactivated" : "Program activated");
   };
@@ -710,12 +719,14 @@ export function ProgramAdmin() {
   const handleDeleteProgram = async () => {
     if (!deletingProgramId) return;
     await supabase.from('programs').delete().eq('id', deletingProgramId);
+    loadAllPrograms();
     fetchPrograms();
     setDeletingProgramId(null);
     toast.success("Program deleted");
   };
 
   const onSave = () => {
+    loadAllPrograms();
     fetchPrograms();
     setEditingProgram(null);
     setCreatingProgram(false);
