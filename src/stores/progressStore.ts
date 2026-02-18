@@ -207,8 +207,9 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
+      // Use the safe view that excludes OAuth token columns (access_token, refresh_token, token_expires_at)
       const { data, error } = await supabase
-        .from('user_wearable_connections')
+        .from('user_wearable_connections_safe')
         .select('id, user_id, device_type, is_connected, last_sync_at, sync_error, created_at, updated_at')
         .eq('user_id', user.id);
 
