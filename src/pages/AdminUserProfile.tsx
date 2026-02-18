@@ -7,19 +7,33 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
-  ChevronLeft, User, Dumbbell, Award, Heart, Target, MessageSquare, Scale, Mail, Calendar,
+  ChevronLeft, User, Dumbbell, Award, Heart, Target, MessageSquare, Scale, Mail, Calendar, Send,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
+import { useAuthStore } from "@/stores/authStore";
+import { useCommunityStore } from "@/stores/communityStore";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { toast } from "@/hooks/use-toast";
 
 export default function AdminUserProfile() {
   const { userId } = useParams<{ userId: string }>();
   const { isAdmin, isLoading: adminLoading } = useAdminCheck();
   const navigate = useNavigate();
+  const { user: adminUser } = useAuthStore();
+  const { sendDirectMessage, fetchDirectMessages, directMessages } = useCommunityStore();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [dmContent, setDmContent] = useState('');
+  const [dmSending, setDmSending] = useState(false);
+
+  // DMs sent to this specific user
+  const dmHistory = directMessages.filter(
+    dm => dm.to_user_id === userId || dm.from_user_id === userId
+  );
 
   useEffect(() => {
     if (adminLoading) return;
@@ -41,6 +55,29 @@ export default function AdminUserProfile() {
     }
     fetchProfile();
   }, [isAdmin, adminLoading, userId, navigate]);
+
+  // Load DM history
+  useEffect(() => {
+    if (adminUser && isAdmin) {
+      fetchDirectMessages(adminUser.id);
+    }
+  }, [adminUser, isAdmin, fetchDirectMessages]);
+
+  const handleSendDm = async () => {
+    if (!dmContent.trim() || !adminUser || !userId) return;
+    setDmSending(true);
+    try {
+      await sendDirectMessage(adminUser.id, userId, dmContent.trim());
+      setDmContent('');
+      toast({ title: 'Message sent', description: 'Your private message has been sent.' });
+      // Refresh DMs
+      fetchDirectMessages(adminUser.id);
+    } catch (e) {
+      toast({ title: 'Failed to send', description: 'Could not send message.', variant: 'destructive' });
+    } finally {
+      setDmSending(false);
+    }
+  };
 
   if (adminLoading || loading) {
     return (
@@ -303,6 +340,65 @@ export default function AdminUserProfile() {
             </Card>
           </section>
         )}
+
+        {/* Private Message Section */}
+        <section className="space-y-3">
+          <Badge variant="data" className="text-xs">PRIVATE MESSAGE</Badge>
+          <Card className="glass border-border/50 border-primary/20">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Send className="h-4 w-4 text-primary" />
+                Send Private Message to {p?.display_name || 'this user'}
+              </CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Only you and this user can see this message. It will appear in their private Coach Messages section.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex gap-2">
+                <Textarea
+                  value={dmContent}
+                  onChange={(e) => setDmContent(e.target.value)}
+                  placeholder={`Write a private note for ${p?.display_name || 'this user'}...`}
+                  className="flex-1 min-h-[80px] resize-none text-sm"
+                  disabled={dmSending}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleSendDm();
+                  }}
+                />
+                <Button
+                  onClick={handleSendDm}
+                  disabled={!dmContent.trim() || dmSending}
+                  className="self-end"
+                >
+                  <Send className="h-4 w-4 mr-2" />Send
+                </Button>
+              </div>
+
+              {/* DM History */}
+              {dmHistory.length > 0 && (
+                <div className="mt-4 space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Message History</p>
+                  {dmHistory.slice(-10).map((dm) => (
+                    <div key={dm.id} className={`flex items-start gap-2 ${dm.from_user_id === adminUser?.id ? '' : 'flex-row-reverse'}`}>
+                      <div className={`px-3 py-2 rounded-lg text-sm max-w-[85%] ${
+                        dm.from_user_id === adminUser?.id
+                          ? 'bg-primary/10 border border-primary/20'
+                          : 'bg-secondary/50 border border-border'
+                      }`}>
+                        <p>{dm.content}</p>
+                        <p className="text-[10px] text-muted-foreground mt-1">
+                          {format(new Date(dm.created_at), "MMM d, h:mm a")}
+                          {dm.is_read && dm.from_user_id === adminUser?.id && ' · Read'}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </section>
       </main>
     </div>
   );

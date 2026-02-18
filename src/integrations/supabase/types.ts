@@ -73,6 +73,36 @@ export type Database = {
         }
         Relationships: []
       }
+      community_channels: {
+        Row: {
+          category: string
+          created_at: string
+          description: string | null
+          id: string
+          is_locked: boolean
+          name: string
+          order_index: number
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_locked?: boolean
+          name: string
+          order_index?: number
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_locked?: boolean
+          name?: string
+          order_index?: number
+        }
+        Relationships: []
+      }
       community_likes: {
         Row: {
           created_at: string
@@ -104,6 +134,7 @@ export type Database = {
       }
       community_messages: {
         Row: {
+          channel_id: string | null
           content: string
           created_at: string
           id: string
@@ -114,6 +145,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          channel_id?: string | null
           content: string
           created_at?: string
           id?: string
@@ -124,6 +156,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          channel_id?: string | null
           content?: string
           created_at?: string
           id?: string
@@ -134,6 +167,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "community_messages_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "community_channels"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "community_messages_parent_id_fkey"
             columns: ["parent_id"]
@@ -189,6 +229,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      direct_messages: {
+        Row: {
+          content: string
+          created_at: string
+          from_user_id: string
+          id: string
+          is_read: boolean
+          to_user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          from_user_id: string
+          id?: string
+          is_read?: boolean
+          to_user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          from_user_id?: string
+          id?: string
+          is_read?: boolean
+          to_user_id?: string
+        }
+        Relationships: []
       }
       exercise_sets: {
         Row: {

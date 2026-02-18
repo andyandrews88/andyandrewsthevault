@@ -8,10 +8,21 @@ export interface UserProfile {
   is_coach: boolean;
 }
 
+export interface CommunityChannel {
+  id: string;
+  name: string;
+  description: string | null;
+  category: string;
+  order_index: number;
+  is_locked: boolean;
+  created_at: string;
+}
+
 export interface CommunityMessage {
   id: string;
   user_id: string;
   parent_id: string | null;
+  channel_id: string | null;
   content: string;
   is_thread_root: boolean;
   likes_count: number;
@@ -19,18 +30,37 @@ export interface CommunityMessage {
   updated_at: string;
   user_profile?: UserProfile;
   reply_count?: number;
+  isOptimistic?: boolean;
+}
+
+export interface DirectMessage {
+  id: string;
+  from_user_id: string;
+  to_user_id: string;
+  content: string;
+  is_read: boolean;
+  created_at: string;
+  from_profile?: UserProfile;
 }
 
 interface CommunityState {
   posts: CommunityMessage[];
+  channels: CommunityChannel[];
+  activeChannelId: string | null;
   currentThread: CommunityMessage | null;
   threadReplies: CommunityMessage[];
   userLikes: Set<string>;
   isLoading: boolean;
+  isChannelsLoading: boolean;
   threadDrawerOpen: boolean;
   profileCache: Map<string, UserProfile>;
-  
+  directMessages: DirectMessage[];
+  unreadDmCount: number;
+  activeDmUserId: string | null;
+
   // Actions
+  fetchChannels: () => Promise<void>;
+  setActiveChannel: (channelId: string) => void;
   fetchPosts: () => Promise<void>;
   fetchThread: (messageId: string) => Promise<void>;
   fetchUserLikes: (userId: string) => Promise<void>;
@@ -44,16 +74,29 @@ interface CommunityState {
   addRealtimePost: (post: CommunityMessage) => void;
   removeRealtimePost: (postId: string) => void;
   updateRealtimePost: (post: CommunityMessage) => void;
+
+  // DM actions
+  fetchDirectMessages: (currentUserId: string) => Promise<void>;
+  sendDirectMessage: (fromUserId: string, toUserId: string, content: string) => Promise<void>;
+  markDmsRead: (fromUserId: string, currentUserId: string) => Promise<void>;
+  setActiveDmUser: (userId: string | null) => void;
+  addRealtimeDm: (dm: DirectMessage) => void;
 }
 
 export const useCommunityStore = create<CommunityState>((set, get) => ({
   posts: [],
+  channels: [],
+  activeChannelId: null,
   currentThread: null,
   threadReplies: [],
   userLikes: new Set(),
   isLoading: false,
+  isChannelsLoading: false,
   threadDrawerOpen: false,
   profileCache: new Map(),
+  directMessages: [],
+  unreadDmCount: 0,
+  activeDmUserId: null,
 
   fetchProfile: async (userId: string) => {
     const { profileCache } = get();
@@ -85,15 +128,49 @@ export const useCommunityStore = create<CommunityState>((set, get) => ({
     return profile;
   },
 
+  fetchChannels: async () => {
+    set({ isChannelsLoading: true });
+    try {
+      const { data, error } = await supabase
+        .from('community_channels')
+        .select('*')
+        .order('order_index', { ascending: true });
+
+      if (error) throw error;
+
+      const channels = (data || []) as CommunityChannel[];
+      set({ channels, isChannelsLoading: false });
+
+      // Auto-select 'general' if no active channel
+      const { activeChannelId } = get();
+      if (!activeChannelId && channels.length > 0) {
+        const general = channels.find(c => c.name === 'general') || channels[0];
+        set({ activeChannelId: general.id });
+        get().fetchPosts();
+      }
+    } catch (error) {
+      console.error('Error fetching channels:', error);
+      set({ isChannelsLoading: false });
+    }
+  },
+
+  setActiveChannel: (channelId: string) => {
+    set({ activeChannelId: channelId, posts: [], activeDmUserId: null });
+    get().fetchPosts();
+  },
+
   fetchPosts: async () => {
+    const { activeChannelId } = get();
+    if (!activeChannelId) return;
+
     set({ isLoading: true });
     try {
-      // Get all root posts
       const { data: posts, error: postsError } = await supabase
         .from('community_messages')
         .select('*')
         .is('parent_id', null)
-        .order('created_at', { ascending: false });
+        .eq('channel_id', activeChannelId)
+        .order('created_at', { ascending: true });
 
       if (postsError) throw postsError;
 
@@ -114,7 +191,6 @@ export const useCommunityStore = create<CommunityState>((set, get) => ({
         return acc;
       }, {} as Record<string, number>);
 
-      // Fetch profiles for each post
       const { fetchProfile } = get();
       const postsWithProfiles = await Promise.all(
         posts.map(async (post) => {
@@ -138,7 +214,6 @@ export const useCommunityStore = create<CommunityState>((set, get) => ({
     try {
       const { fetchProfile } = get();
 
-      // Get the parent message
       const { data: parent, error: parentError } = await supabase
         .from('community_messages')
         .select('*')
@@ -149,7 +224,6 @@ export const useCommunityStore = create<CommunityState>((set, get) => ({
 
       const parentProfile = await fetchProfile(parent.user_id);
 
-      // Get replies
       const { data: replies, error: repliesError } = await supabase
         .from('community_messages')
         .select('*')
@@ -194,35 +268,63 @@ export const useCommunityStore = create<CommunityState>((set, get) => ({
   },
 
   createPost: async (content: string, userId: string) => {
+    const { activeChannelId, fetchProfile } = get();
+    if (!activeChannelId) return;
+
+    // Optimistic update
+    const optimisticId = `optimistic-${Date.now()}`;
+    const profile = await fetchProfile(userId);
+
+    const optimisticPost: CommunityMessage = {
+      id: optimisticId,
+      user_id: userId,
+      parent_id: null,
+      channel_id: activeChannelId,
+      content,
+      is_thread_root: true,
+      likes_count: 0,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      user_profile: profile || undefined,
+      reply_count: 0,
+      isOptimistic: true,
+    };
+
+    set((state) => ({ posts: [...state.posts, optimisticPost] }));
+
     try {
       const { error } = await supabase
         .from('community_messages')
         .insert({
           content,
           user_id: userId,
+          channel_id: activeChannelId,
           is_thread_root: true,
         });
 
       if (error) throw error;
-      // Realtime will handle adding the post
+      // Realtime will replace the optimistic post
     } catch (error) {
+      // Rollback optimistic update
+      set((state) => ({ posts: state.posts.filter(p => p.id !== optimisticId) }));
       console.error('Error creating post:', error);
     }
   },
 
   createReply: async (content: string, parentId: string, userId: string) => {
     try {
+      const { activeChannelId } = get();
       const { error } = await supabase
         .from('community_messages')
         .insert({
           content,
           user_id: userId,
           parent_id: parentId,
+          channel_id: activeChannelId,
           is_thread_root: false,
         });
 
       if (error) throw error;
-      // Refresh thread to show new reply
       await get().fetchThread(parentId);
     } catch (error) {
       console.error('Error creating reply:', error);
@@ -233,7 +335,6 @@ export const useCommunityStore = create<CommunityState>((set, get) => ({
     const { userLikes } = get();
     const isLiked = userLikes.has(messageId);
 
-    // Optimistic update
     const newLikes = new Set(userLikes);
     if (isLiked) {
       newLikes.delete(messageId);
@@ -241,6 +342,15 @@ export const useCommunityStore = create<CommunityState>((set, get) => ({
       newLikes.add(messageId);
     }
     set({ userLikes: newLikes });
+
+    // Optimistic like count update
+    set((state) => ({
+      posts: state.posts.map(p =>
+        p.id === messageId
+          ? { ...p, likes_count: p.likes_count + (isLiked ? -1 : 1) }
+          : p
+      ),
+    }));
 
     try {
       if (isLiked) {
@@ -258,12 +368,16 @@ export const useCommunityStore = create<CommunityState>((set, get) => ({
 
         if (error) throw error;
       }
-      
-      // Refresh posts to get updated like counts
-      await get().fetchPosts();
     } catch (error) {
-      // Rollback on error
+      // Rollback
       set({ userLikes });
+      set((state) => ({
+        posts: state.posts.map(p =>
+          p.id === messageId
+            ? { ...p, likes_count: p.likes_count + (isLiked ? 1 : -1) }
+            : p
+        ),
+      }));
       console.error('Error toggling like:', error);
     }
   },
@@ -276,7 +390,6 @@ export const useCommunityStore = create<CommunityState>((set, get) => ({
         .eq('id', messageId);
 
       if (error) throw error;
-      // Realtime will handle removing the post
     } catch (error) {
       console.error('Error deleting post:', error);
     }
@@ -292,23 +405,30 @@ export const useCommunityStore = create<CommunityState>((set, get) => ({
   },
 
   addRealtimePost: async (post: CommunityMessage) => {
-    const { fetchProfile } = get();
+    const { fetchProfile, activeChannelId } = get();
+
+    // Only show posts for the active channel
+    if (post.channel_id !== activeChannelId) return;
+
+    // Remove any optimistic post with same content from same user
+    set((state) => ({
+      posts: state.posts.filter(p => !p.isOptimistic || p.user_id !== post.user_id),
+    }));
+
     const profile = await fetchProfile(post.user_id);
     const postWithProfile = { ...post, user_profile: profile || undefined };
 
-    if (post.is_thread_root) {
+    if (post.is_thread_root || !post.parent_id) {
       set((state) => ({
-        posts: [{ ...postWithProfile, reply_count: 0 }, ...state.posts],
+        posts: [...state.posts.filter(p => !p.isOptimistic), { ...postWithProfile, reply_count: 0 }],
       }));
     } else {
-      // It's a reply - add to thread if viewing
       const { currentThread } = get();
       if (currentThread && post.parent_id === currentThread.id) {
         set((state) => ({
           threadReplies: [...state.threadReplies, postWithProfile],
         }));
       }
-      // Update reply count on parent post
       set((state) => ({
         posts: state.posts.map((p) =>
           p.id === post.parent_id
@@ -336,6 +456,87 @@ export const useCommunityStore = create<CommunityState>((set, get) => ({
         state.currentThread?.id === post.id
           ? { ...state.currentThread, ...post }
           : state.currentThread,
+    }));
+  },
+
+  // DM actions
+  fetchDirectMessages: async (currentUserId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('direct_messages')
+        .select('*')
+        .or(`to_user_id.eq.${currentUserId},from_user_id.eq.${currentUserId}`)
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+
+      const { fetchProfile } = get();
+      const dmsWithProfiles = await Promise.all(
+        (data || []).map(async (dm) => {
+          const fromProfile = await fetchProfile(dm.from_user_id);
+          return { ...dm, from_profile: fromProfile || undefined } as DirectMessage;
+        })
+      );
+
+      const unreadCount = dmsWithProfiles.filter(
+        dm => dm.to_user_id === currentUserId && !dm.is_read
+      ).length;
+
+      set({ directMessages: dmsWithProfiles, unreadDmCount: unreadCount });
+    } catch (error) {
+      console.error('Error fetching DMs:', error);
+    }
+  },
+
+  sendDirectMessage: async (fromUserId: string, toUserId: string, content: string) => {
+    try {
+      const { error } = await supabase
+        .from('direct_messages')
+        .insert({ from_user_id: fromUserId, to_user_id: toUserId, content });
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error sending DM:', error);
+      throw error;
+    }
+  },
+
+  markDmsRead: async (fromUserId: string, currentUserId: string) => {
+    try {
+      await supabase
+        .from('direct_messages')
+        .update({ is_read: true })
+        .eq('from_user_id', fromUserId)
+        .eq('to_user_id', currentUserId)
+        .eq('is_read', false);
+
+      set((state) => ({
+        directMessages: state.directMessages.map(dm =>
+          dm.from_user_id === fromUserId && dm.to_user_id === currentUserId
+            ? { ...dm, is_read: true }
+            : dm
+        ),
+        unreadDmCount: Math.max(0, state.unreadDmCount - state.directMessages.filter(
+          dm => dm.from_user_id === fromUserId && dm.to_user_id === currentUserId && !dm.is_read
+        ).length),
+      }));
+    } catch (error) {
+      console.error('Error marking DMs read:', error);
+    }
+  },
+
+  setActiveDmUser: (userId: string | null) => {
+    set({ activeDmUserId: userId, activeChannelId: userId ? null : get().activeChannelId });
+  },
+
+  addRealtimeDm: async (dm: DirectMessage) => {
+    const { fetchProfile } = get();
+    const fromProfile = await fetchProfile(dm.from_user_id);
+    const dmWithProfile = { ...dm, from_profile: fromProfile || undefined };
+
+    set((state) => ({
+      directMessages: [...state.directMessages, dmWithProfile],
+      unreadDmCount: state.unreadDmCount + (dm.is_read ? 0 : 1),
     }));
   },
 }));

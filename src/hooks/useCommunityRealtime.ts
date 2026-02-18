@@ -1,12 +1,14 @@
 import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useCommunityStore, CommunityMessage } from '@/stores/communityStore';
+import { useCommunityStore, CommunityMessage, DirectMessage } from '@/stores/communityStore';
+import { useAuthStore } from '@/stores/authStore';
 
 export function useCommunityRealtime() {
-  const { addRealtimePost, removeRealtimePost, updateRealtimePost, fetchPosts } = useCommunityStore();
+  const { addRealtimePost, removeRealtimePost, updateRealtimePost, fetchPosts, activeChannelId, addRealtimeDm } = useCommunityStore();
+  const { user } = useAuthStore();
 
   useEffect(() => {
-    const channel = supabase
+    const channelSub = supabase
       .channel('community_messages_realtime')
       .on(
         'postgres_changes',
@@ -45,11 +47,40 @@ export function useCommunityRealtime() {
       )
       .subscribe();
 
-    // Initial fetch
-    fetchPosts();
+    return () => {
+      supabase.removeChannel(channelSub);
+    };
+  }, [addRealtimePost, removeRealtimePost, updateRealtimePost, activeChannelId]);
+
+  // DM realtime subscription
+  useEffect(() => {
+    if (!user) return;
+
+    const dmSub = supabase
+      .channel('direct_messages_realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'direct_messages',
+          filter: `to_user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          addRealtimeDm(payload.new as DirectMessage);
+        }
+      )
+      .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(dmSub);
     };
-  }, [addRealtimePost, removeRealtimePost, updateRealtimePost, fetchPosts]);
+  }, [user, addRealtimeDm]);
+
+  // Re-fetch when channel changes
+  useEffect(() => {
+    if (activeChannelId) {
+      fetchPosts();
+    }
+  }, [activeChannelId, fetchPosts]);
 }

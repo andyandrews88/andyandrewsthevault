@@ -6,11 +6,45 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer, Legend } from "recharts";
-import { AlertTriangle, CheckCircle, ArrowRight, RotateCcw, Lock, Info, ExternalLink, Sparkles, RefreshCw } from "lucide-react";
+import { AlertTriangle, CheckCircle, RotateCcw, Info, ExternalLink, Sparkles, RefreshCw, MessageSquare, UserPlus } from "lucide-react";
 import { Link } from "react-router-dom";
 import { getRecommendedResources } from "@/data/resources";
 import { RecommendedResources } from "./RecommendedResources";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuthStore } from "@/stores/authStore";
+
+function CommunityCtaCard() {
+  const { user } = useAuthStore();
+  const navigate = useNavigate();
+
+  if (user) {
+    return (
+      <Card variant="interactive" className="p-6">
+        <h3 className="font-semibold mb-2">Ask a Question</h3>
+        <p className="text-sm text-muted-foreground mb-4">
+          Share your results or ask Andy a question in the community
+        </p>
+        <Button variant="hero" className="w-full" onClick={() => navigate('/vault?tab=community')}>
+          <MessageSquare className="w-4 h-4 mr-2" />Post in Community
+        </Button>
+      </Card>
+    );
+  }
+
+  return (
+    <Card variant="interactive" className="p-6">
+      <h3 className="font-semibold mb-2">Join The Vault Free</h3>
+      <p className="text-sm text-muted-foreground mb-4">
+        Access the community, vault library, and track your progress
+      </p>
+      <Link to="/auth">
+        <Button variant="hero" className="w-full">
+          <UserPlus className="w-4 h-4 mr-2" />Create Free Account
+        </Button>
+      </Link>
+    </Card>
+  );
+}
 
 const tierBadges = {
   foundation: 'outline' as const,
@@ -292,15 +326,7 @@ export function ResultsPage() {
 
         {/* CTAs */}
         <div className="grid md:grid-cols-2 gap-4">
-          <Card variant="interactive" className="p-6">
-            <h3 className="font-semibold mb-2">Access The Vault</h3>
-            <p className="text-sm text-muted-foreground mb-4">Get full access to movement blueprints and training resources</p>
-            <Link to="/auth">
-              <Button variant="hero" className="w-full">
-                <Lock className="w-4 h-4 mr-2" />Join The Vault - $49/mo
-              </Button>
-            </Link>
-          </Card>
+          <CommunityCtaCard />
           <Card variant="interactive" className="p-6">
             <h3 className="font-semibold mb-2">Retake Assessment</h3>
             <p className="text-sm text-muted-foreground mb-4">Made an error? Start over with fresh data</p>

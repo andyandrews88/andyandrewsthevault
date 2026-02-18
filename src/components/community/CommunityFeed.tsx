@@ -1,81 +1,68 @@
-import { useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
+import { useEffect, useState } from 'react';
+import { Menu } from 'lucide-react';
 import { useCommunityStore } from '@/stores/communityStore';
 import { useCommunityRealtime } from '@/hooks/useCommunityRealtime';
 import { useAuthStore } from '@/stores/authStore';
-import { PostCard } from './PostCard';
-import { PostComposer } from './PostComposer';
-import { ThreadDrawer } from './ThreadDrawer';
+import { ChannelSidebar } from './ChannelSidebar';
+import { ChannelFeed } from './ChannelFeed';
+import { DirectMessagePane } from './DirectMessagePane';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Button } from '@/components/ui/button';
 
 export function CommunityFeed() {
-  const { posts, isLoading, fetchUserLikes } = useCommunityStore();
+  const { fetchChannels, activeDmUserId, fetchDirectMessages, channels, activeChannelId, setActiveChannel } = useCommunityStore();
   const { user } = useAuthStore();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Subscribe to realtime updates
   useCommunityRealtime();
 
-  // Fetch user's likes when logged in
+  // Boot: load channels
   useEffect(() => {
-    if (user) {
-      fetchUserLikes(user.id);
-    }
-  }, [user, fetchUserLikes]);
+    fetchChannels();
+  }, [fetchChannels]);
+
+  // Load DMs on mount if user is logged in
+  useEffect(() => {
+    if (user) fetchDirectMessages(user.id);
+  }, [user, fetchDirectMessages]);
 
   return (
-    <>
-      <div className="space-y-6">
-        {/* Page Description */}
-        <div className="text-center mb-6">
-          <Badge variant="elite" className="mb-3">COMMUNITY HUB</Badge>
-          <h2 className="text-xl md:text-2xl font-bold mb-2">Connect & Share</h2>
-          <p className="text-muted-foreground text-sm md:text-base max-w-xl mx-auto">
-            Share your progress, ask questions, and connect with fellow athletes on their performance journey.
-          </p>
+    <div className="rounded-xl border border-border overflow-hidden" style={{ height: 'calc(100vh - 200px)', minHeight: '520px' }}>
+      {/* Desktop layout: sidebar + feed */}
+      <div className="hidden md:flex h-full">
+        <div className="w-56 flex-shrink-0">
+          <ChannelSidebar />
         </div>
-
-        <Card variant="elevated">
-          <CardHeader>
-            <CardTitle>Community Feed</CardTitle>
-            <CardDescription>Share insights, ask questions, and connect with fellow athletes</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* New post composer */}
-            <PostComposer />
-
-            {/* Posts */}
-            <div className="space-y-4">
-              {isLoading ? (
-                // Loading skeleton
-                Array.from({ length: 3 }).map((_, i) => (
-                  <div key={i} className="p-4 rounded-lg border">
-                    <div className="flex items-start gap-3">
-                      <Skeleton className="h-10 w-10 rounded-full" />
-                      <div className="flex-1 space-y-2">
-                        <Skeleton className="h-4 w-24" />
-                        <Skeleton className="h-4 w-full" />
-                        <Skeleton className="h-4 w-3/4" />
-                      </div>
-                    </div>
-                  </div>
-                ))
-              ) : posts.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <p>No posts yet. Be the first to share!</p>
-                </div>
-              ) : (
-                posts.map((post) => (
-                  <PostCard key={post.id} post={post} />
-                ))
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        <div className="flex-1 min-w-0">
+          {activeDmUserId ? <DirectMessagePane /> : <ChannelFeed />}
+        </div>
       </div>
 
-      {/* Thread Drawer */}
-      <ThreadDrawer />
-    </>
+      {/* Mobile layout */}
+      <div className="flex flex-col h-full md:hidden">
+        {/* Mobile channel header with hamburger */}
+        <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-[hsl(220_16%_7%)] flex-shrink-0">
+          <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <Menu className="w-4 h-4" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="p-0 w-64 bg-[hsl(220_16%_7%)] border-border">
+              <ChannelSidebar onClose={() => setMobileMenuOpen(false)} />
+            </SheetContent>
+          </Sheet>
+          <span className="text-sm font-medium text-muted-foreground">
+            {activeDmUserId ? 'Coach Messages' : channels.find(c => c.id === activeChannelId)?.name ? `#${channels.find(c => c.id === activeChannelId)?.name}` : 'Community'}
+          </span>
+        </div>
+
+        {/* Mobile feed */}
+        <div className="flex-1 min-h-0">
+          {activeDmUserId ? <DirectMessagePane /> : <ChannelFeed />}
+        </div>
+      </div>
+    </div>
   );
 }
