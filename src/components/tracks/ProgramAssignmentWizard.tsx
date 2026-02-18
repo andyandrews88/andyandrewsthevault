@@ -95,9 +95,13 @@ export function ProgramAssignmentWizard({ program, open, onClose }: Props) {
       });
       handleOpenChange(false);
     } catch (err: any) {
+      const msg = err?.message ?? '';
+      const friendly = msg.includes('duplicate key') || msg.includes('unique constraint')
+        ? 'You are already enrolled in this program. Please unenroll first before re-enrolling.'
+        : msg || 'Something went wrong. Please try again.';
       toast({
         title: "Enrollment failed",
-        description: err?.message ?? "Please try again.",
+        description: friendly,
         variant: "destructive",
       });
     }

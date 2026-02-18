@@ -180,23 +180,32 @@ export const useProgramStore = create<ProgramState>((set, get) => ({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      // 1. Insert enrollment
+      // 1. UPSERT enrollment — handles both new enrollment and re-enrollment after cancellation
       const { data: enrollment, error: enrollError } = await supabase
         .from('user_program_enrollments')
-        .insert({
-          user_id: user.id,
-          program_id: programId,
-          start_date: format(startDate, 'yyyy-MM-dd'),
-          training_days: trainingDays,
-          status: 'active',
-          addon_placement: addonPlacement || null,
-        })
+        .upsert(
+          {
+            user_id: user.id,
+            program_id: programId,
+            start_date: format(startDate, 'yyyy-MM-dd'),
+            training_days: trainingDays,
+            status: 'active',
+            addon_placement: addonPlacement || null,
+          },
+          { onConflict: 'user_id,program_id' }
+        )
         .select()
         .single();
 
       if (enrollError) throw enrollError;
 
-      // 2. Fetch program workouts (all weeks, sorted)
+      // 2. Delete old calendar workouts for this enrollment so we get a fresh schedule
+      await supabase
+        .from('user_calendar_workouts')
+        .delete()
+        .eq('enrollment_id', enrollment.id);
+
+      // 3. Fetch program workouts (all weeks, sorted)
       const { data: programWorkouts, error: pwError } = await supabase
         .from('program_workouts')
         .select('id, week_number, day_number')
@@ -207,10 +216,10 @@ export const useProgramStore = create<ProgramState>((set, get) => ({
       if (pwError) throw pwError;
       if (!programWorkouts || programWorkouts.length === 0) return;
 
-      // 3. Build calendar dates
+      // 4. Build calendar dates
       const calendarDates = buildCalendarDates(programWorkouts, startDate, trainingDays);
 
-      // 4. Batch insert calendar workouts
+      // 5. Batch insert fresh calendar workouts
       const insertRows = calendarDates.map(({ program_workout_id, scheduled_date }) => ({
         user_id: user.id,
         enrollment_id: enrollment.id,
@@ -225,7 +234,7 @@ export const useProgramStore = create<ProgramState>((set, get) => ({
 
       if (calError) throw calError;
 
-      // 5. Refresh state
+      // 6. Refresh state
       await get().fetchEnrollments();
       await get().fetchTodaysWorkouts();
       set({ activeProgramId: programId });
@@ -240,6 +249,15 @@ export const useProgramStore = create<ProgramState>((set, get) => ({
       .update({ status: 'cancelled' })
       .eq('id', enrollmentId);
     if (!error) {
+      // Delete future incomplete calendar workouts so they no longer show on the calendar
+      const today = format(new Date(), 'yyyy-MM-dd');
+      await supabase
+        .from('user_calendar_workouts')
+        .delete()
+        .eq('enrollment_id', enrollmentId)
+        .eq('is_completed', false)
+        .gte('scheduled_date', today);
+
       await get().fetchEnrollments();
       await get().fetchTodaysWorkouts();
     }
