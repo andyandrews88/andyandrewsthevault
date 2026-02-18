@@ -25,7 +25,9 @@ Deno.serve(async (req) => {
     const { data: roleData } = await admin.from("user_roles").select("role").eq("user_id", user.id).eq("role", "admin").maybeSingle();
     if (!roleData) throw new Error("Not admin");
 
-    const { section } = await req.json();
+    const body = await req.json();
+    const { section } = body || {};
+    if (!section) throw new Error("Missing section parameter");
 
     const now = new Date();
     const weekAgo = new Date(now.getTime() - 7 * 86400000).toISOString();
