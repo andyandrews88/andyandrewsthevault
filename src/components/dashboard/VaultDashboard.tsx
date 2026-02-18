@@ -7,12 +7,22 @@ import { AnnouncementBanner } from "./AnnouncementBanner";
 import { GoalsPanel } from "@/components/goals/GoalsPanel";
 import { useDashboardStore } from "@/stores/dashboardStore";
 import { Badge } from "@/components/ui/badge";
+import { NotificationSettings } from "@/components/vault/NotificationSettings";
+import { useNotificationStore } from "@/stores/notificationStore";
+import { useAuthStore } from "@/stores/authStore";
+
 export function VaultDashboard() {
   const { fetchAll, isLoading } = useDashboardStore();
+  const { checkForNewAnnouncements, loadNotificationPrefs } = useNotificationStore();
+  const { user } = useAuthStore();
 
   useEffect(() => {
     fetchAll();
-  }, [fetchAll]);
+    checkForNewAnnouncements();
+    if (user?.id) {
+      loadNotificationPrefs(user.id);
+    }
+  }, [fetchAll, checkForNewAnnouncements, loadNotificationPrefs, user?.id]);
 
   if (isLoading) {
     return (
@@ -32,8 +42,11 @@ export function VaultDashboard() {
   return (
     <div className="space-y-6">
       <AnnouncementBanner />
-      <div className="text-center mb-2">
+      <div className="text-center mb-2 relative">
         <Badge variant="elite" className="mb-2">TODAY'S OVERVIEW</Badge>
+        <div className="absolute right-0 top-0">
+          <NotificationSettings />
+        </div>
       </div>
       <TodaySnapshot />
       <TrainingSuggestion />

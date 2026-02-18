@@ -19,11 +19,23 @@ import logo from "@/assets/logo.png";
 import { useAdminCheck } from "@/hooks/useAdminCheck";
 import { OnboardingWalkthrough } from "@/components/vault/OnboardingWalkthrough";
 import { useSearchParams } from "react-router-dom";
+import { useNotificationStore } from "@/stores/notificationStore";
+import { useCommunityStore } from "@/stores/communityStore";
 
 export function VaultDashboard() {
   const { isAdmin } = useAdminCheck();
   const [searchParams] = useSearchParams();
   const defaultTab = searchParams.get('tab') || 'dashboard';
+  const { hasNewAnnouncement, markCommunityVisited } = useNotificationStore();
+  const { unreadDmCount } = useCommunityStore();
+
+  const showCommunityDot = hasNewAnnouncement || unreadDmCount > 0;
+
+  const handleTabChange = (value: string) => {
+    if (value === 'community') {
+      markCommunityVisited();
+    }
+  };
 
   return (
     <div className="min-h-screen pt-24 pb-12">
@@ -59,7 +71,7 @@ export function VaultDashboard() {
         </div>
 
         {/* Main tabs */}
-        <Tabs defaultValue={defaultTab} className="space-y-6">
+        <Tabs defaultValue={defaultTab} className="space-y-6" onValueChange={handleTabChange}>
           <div className="overflow-x-auto scrollbar-hide -mx-4 px-4 md:-mx-6 md:px-6">
             <TabsList className="inline-flex w-max min-w-full gap-0.5 sm:gap-1 h-auto p-1">
               <TabsTrigger value="dashboard" className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-2 px-2 sm:px-3 py-2 sm:py-2.5 whitespace-nowrap min-w-[52px] sm:min-w-0" aria-label="Dashboard">
@@ -86,8 +98,13 @@ export function VaultDashboard() {
                 <Radio className="w-4 h-4" />
                 <span className="text-[10px] sm:text-sm leading-none">Podcast</span>
               </TabsTrigger>
-              <TabsTrigger value="community" className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-2 px-2 sm:px-3 py-2 sm:py-2.5 whitespace-nowrap min-w-[52px] sm:min-w-0" aria-label="Community">
-                <Users className="w-4 h-4" />
+              <TabsTrigger value="community" className="relative flex flex-col sm:flex-row items-center gap-0.5 sm:gap-2 px-2 sm:px-3 py-2 sm:py-2.5 whitespace-nowrap min-w-[52px] sm:min-w-0" aria-label="Community">
+                <div className="relative">
+                  <Users className="w-4 h-4" />
+                  {showCommunityDot && (
+                    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-destructive ring-1 ring-background" />
+                  )}
+                </div>
                 <span className="text-[10px] sm:text-sm leading-none">Community</span>
               </TabsTrigger>
               <TabsTrigger value="tracks" className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-2 px-2 sm:px-3 py-2 sm:py-2.5 whitespace-nowrap min-w-[52px] sm:min-w-0" aria-label="Tracks">
