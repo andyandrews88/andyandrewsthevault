@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dumbbell, BarChart3, CalendarDays } from "lucide-react";
 import { WorkoutLogger } from "./WorkoutLogger";
+import { ActiveProgramSwitcher } from "@/components/tracks/ActiveProgramSwitcher";
 import { StrengthTrendChart } from "./StrengthTrendChart";
 import { VolumeTrendChart } from "./VolumeTrendChart";
 import { ActivityHeatmap } from "./ActivityHeatmap";
@@ -39,7 +40,10 @@ export function WorkoutTab() {
         </TabsList>
 
         <TabsContent value="logger">
-          <WorkoutLogger onBack={() => {}} />
+          <div className="space-y-4">
+            <ActiveProgramSwitcher />
+            <WorkoutLogger onBack={() => {}} />
+          </div>
         </TabsContent>
 
         <TabsContent value="calendar">
