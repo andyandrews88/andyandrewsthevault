@@ -1,297 +1,207 @@
 
-# The TrainHeroic Engine: Program Library & Calendar Assignment
+# Fix: Program Enrollment + Workout Calendar Integration
 
-## Overview
+## Root Cause Analysis (3 confirmed bugs)
 
-This builds a full program management system inside the existing **Tracks** tab. Users browse a library of free 12-week programs, assign one to their calendar via a wizard modal, then see their daily programmed workout appear on the Dashboard and Workouts tab. The Dashboard gets a Program Switcher for users enrolled in multiple programs.
+### Bug 1: Calendar dates start on the wrong day
+The `buildCalendarDates` function in `programStore.ts` has a logic error. When a user enrolled today (Wednesday Feb 18) with training days [Mon, Tue, Thu, Fri], the first workout was placed on **Feb 23 (Monday)** instead of **Feb 19 (Thursday)** — the nearest upcoming training day. The algorithm incorrectly seeks the first training day of the week array (Monday) instead of the nearest future training day from the start date.
 
----
-
-## What Already Exists (Kept As-Is)
-
-- The existing **Tracks** tab in `Vault.tsx` currently has a static "Foundation Track" card linking to CoachRx plus a "Performance Track (Coming Soon)" card and a "1-on-1 Coaching" card
-- These existing cards are **kept** — the new Program Library is added **below** them as a new section titled "Free Programs"
-- The existing `WorkoutLogger`, `WorkoutTab`, and all workout store logic remain unchanged
-
----
-
-## Database Architecture (4 new tables)
-
-### Table 1: `programs`
-Program metadata — one row per program.
-
-```sql
-CREATE TABLE public.programs (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  name text NOT NULL,               -- "Wendler 5/3/1"
-  slug text NOT NULL UNIQUE,        -- "wendler"
-  description text NOT NULL,
-  category text NOT NULL DEFAULT 'strength',  -- strength | conditioning | functional | oly | add-on
-  duration_weeks integer NOT NULL DEFAULT 12,
-  days_per_week integer NOT NULL,
-  difficulty text NOT NULL DEFAULT 'intermediate',  -- beginner | intermediate | advanced
-  program_style text,               -- "wendler" | "fbb" | "oly" | "running" | "rowing"
-  is_active boolean NOT NULL DEFAULT true,
-  created_at timestamptz NOT NULL DEFAULT now()
-);
+**Fix**: Rewrite `buildCalendarDates` with a clean, simple algorithm:
 ```
-
-### Table 2: `program_workouts`
-Template workouts — one row per workout within a program.
-
-```sql
-CREATE TABLE public.program_workouts (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  program_id uuid NOT NULL REFERENCES public.programs(id) ON DELETE CASCADE,
-  week_number integer NOT NULL,      -- 1-12
-  day_number integer NOT NULL,       -- 1-7 (day within the week's training schedule)
-  workout_name text NOT NULL,
-  exercises jsonb NOT NULL DEFAULT '[]',
-  -- Each exercise: { name, sets, reps, percentage_of_1rm, tempo, notes, rest_seconds }
-  notes text,
-  created_at timestamptz NOT NULL DEFAULT now()
-);
-```
-
-### Table 3: `user_program_enrollments`
-Tracks which programs a user is enrolled in and their start date.
-
-```sql
-CREATE TABLE public.user_program_enrollments (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid NOT NULL,
-  program_id uuid NOT NULL REFERENCES public.programs(id) ON DELETE CASCADE,
-  start_date date NOT NULL,
-  training_days integer[] NOT NULL DEFAULT '{1,3,5}',  -- 0=Sun, 1=Mon...6=Sat
-  status text NOT NULL DEFAULT 'active',               -- active | paused | completed
-  addon_placement text,                                -- for add-ons: "strength_days" | "rest_days"
-  created_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE(user_id, program_id)
-);
-```
-
-### Table 4: `user_calendar_workouts`
-The instantiated workouts placed on a user's personal calendar.
-
-```sql
-CREATE TABLE public.user_calendar_workouts (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid NOT NULL,
-  enrollment_id uuid NOT NULL REFERENCES public.user_program_enrollments(id) ON DELETE CASCADE,
-  program_workout_id uuid NOT NULL REFERENCES public.program_workouts(id),
-  scheduled_date date NOT NULL,
-  is_completed boolean NOT NULL DEFAULT false,
-  completed_at timestamptz,
-  created_at timestamptz NOT NULL DEFAULT now()
-);
-```
-
-**RLS Policies:**
-- `programs` and `program_workouts`: Public read (anyone authenticated), admin-only write
-- `user_program_enrollments` and `user_calendar_workouts`: Users can only read/write their own rows
-
-**Realtime:** Not needed for this feature.
-
----
-
-## Program Library (Seeded Data)
-
-Six programs are seeded into the `programs` table. All are 12 weeks, all free:
-
-| Program | Style | Days/Week | Difficulty | Category |
-|---------|-------|-----------|------------|----------|
-| Wendler 5/3/1 | wendler | 4 | intermediate | strength |
-| Functional Bodybuilding | fbb | 4 | intermediate | functional |
-| Olympic Weightlifting Foundations | oly | 4 | intermediate | oly |
-| Strength Foundation | foundation | 3 | beginner | strength |
-| Running Add-on | running | 3 | beginner | conditioning |
-| Rowing Add-on | rowing | 3 | beginner | conditioning |
-
-Each program's `program_workouts` are seeded with representative template exercises (Weeks 1–12, covering the full 12-week cycle), using the `exercises` JSONB field for each day.
-
----
-
-## UI: New Section in Tracks Tab
-
-The Tracks tab (`src/pages/Vault.tsx`) gets a new section **below** the existing cards:
-
-```
-[Existing: Foundation Track card]   [Existing: Performance Track card]
-[Existing: 1-on-1 Coaching card]
-
-────────────────────────────────────────────
-FREE PROGRAMS  (badge)
-"12-Week Training Programs — Free for All Vault Members"
-
-[Wendler 5/3/1]  [Functional BB]  [Oly Foundations]
-[Strength Found.] [Running Add-on] [Rowing Add-on]
-```
-
----
-
-## New Components
-
-### `src/components/tracks/ProgramLibrary.tsx`
-- Renders the grid of program cards (3 columns desktop, 2 tablet, 1 mobile)
-- Fetches from `programs` table and `user_program_enrollments` (to know which are already enrolled)
-- Each card shows: name, description, difficulty badge, days/week, duration badge ("12 WEEKS"), category icon
-- **Enrolled state**: button changes to "Enrolled ✓" in green, with a "View Progress" link
-- **Select button** opens the `ProgramAssignmentWizard`
-
-### `src/components/tracks/ProgramCard.tsx`
-Individual program card. Props: `program`, `isEnrolled`, `onSelect`.
-- Special styling for Wendler (strength-primary accent), FBB (functional orange), Add-ons (secondary)
-- "FREE" badge on every card
-
-### `src/components/tracks/ProgramAssignmentWizard.tsx`
-A Shadcn `Dialog` with a two-step wizard:
-
-**Step 1 — When do you start?**
-- Date picker (Shadcn Calendar in Popover, defaulting to today)
-- Info text: "Your first workout will be scheduled for [chosen date]"
-
-**Step 2 — Which days do you train?**
-- Multi-select day chips: M T W Th F Sa Su (toggleable buttons)
-- Pre-selects sensible defaults based on program's `days_per_week` (e.g., Wendler defaults M/Tu/Th/Fr)
-- For add-on programs (Running, Rowing): extra question: "Add to existing strength days or rest days?" toggle
-- Validation: must select exactly `program.days_per_week` days
-- Confirm button: "Start Program →"
-
-**On confirm:**
-1. Insert row into `user_program_enrollments`
-2. Call a function that maps `program_workouts` (week 1–12, day 1–N) onto the user's actual calendar dates based on start date and selected training days
-3. Insert all 12 weeks × days into `user_calendar_workouts` in one batch insert
-4. Show success toast: "Program started! Your first workout is [date]."
-5. Close dialog
-
-### `src/components/tracks/ProgramAssignmentWizard.tsx` — instantiation logic
-
-The instantiation algorithm:
-```
-trainDays = sorted array of day-of-week numbers (0=Sun...6=Sat)
 currentDate = startDate
-workoutIndex = 0 (iterating through sorted program_workouts by week+day)
-
-for each program_workout (sorted by week_number ASC, day_number ASC):
-  advance currentDate to next occurrence of trainDays[workoutIndex % trainDays.length]
-  insert user_calendar_workout(scheduled_date = currentDate, ...)
-  workoutIndex++
+for each programWorkout (sorted by week+day):
+  find the NEAREST upcoming day-of-week from currentDate that is in trainingDays
+  schedule this workout on that date
+  set currentDate = that date + 1  (advance past it so next workout searches forward)
 ```
 
-This ensures workouts land on the user's actual chosen training days, spanning ~12 weeks.
+### Bug 2: Running/Rowing add-on wizard is broken — Step 3 is never rendered
+In `ProgramAssignmentWizard.tsx`, the step counter shows "Step X of 3" for add-ons and the description mentions Step 3, but **the JSX only renders step 1 and step 2 blocks**. There is no `{step === 3 && ...}` block. So after the user picks days in Step 2 for an add-on, the "Start Program →" button is disabled (because `selectedDays.length !== requiredDays` until they fill in exactly the right count) and there's no way to reach confirmation.
+
+**Fix**: Add a proper Step 3 block for add-ons, OR (simpler and better UX) combine the add-on placement into Step 2 (it's already there in the JSX as `{isAddon && ...}`) and change the confirmation button logic so it works correctly. The "Start Program →" is disabled when day count doesn't match, but the real issue is that `isAddon && step === 2` already shows the placement toggle — the step 3 reference in the badge and description is a dead end. Fix: Remove the step 3 references, keep add-on placement in step 2, and let the confirm button work normally.
+
+### Bug 3: Program workouts never appear in the Workouts calendar
+The Workouts tab reads exclusively from `workouts` (free-log table). The `fetchWorkoutDays` function queries `workouts` for dot indicators. Program workouts in `user_calendar_workouts` are invisible to the calendar.
+
+**The fix requires two things:**
+1. `fetchWorkoutDays` in `workoutStore.ts` must also query `user_calendar_workouts` (scheduled dates) and merge them with free-log workout days
+2. When a user taps a date that has a programmed workout, the WorkoutLogger must show the program workout card above (or instead of) the "Start Workout" prompt
 
 ---
 
-## Wendler-Specific UI: Percentage Calculator
+## Implementation Plan
 
-**New: `src/components/tracks/WendlerPercentageCalc.tsx`**
+### File 1: `src/stores/programStore.ts` — Fix `buildCalendarDates`
 
-Shown inside the `DailyProgramWorkout` component (below) when the active program style is `"wendler"`.
-
-- Input: user enters their Training Max (1RM × 0.9 is the Wendler convention, but user just enters a number)
-- Displays a table:
-  | Week | 65% | 75% | 85% |
-  |------|-----|-----|-----|
-  | 1    | Xcalc | Xcalc | Xcalc |
-  | 2    | Xcalc | Xcalc | Xcalc |
-  | 3    | Xcalc | Xcalc | Xcalc |
-- Auto-calculates as user types, rounds to nearest 5 lbs (standard Wendler practice)
-- Compact card, collapses behind a "Show Calculator" button
-
----
-
-## FBB-Specific UI: Tempo Display
-
-When the active program style is `"fbb"`, exercises in the workout display a **Tempo** field prominently:
-- Shown as a styled badge: `30X1` in monospace font with a label "TEMPO"
-- Each exercise in the JSONB `exercises` field has a `tempo` property (e.g., `"30X1"` meaning 3s eccentric, 0 pause, explosive concentric, 1s top pause)
-- A small tooltip explains what the digits mean on hover
-
----
-
-## Dashboard Integration: Program Switcher
-
-**Modified: `src/components/dashboard/VaultDashboard.tsx`**
-
-If the user has any active enrollments, a new `ActiveProgramSwitcher` component is rendered at the top, before `AnnouncementBanner`.
-
-### `src/components/tracks/ActiveProgramSwitcher.tsx`
-- Fetches `user_program_enrollments` + today's `user_calendar_workouts`
-- If only one active program: shows a single card "Today: [Workout Name]" with a progress ring
-- If multiple active programs: shows a horizontal tab bar (Shadcn Tabs) — one tab per program
-- Each tab label shows a **progress ring** (SVG circle, filled based on `completed / total` calendar workouts)
-- Selecting a tab sets `activeProgramId` in local state
-- Below the tabs: shows today's programmed workout for the selected program
-
-**Progress Ring calculation:**
-```
-completed = count of user_calendar_workouts WHERE is_completed=true AND enrollment_id=X
-total = count of user_calendar_workouts WHERE enrollment_id=X
-percentage = (completed / total) * 100
-```
-
-### `src/components/tracks/DailyProgramWorkout.tsx`
-Shown in the Dashboard under the Program Switcher. Displays the scheduled workout for today:
-- Workout name
-- Exercise list from the JSONB (exercise name, sets × reps, notes)
-- "Mark as Complete" button → updates `user_calendar_workouts.is_completed = true`
-- If program style is `"wendler"`: shows `WendlerPercentageCalc` above the exercise list
-- If program style is `"fbb"`: exercises show `TEMPO` badge
-- If no workout scheduled today: "Rest Day" with a small recovery tip
-
----
-
-## New Zustand Store: `src/stores/programStore.ts`
+Replace the complex broken algorithm with a clean one:
 
 ```typescript
-interface ProgramState {
-  programs: Program[];
-  enrollments: UserProgramEnrollment[];
-  calendarWorkouts: UserCalendarWorkout[];
-  activeProgramId: string | null;
-  
-  fetchPrograms: () => Promise<void>;
-  fetchEnrollments: () => Promise<void>;
-  fetchTodaysWorkouts: () => Promise<void>;
-  enrollInProgram: (programId, startDate, trainingDays, addonPlacement?) => Promise<void>;
-  unenrollFromProgram: (enrollmentId) => Promise<void>;
-  markWorkoutComplete: (calendarWorkoutId) => Promise<void>;
-  setActiveProgram: (programId) => void;
+function buildCalendarDates(
+  programWorkouts: { id: string }[],
+  startDate: Date,
+  trainingDays: number[]
+): { program_workout_id: string; scheduled_date: string }[] {
+  const sortedDays = [...trainingDays].sort((a, b) => a - b);
+  const result = [];
+  let cursor = new Date(startDate);
+  cursor.setHours(0, 0, 0, 0);
+
+  for (const pw of programWorkouts) {
+    // Find next day-of-week from sortedDays starting from cursor
+    let daysAhead = 0;
+    while (!sortedDays.includes((cursor.getDay() + daysAhead) % 7 === 0 
+      ? 0 : (cursor.getDay() + daysAhead) % 7)) {
+      daysAhead++;
+    }
+    // Simpler: just walk forward until we hit a training day
+    let date = new Date(cursor);
+    while (!sortedDays.includes(date.getDay())) {
+      date = addDays(date, 1);
+    }
+    result.push({ program_workout_id: pw.id, scheduled_date: format(date, 'yyyy-MM-dd') });
+    cursor = addDays(date, 1); // next search starts the day after
+  }
+  return result;
 }
 ```
 
+This is clean, predictable, and guaranteed correct. A workout is placed on the nearest upcoming training day from `cursor`, then cursor advances past it so the next workout must be on a different day.
+
+### File 2: `src/components/tracks/ProgramAssignmentWizard.tsx` — Fix add-on wizard
+
+Remove the "Step X of 3" logic entirely. The wizard is always 2 steps. The add-on placement toggle already renders inside Step 2. Fix the badge to always say "Step {step} of 2". This unblocks Running/Rowing users immediately.
+
+Also fix the day selector: for add-ons, the `requiredDays` check means they must select exactly 3 days before the button enables. The pre-selection in `goToStep2` will auto-select Tue/Thu/Sat defaults so the button is enabled right away unless they change it.
+
+### File 3: `src/stores/workoutStore.ts` — Merge program workouts into `fetchWorkoutDays`
+
+Update `fetchWorkoutDays` to also query `user_calendar_workouts` and return their `scheduled_date` values as workout day indicators (with a `is_program` flag):
+
+```typescript
+fetchWorkoutDays: async (weeks = 12): Promise<WorkoutDay[]> => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const fromDate = format(subDays(new Date(), weeks * 7), 'yyyy-MM-dd');
+  const futureDate = format(addDays(new Date(), weeks * 7), 'yyyy-MM-dd');
+
+  // 1. Free-log workouts (past, completed)
+  const { data: workouts } = await supabase
+    .from('workouts')
+    .select('date')
+    .eq('user_id', user.id)
+    .eq('is_completed', true)
+    .gte('date', fromDate);
+
+  // 2. Program calendar workouts (past AND future)
+  const { data: programWorkouts } = await supabase
+    .from('user_calendar_workouts')
+    .select('scheduled_date, is_completed')
+    .eq('user_id', user.id)
+    .gte('scheduled_date', fromDate)
+    .lte('scheduled_date', futureDate);
+
+  const dayMap = new Map<string, number>();
+  
+  for (const w of workouts || []) {
+    dayMap.set(w.date, (dayMap.get(w.date) || 0) + 1);
+  }
+  for (const pw of programWorkouts || []) {
+    dayMap.set(pw.scheduled_date, (dayMap.get(pw.scheduled_date) || 0) + 1);
+  }
+
+  const days = Array.from(dayMap.entries()).map(([date, workout_count]) => ({
+    date,
+    workout_count,
+  }));
+  
+  set({ workoutDays: days });
+  return days;
+},
+```
+
+This makes the WeekStrip and WorkoutCalendar show dot indicators on both past free-log days AND future/past program-scheduled days.
+
+### File 4: `src/components/workout/WorkoutLogger.tsx` — Show program workout when selected date has one
+
+When the user taps a date in the WeekStrip or WorkoutCalendar, if that date has a program workout, show the `DailyProgramWorkout` card above the "Start Workout" prompt.
+
+Add a new helper that fetches today's (or selected date's) program workouts from `user_calendar_workouts`:
+
+```typescript
+// In WorkoutLogger.tsx — new state:
+const [programWorkoutsForDate, setProgramWorkoutsForDate] = useState<UserCalendarWorkout[]>([]);
+
+// In useEffect, also fetch program workouts for selectedDate:
+useEffect(() => {
+  fetchProgramWorkoutsForDate(selectedDate);
+}, [selectedDate]);
+
+async function fetchProgramWorkoutsForDate(date: Date) {
+  const dateStr = format(date, 'yyyy-MM-dd');
+  const { data } = await supabase
+    .from('user_calendar_workouts')
+    .select(`
+      *,
+      program_workout:program_workouts(*),
+      enrollment:user_program_enrollments(*, program:programs(*))
+    `)
+    .eq('scheduled_date', dateStr)
+    .eq('user_id', user.id);
+  setProgramWorkoutsForDate(data || []);
+}
+```
+
+Then in the "no active workout" screen, above the "Start Workout" card, render:
+
+```tsx
+{programWorkoutsForDate.map(cw => (
+  <DailyProgramWorkout
+    key={cw.id}
+    calendarWorkout={cw}
+    programStyle={cw.enrollment?.program?.program_style}
+  />
+))}
+```
+
+This means: tap Feb 19 in the WeekStrip → see Wendler Week 1 Day 1 card with the % calculator + all exercises + "Mark Complete" button. Below it, you can still tap "Start Workout" to free-log additional work.
+
+### File 5: Clear existing bad enrollments and re-enroll correctly
+
+The current enrolled data has bad dates (starting Feb 23 instead of Feb 19). We need to:
+1. Delete the existing `user_calendar_workouts` rows for the current enrollments
+2. Delete the `user_program_enrollments` rows 
+3. Let the user re-enroll after the fix ships
+
+This is handled via a **migration** that clears the bad calendar data. The UI will then show "no enrollment" and the user re-enrolls using the fixed wizard.
+
+**Migration SQL:**
+```sql
+-- Clear bad calendar workouts (they start Feb 23 but should start Feb 18/19)
+DELETE FROM public.user_calendar_workouts;
+DELETE FROM public.user_program_enrollments;
+```
+
+This migration runs before code ships. The user re-enrolls immediately after.
+
 ---
 
-## Files Summary
+## Fix Summary Table
 
-### New Files
-| File | Purpose |
-|------|---------|
-| `src/components/tracks/ProgramLibrary.tsx` | Grid of all program cards |
-| `src/components/tracks/ProgramCard.tsx` | Individual program card |
-| `src/components/tracks/ProgramAssignmentWizard.tsx` | 2-step modal wizard |
-| `src/components/tracks/ActiveProgramSwitcher.tsx` | Dashboard program tab bar + progress rings |
-| `src/components/tracks/DailyProgramWorkout.tsx` | Today's programmed workout display |
-| `src/components/tracks/WendlerPercentageCalc.tsx` | Wendler-specific % calculator |
-| `src/stores/programStore.ts` | All program state and DB operations |
-| `supabase/migrations/[timestamp]_programs.sql` | Creates 4 tables + seeds programs + RLS |
-
-### Modified Files
-| File | Change |
-|------|--------|
-| `src/pages/Vault.tsx` | Add `<ProgramLibrary />` below existing tracks cards |
-| `src/components/dashboard/VaultDashboard.tsx` | Add `<ActiveProgramSwitcher />` at top when enrolled |
+| Issue | Root Cause | Fix |
+|-------|-----------|-----|
+| Workouts start Feb 23 not Feb 18 | `buildCalendarDates` walks to first training day of week, not nearest | Replace with "walk forward from cursor until hitting a training day" algorithm |
+| Running/Rowing add-on broken | Step 3 referenced but never rendered | Remove step 3, keep add-on placement in Step 2 where it already is |
+| Workouts section doesn't show program workouts | `fetchWorkoutDays` only queries `workouts` table | Also query `user_calendar_workouts` and merge dot indicators |
+| Workouts section doesn't show program exercises on a day | WorkoutLogger doesn't fetch from `user_calendar_workouts` | Add program workout cards above "Start Workout" prompt for that date |
+| Console ref warning | `DailyProgramWorkout` inside Radix TabsContent without forwardRef | Wrap outer div, not component itself — Radix already handles this with a wrapping div |
 
 ---
 
-## Key Implementation Notes
+## What Stays the Same
 
-1. **Program seeding** — The migration seeds the 6 programs AND representative program_workouts for each (representative 12-week templates). The `exercises` JSONB field stores structured exercise data so no additional DB tables are needed for the exercise list within a workout.
-
-2. **Instantiation is done client-side** in the wizard store action — we compute all calendar dates locally then batch-insert, avoiding a need for an edge function.
-
-3. **Add-on placement** — when a Running or Rowing add-on is selected with "rest days" placement, the instantiation logic uses the *inverse* of their main program's training days as the target days, or if no main program exists, just the days they pick.
-
-4. **No changes to the existing WorkoutLogger or WorkoutTab** — the program system is its own parallel track. Users still free-log workouts as before. The Daily Program Workout view on the dashboard is a read/complete-only view, not a full logger.
-
-5. **Progress ring** — implemented as a pure SVG `<circle>` with `stroke-dashoffset` to show completion %. No external charting library needed.
+- All existing free-log workout functionality unchanged
+- The Tracks tab program library UI unchanged
+- Dashboard `ActiveProgramSwitcher` (shows today's program workout) — already correct once enrollment dates are fixed
+- All RLS policies — no changes needed
+- The `markWorkoutComplete` button on program workouts — works today, just can't reach it
