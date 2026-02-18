@@ -1,159 +1,276 @@
 
-# Fix Anonymous Names, Flexible Audit, and AI Results Recap
+# Four-Part Plan: Anonymous Fix + CTA Replacement + Community Rebuild + Admin DMs
+
+---
 
 ## Overview
 
-Four fixes addressing: (1) users showing as "Anonymous" everywhere, (2) admin dashboard also showing "Anonymous", (3) audit requiring metrics users may not have, and (4) audit results lacking a personalized written review.
+This plan addresses four items in priority order:
+1. **Fix Anonymous names** — database migration to insert missing profiles
+2. **Replace $49/mo CTA** — swap for a "Post a Question" button that navigates to community
+3. **Rebuild the Community** — Discord-style channels, mobile-friendly layout, optimistic updates
+4. **Admin Private DMs** — ability to message any user privately from their profile page
 
 ---
 
-## Issue 1 & 2: Anonymous Names (Community + Dashboard)
+## Part 1: Fix Anonymous Names (Root Cause)
 
-**Root Cause:** The `signUp` function in `authStore.ts` accepts a `name` parameter from the signup form but never passes it to the auth API. The database trigger `handle_new_user_profile` tries to read `raw_user_meta_data->>'full_name'` which is always null, so every user gets "Anonymous".
+**Confirmed root cause from database inspection:** The two original accounts — `andyandrewscf@gmail.com` and `andrewsandycf@gmail.com` — have **no rows in `user_profiles` at all**. Every community post comes from `andyandrewscf`, so the `fetchProfile` call returns `null`, the UI falls back to `'Anonymous'`.
 
-**Fix:**
-- Update `authStore.ts` `signUp` method to include `data: { full_name: name }` in the `options` passed to `supabase.auth.signUp()`
-- Write a one-time database migration to backfill existing "Anonymous" profiles using the email prefix (everything before the @) as a fallback display name
-- Existing users who already have profiles will get updated; new signups will work correctly going forward
+This is different from the "display_name = Anonymous" issue addressed last time. The trigger simply didn't exist when these accounts were created.
 
-**Backfill migration:**
+**Fix — database migration:**
 ```sql
-UPDATE public.user_profiles
-SET display_name = split_part(
-  (SELECT email FROM auth.users WHERE auth.users.id = user_profiles.id),
-  '@', 1
-)
-WHERE display_name = 'Anonymous';
+-- Insert missing profiles for all auth users who have no profile row
+INSERT INTO public.user_profiles (id, display_name)
+SELECT 
+  au.id,
+  COALESCE(
+    au.raw_user_meta_data->>'full_name',
+    split_part(au.email, '@', 1)
+  )
+FROM auth.users au
+LEFT JOIN public.user_profiles up ON up.id = au.id
+WHERE up.id IS NULL;
 ```
 
----
+This runs once and covers all past and any future gap accounts. No code changes needed for the fix itself — once the profile row exists, the existing `fetchProfile` logic in `communityStore.ts` will find it and display the real name.
 
-## Issue 3: Flexible Audit Inputs
-
-**Problem:** The audit currently requires exact 1RM numbers for Back Squat, Front Squat, Strict Press, Deadlift, and a precise mile time. Many users won't know these.
-
-**Solution -- make strength/engine fields optional with alternatives:**
-
-### Strength Step Changes
-- Each of the 4 lifts becomes optional (remove validation requiring them)
-- Add an "I don't know my 1RM" toggle per lift that reveals an **estimated 1RM calculator**: user enters weight used and reps completed, and we calculate estimated 1RM using the Epley formula: `weight x (1 + reps/30)`
-- Add a "Skip this movement" option that excludes it from the analysis entirely
-- Allow users to substitute movements (e.g., swap Front Squat for Goblet Squat, swap Deadlift for Trap Bar Deadlift) via a dropdown -- the ratios adjust accordingly
-
-### Engine Step Changes
-- Make mile run optional
-- Add alternative cardio tests: 2K Row, 500m Row, 2000m Bike Erg, or "I don't have a cardio benchmark"
-- Each alternative maps to an equivalent aerobic capacity score
-
-### Store/Logic Changes
-- Update `AuditData` interface to make strength and engine fields optional (using `?`)
-- Add new fields: `estimatedLifts` (object tracking which lifts used estimation), `substitutions` (which movements were swapped), `cardioTest` (which test was used)
-- Update `detectLeaks()` to skip analysis for missing data points and note which areas couldn't be assessed
-- Update `calculateScores()` to handle partial data -- score only what's available and clearly mark gaps
-- Update validation in `AuditForm` to only require biometrics (weight, age, height) and lifestyle questions
-
-### Additional Audit Questions (Lifestyle Step)
-Add these to gather a richer picture for the AI recap:
-
-- **Training frequency**: "How many days per week do you train?" (1-2, 3-4, 5-6, 7)
-- **Primary training goal**: "What's your main focus?" (Strength, Conditioning, Body Composition, Sport Performance, General Health)
-- **Injury history**: "Do you have any current injuries or limitations?" (None, Upper body, Lower body, Back/Spine, Multiple)
-- **Water intake**: "How much water do you drink daily?" (Less than 1L, 1-2L, 2-3L, 3L+)
-- **Alcohol consumption**: "How often do you consume alcohol?" (Never, 1-2x/week, 3-4x/week, Daily)
-
-These go into the `AuditData` interface and get passed to the AI for the recap.
+**Admin Dashboard names fix:** The admin `admin-analytics` and `admin-detail` edge functions already return `displayName` from `user_profiles`. Once the migration inserts missing profiles, admin views will also show real names automatically.
 
 ---
 
-## Issue 4: AI-Powered Results Recap
+## Part 2: Replace "$49/mo" CTA in Audit Results
 
-**Problem:** Results page only shows a radar chart, leak cards, and recommended videos. No personalized written analysis.
+**Location:** `src/components/audit/ResultsPage.tsx` — the "Access The Vault" card at the bottom (lines 295–303).
 
-**Solution:**
+**New behavior based on auth state:**
+- If user is **already logged in**: Button says "Ask a Question in Community" → navigates to `/vault` with `?tab=community` query param, and the community tab auto-opens.
+- If user is **not logged in**: Button says "Join The Vault Free" → navigates to `/auth` with a redirect back. No price mentioned.
 
-### New Edge Function: `audit-recap`
-- Receives the full `AuditResults` object (scores, leaks, tier, all input data including new lifestyle questions)
-- Sends it to the Lovable AI gateway (same pattern as `weekly-review`) using `google/gemini-3-flash-preview`
-- System prompt instructs the AI to write a personalized 3-section recap:
-  1. **Overall Assessment** -- Plain-language summary of where the user stands
-  2. **Key Findings** -- Interpretation of each leak, why it matters, and what it means for their training
-  3. **Action Plan** -- 3-5 prioritized, specific recommendations based on their data
-- Returns markdown text
+**Implementation:**
+- Replace the `Lock` + "Join The Vault - $49/mo" button in `ResultsPage.tsx`
+- Import `useAuthStore` to check auth state
+- Use `useNavigate` to go to `/vault?tab=community` for logged-in users
+- Use `Link to="/auth"` for guests
 
-### Results Page Changes
-- Add an "AI Analysis" card between the radar chart and the leaks section
-- On page load, automatically call the `audit-recap` edge function with the results data
-- Show a loading skeleton with "Generating your personalized analysis..." while processing
-- Render the returned markdown in a styled card
-- Add a "Regenerate Analysis" button
+Additionally, the results page can show a "Recommended Resources" shortcut based on which leaks were detected — linking directly to the vault library with the relevant category pre-filtered. This replaces the paywalled CTA with genuine value.
 
 ---
 
-## Technical Details
+## Part 3: Community Rebuild — Discord-Style with Channels
 
-### Files to Modify
+This is a significant rebuild of the community tab. The existing `community_messages` table lacks a `channel_id` column. We need to add channels.
 
-| File | Change |
-|------|--------|
-| `src/stores/authStore.ts` | Pass `full_name` metadata in signUp |
-| `src/stores/auditStore.ts` | Make lift/engine fields optional, add new lifestyle fields, update leak detection and scoring for partial data |
-| `src/components/audit/AuditForm.tsx` | Add skip/estimate/substitute UI for lifts, add alternative cardio tests, add new lifestyle questions, update validation |
-| `src/components/audit/ResultsPage.tsx` | Add AI recap card with loading state, call new edge function |
+### Database Changes
 
-### Files to Create
+**New table: `community_channels`**
+```sql
+CREATE TABLE public.community_channels (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name text NOT NULL,           -- e.g. "general", "pr-board"
+  description text,
+  category text NOT NULL DEFAULT 'THE VAULT',  -- section grouping
+  order_index integer NOT NULL DEFAULT 0,
+  is_locked boolean NOT NULL DEFAULT false,     -- only admin can post
+  created_at timestamptz NOT NULL DEFAULT now()
+);
 
-| File | Purpose |
-|------|---------|
-| `supabase/functions/audit-recap/index.ts` | Edge function that sends audit results to AI for personalized analysis |
-
-### Database Migration
-
-- Backfill existing "Anonymous" user profiles with email-derived names
-- No new tables needed
-
-### Updated AuditData Interface
-
-```typescript
-export interface AuditData {
-  // Biometrics (required)
-  weight: number;
-  age: number;
-  height: number;
-  
-  // Big 4 Ratios (all optional)
-  backSquat?: number;
-  frontSquat?: number;
-  strictPress?: number;
-  deadlift?: number;
-  
-  // Estimation tracking
-  estimatedLifts?: Record<string, boolean>;
-  substitutions?: Record<string, string>;
-  
-  // Engine Check (optional)
-  mileRunTime?: number;
-  cardioTest?: 'mile' | '2k-row' | '500m-row' | '2k-bike' | 'none';
-  cardioTime?: number;
-  
-  // Lifestyle (required)
-  sleep: '<6' | '6-7' | '7-8' | '8+';
-  protein: 'yes' | 'no' | 'unsure';
-  stress: number;
-  experience: '<1' | '1-3' | '3-5' | '5+';
-  
-  // New lifestyle questions
-  trainingFrequency?: '1-2' | '3-4' | '5-6' | '7';
-  primaryGoal?: 'strength' | 'conditioning' | 'body-comp' | 'sport' | 'health';
-  injuryHistory?: 'none' | 'upper' | 'lower' | 'back' | 'multiple';
-  waterIntake?: '<1L' | '1-2L' | '2-3L' | '3L+';
-  alcohol?: 'never' | '1-2x' | '3-4x' | 'daily';
-}
+-- Seed default channels
+INSERT INTO public.community_channels (name, description, category, order_index) VALUES
+  ('announcements', 'Official updates from Andy', 'THE VAULT', 0),
+  ('general', 'General discussion', 'THE VAULT', 1),
+  ('introductions', 'Introduce yourself to the community', 'THE VAULT', 2),
+  ('pr-board', 'Share your personal records', 'TRAINING', 3),
+  ('form-checks', 'Post videos for form feedback', 'TRAINING', 4),
+  ('programming', 'Training program questions', 'TRAINING', 5),
+  ('nutrition', 'Nutrition questions and wins', 'LIFESTYLE', 6),
+  ('recovery', 'Sleep, mobility, recovery discussion', 'LIFESTYLE', 7);
 ```
 
-### Estimation Formula (Epley)
+**Alter `community_messages` to add `channel_id`:**
+```sql
+ALTER TABLE public.community_messages 
+  ADD COLUMN channel_id uuid REFERENCES public.community_channels(id) ON DELETE SET NULL;
+
+-- Default existing messages to "general" channel
+UPDATE public.community_messages 
+SET channel_id = (SELECT id FROM public.community_channels WHERE name = 'general' LIMIT 1);
+```
+
+**New table: `direct_messages`** (for Part 4 — admin DMs)
+```sql
+CREATE TABLE public.direct_messages (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  from_user_id uuid NOT NULL,
+  to_user_id uuid NOT NULL,
+  content text NOT NULL,
+  is_read boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.direct_messages ENABLE ROW LEVEL SECURITY;
+
+-- Users can read DMs sent to them or from them
+CREATE POLICY "Users can read their DMs"
+  ON public.direct_messages FOR SELECT
+  USING (auth.uid() = to_user_id OR auth.uid() = from_user_id);
+
+-- Only admins can send DMs
+CREATE POLICY "Admins can send DMs"
+  ON public.direct_messages FOR INSERT
+  WITH CHECK (has_role(auth.uid(), 'admin'));
+
+-- Enable realtime for DMs
+ALTER PUBLICATION supabase_realtime ADD TABLE public.direct_messages;
+```
+
+**RLS for channels (public read, admin write):**
+```sql
+ALTER TABLE public.community_channels ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Anyone can view channels" ON public.community_channels FOR SELECT USING (true);
+CREATE POLICY "Admins can manage channels" ON public.community_channels FOR ALL USING (has_role(auth.uid(), 'admin'));
+```
+
+### New Layout Architecture
+
+The community tab gets a full layout rebuild with three zones:
 
 ```text
-Estimated 1RM = weight x (1 + reps / 30)
+┌─────────────────────────────────────────────────────┐
+│ Desktop Layout                                       │
+├──────────┬─────────────────────────────────────────┤
+│ Channel  │ Active Channel Feed                      │
+│ Sidebar  │                                          │
+│          │  [Sticky Header: #channel-name]          │
+│ THE VAULT│                                          │
+│ #general │  [ScrollArea of messages]                │
+│ #pr-board│                                          │
+│          │  [Fixed bottom: message input]           │
+│ TRAINING │                                          │
+│ #form... │                                          │
+├──────────┴─────────────────────────────────────────┤
+│ Mobile: Bottom tab bar + hamburger for channels     │
+└─────────────────────────────────────────────────────┘
 ```
 
-Used when a user enters "I did 225 lbs for 5 reps" instead of a true 1RM.
+### New/Modified Files
+
+**New: `src/components/community/ChannelSidebar.tsx`**
+- Lists channels grouped by category (THE VAULT, TRAINING, LIFESTYLE)
+- Active channel highlighted with accent color
+- Unread indicator dots (future)
+- On mobile: hidden, triggered by hamburger sheet
+
+**New: `src/components/community/ChannelFeed.tsx`**
+- Replaces `CommunityFeed.tsx` as the main content area
+- Sticky channel header bar at top (`#channel-name`)
+- `ScrollArea` for message list, auto-scrolls to bottom on new messages
+- Fixed bottom message input with auto-expand
+- Optimistic updates: message appears immediately in UI before DB confirmation
+
+**New: `src/components/community/MessageItem.tsx`**
+- Avatar + display name + timestamp
+- Message content with markdown support (bold, line breaks)
+- "Reply" button → opens `ThreadDrawer` (existing, reused)
+- Like button (existing, reused)
+- Delete for own messages or admin
+
+**Modified: `src/components/community/CommunityFeed.tsx`** → Becomes the layout wrapper
+- Desktop: `grid grid-cols-[240px_1fr]` with `ChannelSidebar` + `ChannelFeed`
+- Mobile: `flex flex-col` with sheet-based channel switcher + `ChannelFeed`
+
+**Modified: `src/stores/communityStore.ts`**
+- Add `channels: CommunityChannel[]` state
+- Add `activeChannelId: string | null` state
+- Add `fetchChannels()` action
+- Add `setActiveChannel(channelId)` action
+- Modify `fetchPosts()` to filter by `channel_id`
+- Add optimistic post creation (append immediately, then DB insert, rollback on error)
+
+**Modified: `src/hooks/useCommunityRealtime.ts`**
+- Filter realtime subscription to active channel: `filter: 'channel_id=eq.' + activeChannelId`
+- Add DM realtime subscription
+
+### Optimistic Updates
+
+When a user sends a message:
+1. Immediately append a temporary message object to `posts` with `id: 'optimistic-' + Date.now()`, `user_profile` from current user's cached profile
+2. Insert to database in background
+3. On success: replace optimistic message with real one from realtime event
+4. On failure: remove optimistic message, show toast error
+
+### Mobile Behavior
+- Channels hidden by default, accessible via a `Sheet` triggered by hamburger icon in sticky header
+- Thread drawer is full-screen on mobile (existing Sheet behavior works)
+- Bottom of screen: fixed input bar
+
+---
+
+## Part 4: Admin Private DMs
+
+### From Admin User Profile Page
+On `AdminUserProfile.tsx`, add a new "Send Message" section at the bottom:
+- A textarea input labeled "Private message to [user name]"
+- A send button
+- Below it, show message history (admin → this user only)
+- Calls `supabase.from('direct_messages').insert({ from_user_id: adminId, to_user_id: userId, content })`
+
+### User Receives DMs in Community Tab
+A dedicated "Direct Messages" section appears in the community layout:
+- In the `ChannelSidebar`, below channel groups, add a "DIRECT MESSAGES" section
+- Shows a list of DM senders (only admin in practice) with unread indicator
+- Clicking opens `DirectMessagePane` — a conversation view showing messages from that thread
+- Real-time via the `direct_messages` realtime subscription
+
+**New: `src/components/community/DirectMessagePane.tsx`**
+- Shows conversation between current user and admin
+- Auto-marks messages as read on open (`UPDATE direct_messages SET is_read = true WHERE to_user_id = currentUser AND from_user_id = adminId`)
+- Real-time: subscribes to `direct_messages` filtered to `to_user_id=eq.currentUserId`
+- Unread count badge on sidebar icon
+
+**Modified: `src/pages/AdminUserProfile.tsx`**
+- Add "Send Private Message" card at bottom
+- Textarea + send button
+- Shows sent message history (admin's DMs to this user)
+
+---
+
+## Technical Details Summary
+
+### Files to Create
+| File | Purpose |
+|------|---------|
+| `src/components/community/ChannelSidebar.tsx` | Discord-style channel list, grouped by category |
+| `src/components/community/ChannelFeed.tsx` | Main message feed for active channel |
+| `src/components/community/MessageItem.tsx` | Individual message row with avatar/actions |
+| `src/components/community/DirectMessagePane.tsx` | Private DM conversation view |
+
+### Files to Modify
+| File | Change |
+|------|--------|
+| `src/components/community/CommunityFeed.tsx` | Rebuild as layout wrapper with sidebar + feed |
+| `src/stores/communityStore.ts` | Add channels state, activeChannelId, optimistic updates, DM support |
+| `src/hooks/useCommunityRealtime.ts` | Filter by channel, add DM subscription |
+| `src/components/audit/ResultsPage.tsx` | Replace $49/mo CTA with auth-aware community/join button |
+| `src/pages/AdminUserProfile.tsx` | Add "Send Private Message" section |
+
+### Database Migrations
+1. Insert missing `user_profiles` for `andyandrewscf@gmail.com` and `andrewsandycf@gmail.com` (and any future gaps)
+2. Create `community_channels` table and seed default channels
+3. Add `channel_id` to `community_messages`, default existing posts to `#general`
+4. Create `direct_messages` table with admin-only insert RLS + realtime
+5. Add `community_channels` to realtime publication
+
+### What Stays the Same
+- `ThreadDrawer.tsx` — reused as-is for reply threads
+- `LikeButton.tsx` — reused as-is
+- `PostCard.tsx` → replaced by `MessageItem.tsx` with the same data but new layout
+- `PostComposer.tsx` — reused inside `ChannelFeed` for the bottom input
+- All RLS policies on `community_messages` — unchanged
+
+### Key Behaviors
+- **Switching channels** clears the post list and fetches messages for the new channel
+- **New messages** appear instantly via optimistic update + realtime
+- **Unread DM badge** appears on the sidebar for users with unread admin messages
+- **Admin DMs are private** — the RLS `SELECT` policy requires `to_user_id = auth.uid() OR from_user_id = auth.uid()`, so users can only see their own DM thread
