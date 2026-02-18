@@ -14,6 +14,7 @@ import { WorkoutTab } from "@/components/workout/WorkoutTab";
 import { CommunityFeed } from "@/components/community/CommunityFeed";
 import { LifestyleTab } from "@/components/lifestyle/LifestyleTab";
 import { VaultDashboard as DashboardView } from "@/components/dashboard/VaultDashboard";
+import { ProgramLibrary } from "@/components/tracks/ProgramLibrary";
 import logo from "@/assets/logo.png";
 import { useAdminCheck } from "@/hooks/useAdminCheck";
 import { OnboardingWalkthrough } from "@/components/vault/OnboardingWalkthrough";
@@ -195,6 +196,9 @@ export function VaultDashboard() {
                 </div>
               </div>
             </Card>
+
+            {/* Free Programs Library */}
+            <ProgramLibrary />
           </TabsContent>
 
           {isAdmin && (

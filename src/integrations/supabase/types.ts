@@ -349,6 +349,89 @@ export type Database = {
           },
         ]
       }
+      program_workouts: {
+        Row: {
+          created_at: string
+          day_number: number
+          exercises: Json
+          id: string
+          notes: string | null
+          program_id: string
+          week_number: number
+          workout_name: string
+        }
+        Insert: {
+          created_at?: string
+          day_number: number
+          exercises?: Json
+          id?: string
+          notes?: string | null
+          program_id: string
+          week_number: number
+          workout_name: string
+        }
+        Update: {
+          created_at?: string
+          day_number?: number
+          exercises?: Json
+          id?: string
+          notes?: string | null
+          program_id?: string
+          week_number?: number
+          workout_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "program_workouts_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "programs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      programs: {
+        Row: {
+          category: string
+          created_at: string
+          days_per_week: number
+          description: string
+          difficulty: string
+          duration_weeks: number
+          id: string
+          is_active: boolean
+          name: string
+          program_style: string | null
+          slug: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          days_per_week: number
+          description: string
+          difficulty?: string
+          duration_weeks?: number
+          id?: string
+          is_active?: boolean
+          name: string
+          program_style?: string | null
+          slug: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          days_per_week?: number
+          description?: string
+          difficulty?: string
+          duration_weeks?: number
+          id?: string
+          is_active?: boolean
+          name?: string
+          program_style?: string | null
+          slug?: string
+        }
+        Relationships: []
+      }
       user_audit_data: {
         Row: {
           created_at: string
@@ -495,6 +578,54 @@ export type Database = {
           weight_kg?: number | null
         }
         Relationships: []
+      }
+      user_calendar_workouts: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          enrollment_id: string
+          id: string
+          is_completed: boolean
+          program_workout_id: string
+          scheduled_date: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          enrollment_id: string
+          id?: string
+          is_completed?: boolean
+          program_workout_id: string
+          scheduled_date: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          enrollment_id?: string
+          id?: string
+          is_completed?: boolean
+          program_workout_id?: string
+          scheduled_date?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_calendar_workouts_enrollment_id_fkey"
+            columns: ["enrollment_id"]
+            isOneToOne: false
+            referencedRelation: "user_program_enrollments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_calendar_workouts_program_workout_id_fkey"
+            columns: ["program_workout_id"]
+            isOneToOne: false
+            referencedRelation: "program_workouts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_daily_checkins: {
         Row: {
@@ -669,6 +800,47 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      user_program_enrollments: {
+        Row: {
+          addon_placement: string | null
+          created_at: string
+          id: string
+          program_id: string
+          start_date: string
+          status: string
+          training_days: number[]
+          user_id: string
+        }
+        Insert: {
+          addon_placement?: string | null
+          created_at?: string
+          id?: string
+          program_id: string
+          start_date: string
+          status?: string
+          training_days?: number[]
+          user_id: string
+        }
+        Update: {
+          addon_placement?: string | null
+          created_at?: string
+          id?: string
+          program_id?: string
+          start_date?: string
+          status?: string
+          training_days?: number[]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_program_enrollments_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "programs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
