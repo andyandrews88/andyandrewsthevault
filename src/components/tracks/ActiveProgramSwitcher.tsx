@@ -42,55 +42,113 @@ function ProgressRing({ pct, size = 32, stroke = 3 }: { pct: number; size?: numb
   );
 }
 
-// Single enrollment progress stats
-function useEnrollmentProgress(enrollmentId: string) {
-  const [completed, setCompleted] = useState(0);
-  const [total, setTotal] = useState(0);
-
-  useEffect(() => {
-    supabase
-      .from("user_calendar_workouts")
-      .select("is_completed", { count: "exact" })
-      .eq("enrollment_id", enrollmentId)
-      .then(({ data, count }) => {
-        setTotal(count ?? 0);
-        setCompleted((data ?? []).filter((w) => w.is_completed).length);
-      });
-  }, [enrollmentId]);
-
-  return { completed, total, pct: total > 0 ? Math.round((completed / total) * 100) : 0 };
+interface ProgressMap {
+  [enrollmentId: string]: { completed: number; total: number };
 }
 
 interface TabLabelProps {
   enrollment: UserProgramEnrollment;
+  progress: ProgressMap;
 }
 
-function EnrollmentTabLabel({ enrollment }: TabLabelProps) {
-  const { completed, total, pct } = useEnrollmentProgress(enrollment.id);
+// Moved outside component so it's never re-created on each render
+function EnrollmentTabLabel({ enrollment, progress }: TabLabelProps) {
+  const prog = progress[enrollment.id] ?? { completed: 0, total: 0 };
+  const pct = prog.total > 0 ? Math.round((prog.completed / prog.total) * 100) : 0;
   return (
     <div className="flex items-center gap-2">
       <ProgressRing pct={pct} />
       <div className="text-left">
         <p className="text-xs font-semibold leading-tight line-clamp-1">{enrollment.program?.name}</p>
-        <p className="text-[10px] text-muted-foreground">{completed}/{total} done</p>
+        <p className="text-[10px] text-muted-foreground">{prog.completed}/{prog.total} done</p>
       </div>
     </div>
   );
 }
 
+// Moved outside ActiveProgramSwitcher to prevent remount on every render
+interface UnenrollDialogProps {
+  target: UserProgramEnrollment | null;
+  isLoading: boolean;
+  onConfirm: () => void;
+  onClose: () => void;
+}
+
+function UnenrollDialog({ target, isLoading, onConfirm, onClose }: UnenrollDialogProps) {
+  return (
+    <AlertDialog open={!!target} onOpenChange={open => !open && onClose()}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Unenroll from {target?.program?.name}?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Your scheduled workouts will be removed from the calendar. Your logged weights and history are preserved. You can re-enroll anytime from the Tracks tab.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Keep Program</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={onConfirm}
+            disabled={isLoading}
+            className="bg-destructive text-destructive-foreground"
+          >
+            {isLoading ? "Removing…" : "Unenroll"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
 export function ActiveProgramSwitcher() {
-  const { enrollments, todaysWorkouts, activeProgramId, setActiveProgram, fetchEnrollments, fetchTodaysWorkouts, unenrollFromProgram } = useProgramStore();
+  const {
+    enrollments,
+    todaysWorkouts,
+    activeProgramId,
+    setActiveProgram,
+    fetchEnrollments,
+    fetchTodaysWorkouts,
+    unenrollFromProgram,
+  } = useProgramStore();
+
   const [unenrollTarget, setUnenrollTarget] = useState<UserProgramEnrollment | null>(null);
   const [isUnenrolling, setIsUnenrolling] = useState(false);
+  // Single batched progress map instead of N+1 hooks
+  const [progressMap, setProgressMap] = useState<ProgressMap>({});
 
   useEffect(() => {
     fetchEnrollments();
     fetchTodaysWorkouts();
   }, [fetchEnrollments, fetchTodaysWorkouts]);
 
+  // Batch-fetch all enrollment progress in a single query
+  useEffect(() => {
+    if (enrollments.length === 0) return;
+
+    const ids = enrollments.map(e => e.id);
+    supabase
+      .from("user_calendar_workouts")
+      .select("enrollment_id, is_completed")
+      .in("enrollment_id", ids)
+      .then(({ data }) => {
+        if (!data) return;
+        const map: ProgressMap = {};
+        for (const row of data) {
+          if (!map[row.enrollment_id]) {
+            map[row.enrollment_id] = { completed: 0, total: 0 };
+          }
+          map[row.enrollment_id].total += 1;
+          if (row.is_completed) map[row.enrollment_id].completed += 1;
+        }
+        setProgressMap(map);
+      });
+  }, [enrollments]);
+
   if (enrollments.length === 0) return null;
 
-  const activeId = activeProgramId ?? enrollments[0]?.program_id;
+  // Ensure the active tab value always corresponds to a valid enrollment
+  const activeId = (activeProgramId && enrollments.some(e => e.program_id === activeProgramId))
+    ? activeProgramId
+    : enrollments[0]?.program_id;
 
   const getTodaysWorkoutForEnrollment = (enrollmentId: string) =>
     todaysWorkouts.find(w => w.enrollment_id === enrollmentId);
@@ -102,29 +160,6 @@ export function ActiveProgramSwitcher() {
     setUnenrollTarget(null);
     setIsUnenrolling(false);
   };
-
-  const UnenrollDialog = () => (
-    <AlertDialog open={!!unenrollTarget} onOpenChange={open => !open && setUnenrollTarget(null)}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Unenroll from {unenrollTarget?.program?.name}?</AlertDialogTitle>
-          <AlertDialogDescription>
-            Your scheduled workouts will be removed from the calendar. Your logged weights and history are preserved. You can re-enroll anytime from the Tracks tab.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Keep Program</AlertDialogCancel>
-          <AlertDialogAction
-            onClick={handleUnenroll}
-            disabled={isUnenrolling}
-            className="bg-destructive text-destructive-foreground"
-          >
-            {isUnenrolling ? "Removing…" : "Unenroll"}
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-  );
 
   // Single program — compact card view
   if (enrollments.length === 1) {
@@ -155,7 +190,12 @@ export function ActiveProgramSwitcher() {
             />
           </CardContent>
         </Card>
-        <UnenrollDialog />
+        <UnenrollDialog
+          target={unenrollTarget}
+          isLoading={isUnenrolling}
+          onConfirm={handleUnenroll}
+          onClose={() => setUnenrollTarget(null)}
+        />
       </>
     );
   }
@@ -172,7 +212,7 @@ export function ActiveProgramSwitcher() {
           </div>
 
           <Tabs
-            value={activeId ?? enrollments[0].program_id}
+            value={activeId}
             onValueChange={(val) => setActiveProgram(val)}
           >
             <TabsList className="h-auto p-1 flex flex-wrap gap-1 mb-3">
@@ -182,7 +222,7 @@ export function ActiveProgramSwitcher() {
                   value={enrollment.program_id}
                   className="data-[state=active]:bg-background py-2 px-3"
                 >
-                  <EnrollmentTabLabel enrollment={enrollment} />
+                  <EnrollmentTabLabel enrollment={enrollment} progress={progressMap} />
                 </TabsTrigger>
               ))}
             </TabsList>
@@ -213,7 +253,12 @@ export function ActiveProgramSwitcher() {
           </Tabs>
         </CardContent>
       </Card>
-      <UnenrollDialog />
+      <UnenrollDialog
+        target={unenrollTarget}
+        isLoading={isUnenrolling}
+        onConfirm={handleUnenroll}
+        onClose={() => setUnenrollTarget(null)}
+      />
     </>
   );
 }

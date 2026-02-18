@@ -71,6 +71,8 @@ interface ProgramState {
   isLoading: boolean;
   isEnrolling: boolean;
   isStartingSession: boolean;
+  enrollmentsFetchedAt: number | null;
+  todaysFetchedAt: number | null;
 
   fetchPrograms: () => Promise<void>;
   fetchEnrollments: () => Promise<void>;
@@ -131,6 +133,8 @@ export const useProgramStore = create<ProgramState>((set, get) => ({
   isLoading: false,
   isEnrolling: false,
   isStartingSession: false,
+  enrollmentsFetchedAt: null,
+  todaysFetchedAt: null,
 
   fetchPrograms: async () => {
     set({ isLoading: true });
@@ -146,20 +150,30 @@ export const useProgramStore = create<ProgramState>((set, get) => ({
   },
 
   fetchEnrollments: async () => {
+    // Guard: skip if fetched within the last 30 seconds
+    const { enrollmentsFetchedAt } = get();
+    if (enrollmentsFetchedAt && Date.now() - enrollmentsFetchedAt < 30_000) return;
+
     const { data, error } = await supabase
       .from('user_program_enrollments')
       .select('*, program:programs(*)')
       .eq('status', 'active');
     if (!error && data) {
-      set({ enrollments: data as UserProgramEnrollment[] });
-      // Auto-select first active program
-      if (data.length > 0 && !get().activeProgramId) {
-        set({ activeProgramId: data[0].program_id });
+      set({ enrollments: data as UserProgramEnrollment[], enrollmentsFetchedAt: Date.now() });
+      // Validate activeProgramId against the current active list
+      const currentActive = get().activeProgramId;
+      const activeIds = data.map(e => e.program_id);
+      if (!currentActive || !activeIds.includes(currentActive)) {
+        set({ activeProgramId: data.length > 0 ? data[0].program_id : null });
       }
     }
   },
 
   fetchTodaysWorkouts: async () => {
+    // Guard: skip if fetched within the last 30 seconds
+    const { todaysFetchedAt } = get();
+    if (todaysFetchedAt && Date.now() - todaysFetchedAt < 30_000) return;
+
     const today = format(new Date(), 'yyyy-MM-dd');
     const { data, error } = await supabase
       .from('user_calendar_workouts')
@@ -170,7 +184,7 @@ export const useProgramStore = create<ProgramState>((set, get) => ({
       `)
       .eq('scheduled_date', today);
     if (!error && data) {
-      set({ todaysWorkouts: data as unknown as UserCalendarWorkout[] });
+      set({ todaysWorkouts: data as unknown as UserCalendarWorkout[], todaysFetchedAt: Date.now() });
     }
   },
 
@@ -258,8 +272,14 @@ export const useProgramStore = create<ProgramState>((set, get) => ({
         .eq('is_completed', false)
         .gte('scheduled_date', today);
 
+      // Force a fresh fetch by clearing the cache timestamp
+      set({ enrollmentsFetchedAt: null, todaysFetchedAt: null });
       await get().fetchEnrollments();
       await get().fetchTodaysWorkouts();
+
+      // Reset activeProgramId to next available enrollment or null
+      const remaining = get().enrollments;
+      set({ activeProgramId: remaining.length > 0 ? remaining[0].program_id : null });
     }
   },
 
@@ -344,7 +364,9 @@ export const useProgramStore = create<ProgramState>((set, get) => ({
             exercise_name: ex.name,
             order_index: i,
             exercise_type: 'strength',
-            notes: ex.notes || null,
+            // Encode percentage hint in notes so it's available in the logger
+            notes: [ex.notes, ex.percentage_of_1rm ? `@ ${ex.percentage_of_1rm}% TM` : null]
+              .filter(Boolean).join(' | ') || null,
           })
           .select()
           .single();

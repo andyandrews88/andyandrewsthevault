@@ -582,8 +582,11 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
       .maybeSingle();
     
     if (workout) {
-      // Auto-abandon stale workouts from past dates (more than 1 day old)
-      if (workout.date < today) {
+      // Auto-abandon stale workouts from past dates, but ONLY for free-log sessions.
+      // Program sessions (name contains "—") must never be auto-abandoned so retroactive
+      // logging works correctly.
+      const isProgramSession = workout.workout_name.includes('—');
+      if (workout.date < today && !isProgramSession) {
         await supabase
           .from('workouts')
           .update({ is_completed: true })

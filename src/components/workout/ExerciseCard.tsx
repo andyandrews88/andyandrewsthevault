@@ -1,13 +1,14 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
   DropdownMenuItem, 
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
-import { Plus, MoreVertical, History, Trash2 } from "lucide-react";
+import { Plus, MoreVertical, History, Trash2, Percent } from "lucide-react";
 import { WorkoutExercise } from "@/types/workout";
 import { SetRow } from "./SetRow";
 import { useWorkoutStore } from "@/stores/workoutStore";
@@ -17,10 +18,22 @@ interface ExerciseCardProps {
   onRemove: () => void;
 }
 
+/**
+ * Parses a percentage hint encoded in exercise notes during program session creation.
+ * Format: "@ 85% TM" — returns "85" or null.
+ */
+function parsePercentageHint(notes: string | null | undefined): string | null {
+  if (!notes) return null;
+  const match = notes.match(/@\s*(\d+(?:\.\d+)?)%\s*TM/);
+  return match ? match[1] : null;
+}
+
 export function ExerciseCard({ exercise, onRemove }: ExerciseCardProps) {
   const { addSet, removeSet, updateSet, completeSet, loadLastSession, getLastSessionSets, preferredUnit } = useWorkoutStore();
   const [previousSets, setPreviousSets] = useState<{ weight: number; reps: number }[]>([]);
   const [isLoadingPrevious, setIsLoadingPrevious] = useState(false);
+
+  const percentageHint = parsePercentageHint(exercise.notes);
 
   useEffect(() => {
     // Fetch previous session data on mount
@@ -52,9 +65,17 @@ export function ExerciseCard({ exercise, onRemove }: ExerciseCardProps) {
             <h3 className="font-semibold text-base uppercase tracking-wide">
               {exercise.exercise_name}
             </h3>
-            <p className="text-xs text-muted-foreground">
-              {completedSets}/{totalSets} sets completed
-            </p>
+            <div className="flex items-center gap-2 mt-0.5">
+              <p className="text-xs text-muted-foreground">
+                {completedSets}/{totalSets} sets completed
+              </p>
+              {percentageHint && (
+                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 gap-0.5 h-4">
+                  <Percent className="w-2.5 h-2.5" />
+                  {percentageHint}% TM
+                </Badge>
+              )}
+            </div>
           </div>
           
           <DropdownMenu>
