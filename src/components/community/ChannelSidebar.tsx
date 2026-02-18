@@ -8,6 +8,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { useAdminCheck } from '@/hooks/useAdminCheck';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useNotificationStore } from '@/stores/notificationStore';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -247,6 +248,7 @@ export function ChannelSidebar({ onClose }: ChannelSidebarProps) {
   const { user } = useAuthStore();
   const { isAdmin } = useAdminCheck();
   const { toast } = useToast();
+  const { hasNewAnnouncement, markAnnouncementsRead } = useNotificationStore();
 
   const [editingChannel, setEditingChannel] = useState<CommunityChannel | null>(null);
   const [newChannelOpen, setNewChannelOpen] = useState(false);
@@ -254,8 +256,11 @@ export function ChannelSidebar({ onClose }: ChannelSidebarProps) {
 
   const groups = groupChannels(channels);
 
-  const handleChannelClick = (channelId: string) => {
+  const handleChannelClick = (channelId: string, channelName: string) => {
     setActiveChannel(channelId);
+    if (channelName === 'announcements') {
+      markAnnouncementsRead();
+    }
     onClose?.();
   };
 
@@ -331,7 +336,7 @@ export function ChannelSidebar({ onClose }: ChannelSidebarProps) {
               {chs.map((ch) => (
                 <div key={ch.id} className="group/ch relative">
                   <button
-                    onClick={() => !adminMode && handleChannelClick(ch.id)}
+                    onClick={() => !adminMode && handleChannelClick(ch.id, ch.name)}
                     className={cn(
                       'w-full flex items-center gap-2 px-3 py-1.5 mx-1 rounded text-sm transition-colors text-left',
                       activeChannelId === ch.id && !activeDmUserId && !adminMode
@@ -349,7 +354,13 @@ export function ChannelSidebar({ onClose }: ChannelSidebarProps) {
                       <Hash className="w-3.5 h-3.5 flex-shrink-0 opacity-60" />
                     )}
                     <span className="truncate">{ch.name}</span>
-                    {ch.is_locked && (
+                    {ch.name === 'announcements' && hasNewAnnouncement && !adminMode && (
+                      <span className="ml-auto w-2 h-2 rounded-full bg-destructive flex-shrink-0" />
+                    )}
+                    {ch.is_locked && ch.name !== 'announcements' && (
+                      <span className="ml-auto text-[9px] text-muted-foreground/60 uppercase tracking-wide">locked</span>
+                    )}
+                    {ch.is_locked && ch.name === 'announcements' && !hasNewAnnouncement && (
                       <span className="ml-auto text-[9px] text-muted-foreground/60 uppercase tracking-wide">locked</span>
                     )}
                   </button>
