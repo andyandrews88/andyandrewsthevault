@@ -1,13 +1,18 @@
 import { useState } from "react";
-import { CheckCircle2, Dumbbell, Moon, Clock, Play, Loader2 } from "lucide-react";
+import { CheckCircle2, Dumbbell, Moon, Clock, Play, Loader2, CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { useProgramStore, UserCalendarWorkout, ProgramExercise } from "@/stores/programStore";
 import { useWorkoutStore } from "@/stores/workoutStore";
 import { WendlerPercentageCalc } from "./WendlerPercentageCalc";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 interface DailyProgramWorkoutProps {
   calendarWorkout: UserCalendarWorkout | undefined;
@@ -17,6 +22,8 @@ interface DailyProgramWorkoutProps {
   onStartLogging?: () => void;
   /** The date this workout is for */
   date?: Date;
+  /** Called after rescheduling so parent can refresh */
+  onRescheduled?: () => void;
 }
 
 function TempoExplanation({ tempo }: { tempo: string }) {
@@ -81,10 +88,14 @@ export function DailyProgramWorkout({
   onComplete,
   onStartLogging,
   date,
+  onRescheduled,
 }: DailyProgramWorkoutProps) {
   const { markWorkoutComplete, isEnrolling, startProgramWorkoutSession, isStartingSession } = useProgramStore();
   const { fetchActiveWorkout } = useWorkoutStore();
   const [isStarting, setIsStarting] = useState(false);
+  const [isRescheduling, setIsRescheduling] = useState(false);
+  const [rescheduleOpen, setRescheduleOpen] = useState(false);
+  const [rescheduleDate, setRescheduleDate] = useState<Date | undefined>();
 
   const isWendler = programStyle === "wendler";
   const isFBB = programStyle === "fbb";
@@ -116,14 +127,35 @@ export function DailyProgramWorkout({
         toast.error("Failed to start session. Please try again.");
         return;
       }
-      // Refresh the active workout in workoutStore so the logger takes over
-      await fetchActiveWorkout();
+      // Directly load this workout into the store (bypasses today-only filter)
+      await (useWorkoutStore.getState() as any).loadWorkoutIntoActive(workoutId);
       onStartLogging?.();
     } catch (err) {
       console.error("Error starting program session:", err);
       toast.error("Something went wrong. Please try again.");
     } finally {
       setIsStarting(false);
+    }
+  };
+
+  const handleReschedule = async () => {
+    if (!rescheduleDate || !calendarWorkout) return;
+    setIsRescheduling(true);
+    try {
+      const newDateStr = format(rescheduleDate, 'yyyy-MM-dd');
+      const { error } = await supabase
+        .from('user_calendar_workouts')
+        .update({ scheduled_date: newDateStr })
+        .eq('id', calendarWorkout.id);
+      if (error) throw error;
+      toast.success(`Workout moved to ${format(rescheduleDate, 'MMM d')}`);
+      setRescheduleOpen(false);
+      setRescheduleDate(undefined);
+      onRescheduled?.();
+    } catch (e: any) {
+      toast.error(e.message || "Failed to reschedule");
+    } finally {
+      setIsRescheduling(false);
     }
   };
 
@@ -146,12 +178,44 @@ export function DailyProgramWorkout({
               <p className="text-xs text-muted-foreground mt-1">{workout.notes}</p>
             )}
           </div>
-          {calendarWorkout.is_completed ? (
-            <Badge variant="secondary" className="flex items-center gap-1 shrink-0 text-xs">
-              <CheckCircle2 className="w-3 h-3" />
-              Done
-            </Badge>
-          ) : null}
+          <div className="flex items-center gap-1 shrink-0">
+            {/* Reschedule button */}
+            {!calendarWorkout.is_completed && (
+              <Popover open={rescheduleOpen} onOpenChange={setRescheduleOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="Move to another day">
+                    <CalendarDays className="w-3.5 h-3.5 text-muted-foreground" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0 pointer-events-auto" align="end">
+                  <div className="p-3 space-y-2">
+                    <p className="text-xs font-medium">Move to a different day</p>
+                    <Calendar
+                      mode="single"
+                      selected={rescheduleDate}
+                      onSelect={setRescheduleDate}
+                      className={cn("p-0 pointer-events-auto")}
+                      initialFocus
+                    />
+                    <Button
+                      size="sm"
+                      className="w-full"
+                      disabled={!rescheduleDate || isRescheduling}
+                      onClick={handleReschedule}
+                    >
+                      {isRescheduling ? "Moving…" : "Confirm Move"}
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
+            {calendarWorkout.is_completed ? (
+              <Badge variant="secondary" className="flex items-center gap-1 text-xs">
+                <CheckCircle2 className="w-3 h-3" />
+                Done
+              </Badge>
+            ) : null}
+          </div>
         </div>
       </CardHeader>
 
