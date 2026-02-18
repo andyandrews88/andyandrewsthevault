@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Program, ProgramExercise, useProgramStore } from "@/stores/programStore";
 import { Button } from "@/components/ui/button";
@@ -31,9 +31,24 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Plus, Pencil, Trash2, ChevronDown, ChevronUp, GripVertical, Dumbbell } from "lucide-react";
+import { Plus, Pencil, Trash2, ChevronDown, ChevronUp, GripVertical, Dumbbell, Video, Link } from "lucide-react";
 import { toast } from "sonner";
+import { ExerciseLibraryEntry } from "./ExerciseLibraryAdmin";
 
+// ─── Shared hook: fetch exercise library ──────────────────────────────────────
+function useExerciseLibrary() {
+  const [library, setLibrary] = useState<ExerciseLibraryEntry[]>([]);
+  useEffect(() => {
+    supabase
+      .from('exercise_library' as any)
+      .select('*')
+      .order('name')
+      .then(({ data }) => { if (data) setLibrary(data as unknown as ExerciseLibraryEntry[]); });
+  }, []);
+  return library;
+}
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 interface ProgramWorkoutRow {
   id: string;
   program_id: string;
@@ -51,26 +66,126 @@ const EMPTY_EXERCISE: ProgramExercise = {
   tempo: "",
   notes: "",
   rest_seconds: 90,
+  video_url: "",
 };
 
+// ─── ExerciseComboBox ─────────────────────────────────────────────────────────
+function ExerciseComboBox({
+  value,
+  onChange,
+  library,
+}: {
+  value: string;
+  onChange: (name: string, videoUrl?: string) => void;
+  library: ExerciseLibraryEntry[];
+}) {
+  const [query, setQuery] = useState(value);
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  // Sync when value changes externally
+  useEffect(() => { setQuery(value); }, [value]);
+
+  // Close on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const filtered = query.trim().length > 0
+    ? library.filter(ex => ex.name.toLowerCase().includes(query.toLowerCase()))
+    : library;
+
+  const handleSelect = (ex: ExerciseLibraryEntry) => {
+    onChange(ex.name, ex.video_url || undefined);
+    setQuery(ex.name);
+    setOpen(false);
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setQuery(e.target.value);
+    onChange(e.target.value);
+    setOpen(true);
+  };
+
+  const handleBlur = () => {
+    // Short delay so click on dropdown item registers first
+    setTimeout(() => setOpen(false), 150);
+  };
+
+  return (
+    <div ref={ref} className="relative flex-1">
+      <Input
+        placeholder="Search library or type name..."
+        value={query}
+        onChange={handleInputChange}
+        onFocus={() => setOpen(true)}
+        onBlur={handleBlur}
+        className="h-8 text-sm"
+      />
+      {open && filtered.length > 0 && (
+        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover border border-border rounded-md shadow-lg max-h-48 overflow-y-auto">
+          {filtered.slice(0, 20).map(ex => (
+            <button
+              key={ex.id}
+              type="button"
+              className="w-full text-left px-3 py-2 text-sm hover:bg-accent/50 flex items-center justify-between gap-2"
+              onMouseDown={() => handleSelect(ex)}
+            >
+              <div className="min-w-0">
+                <span className="font-medium">{ex.name}</span>
+                {ex.muscle_group && (
+                  <span className="text-xs text-muted-foreground ml-2">{ex.muscle_group}</span>
+                )}
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="text-xs text-muted-foreground capitalize">{ex.category}</span>
+                {ex.video_url && <Video className="w-3 h-3 text-primary" />}
+              </div>
+            </button>
+          ))}
+          {query.trim() && !filtered.find(ex => ex.name.toLowerCase() === query.toLowerCase()) && (
+            <button
+              type="button"
+              className="w-full text-left px-3 py-2 text-sm hover:bg-accent/50 text-muted-foreground"
+              onMouseDown={() => { onChange(query); setOpen(false); }}
+            >
+              + Use "<span className="text-foreground font-medium">{query}</span>" as custom name
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── ExerciseRowEditor ────────────────────────────────────────────────────────
 function ExerciseRowEditor({
   exercise,
   onChange,
   onRemove,
+  library,
 }: {
   exercise: ProgramExercise;
   onChange: (ex: ProgramExercise) => void;
   onRemove: () => void;
+  library: ExerciseLibraryEntry[];
 }) {
   return (
     <div className="border border-border rounded-md p-3 space-y-2 bg-muted/20">
       <div className="flex items-center gap-2">
         <GripVertical className="w-4 h-4 text-muted-foreground shrink-0" />
-        <Input
-          placeholder="Exercise name"
+        <ExerciseComboBox
           value={exercise.name}
-          onChange={e => onChange({ ...exercise, name: e.target.value })}
-          className="flex-1 h-8 text-sm"
+          library={library}
+          onChange={(name, videoUrl) => onChange({
+            ...exercise,
+            name,
+            ...(videoUrl !== undefined ? { video_url: videoUrl } : {}),
+          })}
         />
         <Button variant="ghost" size="sm" onClick={onRemove} className="shrink-0 h-8 w-8 p-0">
           <Trash2 className="w-3.5 h-3.5 text-destructive" />
@@ -136,10 +251,23 @@ function ExerciseRowEditor({
           className="h-8 text-sm"
         />
       </div>
+      {/* Video URL — pre-filled from library, overrideable */}
+      <div>
+        <Label className="text-xs text-muted-foreground flex items-center gap-1">
+          <Video className="w-3 h-3" /> Exercise Video URL
+        </Label>
+        <Input
+          placeholder="https://youtube.com/... (auto-filled from library)"
+          value={exercise.video_url || ""}
+          onChange={e => onChange({ ...exercise, video_url: e.target.value })}
+          className="h-8 text-sm"
+        />
+      </div>
     </div>
   );
 }
 
+// ─── WorkoutEditor ────────────────────────────────────────────────────────────
 function WorkoutEditor({
   workout,
   onSave,
@@ -149,6 +277,7 @@ function WorkoutEditor({
   onSave: () => void;
   onCancel: () => void;
 }) {
+  const library = useExerciseLibrary();
   const [name, setName] = useState(workout.workout_name || "");
   const [week, setWeek] = useState(workout.week_number || 1);
   const [day, setDay] = useState(workout.day_number || 1);
@@ -220,6 +349,7 @@ function WorkoutEditor({
             <ExerciseRowEditor
               key={i}
               exercise={ex}
+              library={library}
               onChange={updated => setExercises(exercises.map((e, idx) => idx === i ? updated : e))}
               onRemove={() => setExercises(exercises.filter((_, idx) => idx !== i))}
             />
@@ -237,6 +367,7 @@ function WorkoutEditor({
   );
 }
 
+// ─── ProgramEditor ────────────────────────────────────────────────────────────
 function ProgramEditor({
   program,
   onSave,
@@ -249,6 +380,7 @@ function ProgramEditor({
   const [name, setName] = useState(program?.name || "");
   const [slug, setSlug] = useState(program?.slug || "");
   const [description, setDescription] = useState(program?.description || "");
+  const [videoUrl, setVideoUrl] = useState(program?.video_url || "");
   const [category, setCategory] = useState(program?.category || "strength");
   const [durationWeeks, setDurationWeeks] = useState(program?.duration_weeks || 12);
   const [daysPerWeek, setDaysPerWeek] = useState(program?.days_per_week || 4);
@@ -267,6 +399,7 @@ function ProgramEditor({
         name: name.trim(),
         slug: slug.trim(),
         description: description.trim(),
+        video_url: videoUrl.trim() || null,
         category,
         duration_weeks: durationWeeks,
         days_per_week: daysPerWeek,
@@ -275,11 +408,11 @@ function ProgramEditor({
         is_active: isActive,
       };
       if (program?.id) {
-        const { error } = await supabase.from('programs').update(row).eq('id', program.id);
+        const { error } = await supabase.from('programs').update(row as any).eq('id', program.id);
         if (error) throw error;
         toast.success("Program updated");
       } else {
-        const { error } = await supabase.from('programs').insert(row);
+        const { error } = await supabase.from('programs').insert(row as any);
         if (error) throw error;
         toast.success("Program created");
       }
@@ -314,6 +447,20 @@ function ProgramEditor({
       <div>
         <Label>Description</Label>
         <Textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} placeholder="Describe the program..." />
+      </div>
+      {/* Program video URL */}
+      <div>
+        <Label className="flex items-center gap-1.5">
+          <Video className="w-3.5 h-3.5 text-muted-foreground" />
+          Program Overview Video URL
+        </Label>
+        <Input
+          value={videoUrl}
+          onChange={e => setVideoUrl(e.target.value)}
+          placeholder="https://youtube.com/watch?v=... (optional)"
+          className="mt-1"
+        />
+        <p className="text-xs text-muted-foreground mt-1">Paste any YouTube or Vimeo link — shown to users as a "Watch Overview" button.</p>
       </div>
       <div className="grid grid-cols-3 gap-3">
         <div>
@@ -363,6 +510,7 @@ function ProgramEditor({
   );
 }
 
+// ─── ProgramRow ───────────────────────────────────────────────────────────────
 function ProgramRow({
   program,
   onEdit,
@@ -435,6 +583,11 @@ function ProgramRow({
               {program.program_style && (
                 <Badge variant="outline" className="text-xs">{program.program_style}</Badge>
               )}
+              {program.video_url && (
+                <span className="flex items-center gap-1 text-xs text-primary">
+                  <Video className="w-3 h-3" /> Video
+                </span>
+              )}
             </div>
             <p className="text-xs text-muted-foreground">{program.duration_weeks}w · {program.days_per_week}d/wk · {program.difficulty}</p>
           </div>
@@ -481,7 +634,14 @@ function ProgramRow({
                   <div key={w.id} className="flex items-center justify-between bg-card rounded p-2 border border-border/50 gap-2">
                     <div className="min-w-0">
                       <p className="text-sm font-medium truncate">Day {w.day_number}: {w.workout_name}</p>
-                      <p className="text-xs text-muted-foreground">{w.exercises.length} exercises</p>
+                      <p className="text-xs text-muted-foreground">
+                        {w.exercises.length} exercises
+                        {w.exercises.some(e => e.video_url) && (
+                          <span className="ml-2 inline-flex items-center gap-0.5 text-primary">
+                            <Video className="w-3 h-3" /> videos
+                          </span>
+                        )}
+                      </p>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
                       <Button variant="ghost" size="sm" onClick={() => setEditingWorkout(w)} className="h-7 w-7 p-0">
@@ -530,6 +690,7 @@ function ProgramRow({
   );
 }
 
+// ─── ProgramAdmin (main export) ───────────────────────────────────────────────
 export function ProgramAdmin() {
   const { programs, fetchPrograms } = useProgramStore();
   const [editingProgram, setEditingProgram] = useState<Program | null>(null);
@@ -541,7 +702,7 @@ export function ProgramAdmin() {
   }, [fetchPrograms]);
 
   const handleToggleActive = async (program: Program) => {
-    await supabase.from('programs').update({ is_active: !program.is_active }).eq('id', program.id);
+    await supabase.from('programs').update({ is_active: !program.is_active } as any).eq('id', program.id);
     fetchPrograms();
     toast.success(program.is_active ? "Program deactivated" : "Program activated");
   };
@@ -565,7 +726,7 @@ export function ProgramAdmin() {
       <div className="flex items-center justify-between">
         <div>
           <h3 className="font-semibold">Programs ({programs.length})</h3>
-          <p className="text-xs text-muted-foreground">Create, edit, and manage 12-week training programs</p>
+          <p className="text-xs text-muted-foreground">Create, edit, and manage training programs</p>
         </div>
         <Button size="sm" onClick={() => setCreatingProgram(true)}>
           <Plus className="w-4 h-4 mr-1.5" /> New Program

@@ -257,6 +257,39 @@ export type Database = {
         }
         Relationships: []
       }
+      exercise_library: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          muscle_group: string | null
+          name: string
+          notes: string | null
+          updated_at: string
+          video_url: string | null
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          id?: string
+          muscle_group?: string | null
+          name: string
+          notes?: string | null
+          updated_at?: string
+          video_url?: string | null
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          muscle_group?: string | null
+          name?: string
+          notes?: string | null
+          updated_at?: string
+          video_url?: string | null
+        }
+        Relationships: []
+      }
       exercise_sets: {
         Row: {
           created_at: string
@@ -403,6 +436,7 @@ export type Database = {
           name: string
           program_style: string | null
           slug: string
+          video_url: string | null
         }
         Insert: {
           category?: string
@@ -416,6 +450,7 @@ export type Database = {
           name: string
           program_style?: string | null
           slug: string
+          video_url?: string | null
         }
         Update: {
           category?: string
@@ -429,6 +464,7 @@ export type Database = {
           name?: string
           program_style?: string | null
           slug?: string
+          video_url?: string | null
         }
         Relationships: []
       }

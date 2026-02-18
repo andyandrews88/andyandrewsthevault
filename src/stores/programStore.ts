@@ -14,6 +14,7 @@ export interface Program {
   program_style: string | null;
   is_active: boolean;
   created_at: string;
+  video_url?: string | null;
 }
 
 export interface ProgramWorkout {
@@ -34,6 +35,7 @@ export interface ProgramExercise {
   tempo?: string;
   notes?: string;
   rest_seconds?: number;
+  video_url?: string;
 }
 
 export interface UserProgramEnrollment {

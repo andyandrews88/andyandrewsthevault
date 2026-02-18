@@ -5,7 +5,6 @@ import { WeeklyReview } from "./WeeklyReview";
 import { LatestUpdates } from "./LatestUpdates";
 import { AnnouncementBanner } from "./AnnouncementBanner";
 import { GoalsPanel } from "@/components/goals/GoalsPanel";
-import { ActiveProgramSwitcher } from "@/components/tracks/ActiveProgramSwitcher";
 import { useDashboardStore } from "@/stores/dashboardStore";
 import { Badge } from "@/components/ui/badge";
 export function VaultDashboard() {
@@ -33,7 +32,6 @@ export function VaultDashboard() {
   return (
     <div className="space-y-6">
       <AnnouncementBanner />
-      <ActiveProgramSwitcher />
       <div className="text-center mb-2">
         <Badge variant="elite" className="mb-2">TODAY'S OVERVIEW</Badge>
       </div>

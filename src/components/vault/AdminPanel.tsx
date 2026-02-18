@@ -14,7 +14,8 @@ import {
   Video,
   Headphones,
   Shield,
-  Dumbbell
+  Dumbbell,
+  BookOpen
 } from 'lucide-react';
 import { VaultResource, VaultPodcast, ResourceFormData, PodcastFormData } from '@/types/vaultResources';
 import { 
@@ -31,6 +32,7 @@ import {
 import { ResourceEditor } from './ResourceEditor';
 import { PodcastEditor } from './PodcastEditor';
 import { ProgramAdmin } from '@/components/admin/ProgramAdmin';
+import { ExerciseLibraryAdmin } from '@/components/admin/ExerciseLibraryAdmin';
 import { toast } from 'sonner';
 import {
   AlertDialog,
@@ -278,6 +280,10 @@ export function AdminPanel() {
               <Dumbbell className="w-3.5 h-3.5" />
               Programs
             </TabsTrigger>
+            <TabsTrigger value="exercises" className="flex items-center gap-1.5">
+              <BookOpen className="w-3.5 h-3.5" />
+              Exercises
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="resources" className="mt-4">
@@ -394,6 +400,10 @@ export function AdminPanel() {
 
           <TabsContent value="programs" className="mt-4">
             <ProgramAdmin />
+          </TabsContent>
+
+          <TabsContent value="exercises" className="mt-4">
+            <ExerciseLibraryAdmin />
           </TabsContent>
         </Tabs>
       </CardContent>
