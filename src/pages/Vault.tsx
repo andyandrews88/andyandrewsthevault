@@ -1,20 +1,10 @@
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
-  Library, 
-  Users, 
-  Target, 
-  Star,
-  ExternalLink,
-  Crown,
-  Radio,
-  Shield,
-  Activity,
-  Dumbbell,
-  Heart,
-  LayoutDashboard
+  Library, Users, Target, Star, ExternalLink, Crown,
+  Radio, Shield, Activity, Dumbbell, Heart, LayoutDashboard
 } from "lucide-react";
 import { PodcastTab } from "@/components/vault/PodcastTab";
 import { LibraryTab } from "@/components/vault/LibraryTab";
@@ -27,9 +17,12 @@ import { VaultDashboard as DashboardView } from "@/components/dashboard/VaultDas
 import logo from "@/assets/logo.png";
 import { useAdminCheck } from "@/hooks/useAdminCheck";
 import { OnboardingWalkthrough } from "@/components/vault/OnboardingWalkthrough";
+import { useSearchParams } from "react-router-dom";
 
 export function VaultDashboard() {
   const { isAdmin } = useAdminCheck();
+  const [searchParams] = useSearchParams();
+  const defaultTab = searchParams.get('tab') || 'dashboard';
 
   return (
     <div className="min-h-screen pt-24 pb-12">
@@ -58,7 +51,7 @@ export function VaultDashboard() {
             target="_blank" 
             rel="noopener noreferrer"
           >
-            <Button variant="elite" size="sm" className="sm:size-default">
+            <Button variant="elite" size="sm">
               <Crown className="w-4 h-4 mr-2" />
               Apply for 1-on-1 Coaching
             </Button>
@@ -66,7 +59,7 @@ export function VaultDashboard() {
         </div>
 
         {/* Main tabs */}
-        <Tabs defaultValue="dashboard" className="space-y-6">
+        <Tabs defaultValue={defaultTab} className="space-y-6">
           <div className="overflow-x-auto scrollbar-hide -mx-4 px-4 md:-mx-6 md:px-6">
             <TabsList className="inline-flex w-max min-w-full gap-0.5 sm:gap-1 h-auto p-1">
               <TabsTrigger value="dashboard" className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2.5 whitespace-nowrap" aria-label="Dashboard">
@@ -110,44 +103,16 @@ export function VaultDashboard() {
             </TabsList>
           </div>
 
-          {/* Dashboard */}
-          <TabsContent value="dashboard">
-            <DashboardView />
-          </TabsContent>
-
-          {/* Resource Library */}
-          <TabsContent value="library">
-            <LibraryTab isPremiumMember={true} isAdmin={isAdmin} />
-          </TabsContent>
-
-          {/* Progress Tracking */}
-          <TabsContent value="progress">
-            <ProgressTab />
-          </TabsContent>
-
-          {/* Lifestyle Tab */}
-          <TabsContent value="lifestyle">
-            <LifestyleTab />
-          </TabsContent>
-
-          {/* Workouts Tab */}
-          <TabsContent value="workouts">
-            <WorkoutTab />
-          </TabsContent>
-
-          {/* Podcast Tab */}
-          <TabsContent value="podcast">
-            <PodcastTab />
-          </TabsContent>
-
-          {/* Community Hub */}
-          <TabsContent value="community">
-            <CommunityFeed />
-          </TabsContent>
+          <TabsContent value="dashboard"><DashboardView /></TabsContent>
+          <TabsContent value="library"><LibraryTab isPremiumMember={true} isAdmin={isAdmin} /></TabsContent>
+          <TabsContent value="progress"><ProgressTab /></TabsContent>
+          <TabsContent value="lifestyle"><LifestyleTab /></TabsContent>
+          <TabsContent value="workouts"><WorkoutTab /></TabsContent>
+          <TabsContent value="podcast"><PodcastTab /></TabsContent>
+          <TabsContent value="community"><CommunityFeed /></TabsContent>
 
           {/* Track Selection */}
           <TabsContent value="tracks">
-            {/* Page Description */}
             <div className="text-center mb-6">
               <Badge variant="elite" className="mb-3">TRAINING PROGRAMS</Badge>
               <h2 className="text-xl md:text-2xl font-bold mb-2">Choose Your Path</h2>
@@ -156,7 +121,6 @@ export function VaultDashboard() {
                 Select the track that matches your current level.
               </p>
             </div>
-
             <div className="grid md:grid-cols-2 gap-6">
               <Card variant="interactive" className="p-6">
                 <div className="flex items-start gap-4">
@@ -166,8 +130,7 @@ export function VaultDashboard() {
                   <div className="flex-1">
                     <h3 className="font-semibold text-lg mb-1">Foundation Track</h3>
                     <p className="text-sm text-muted-foreground mb-4">
-                      Build the base. Address structural imbalances and establish movement competency 
-                      before adding intensity.
+                      Build the base. Address structural imbalances and establish movement competency before adding intensity.
                     </p>
                     <ul className="text-sm text-muted-foreground space-y-1 mb-4">
                       <li>• Movement quality focus</li>
@@ -175,21 +138,14 @@ export function VaultDashboard() {
                       <li>• Base aerobic development</li>
                       <li>• 3 days/week programming</li>
                     </ul>
-                    <a 
-                      href="https://dashboard.coachrx.app/programs/sales/74471" 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="block"
-                    >
+                    <a href="https://dashboard.coachrx.app/programs/sales/74471" target="_blank" rel="noopener noreferrer" className="block">
                       <Button variant="outline" className="w-full">
-                        <ExternalLink className="w-4 h-4 mr-2" />
-                        Join on CoachRx
+                        <ExternalLink className="w-4 h-4 mr-2" />Join on CoachRx
                       </Button>
                     </a>
                   </div>
                 </div>
               </Card>
-
               <Card variant="data" className="p-6">
                 <div className="flex items-start gap-4">
                   <div className="p-3 rounded-lg bg-primary/10 text-primary">
@@ -201,8 +157,7 @@ export function VaultDashboard() {
                       <Badge variant="secondary" className="text-xs">COMING SOON</Badge>
                     </div>
                     <p className="text-sm text-muted-foreground mb-4">
-                      Push boundaries. Designed for athletes with solid foundations ready to 
-                      optimize every aspect of performance.
+                      Push boundaries. Designed for athletes with solid foundations ready to optimize every aspect of performance.
                     </p>
                     <ul className="text-sm text-muted-foreground space-y-1 mb-4">
                       <li>• Advanced strength protocols</li>
@@ -210,28 +165,21 @@ export function VaultDashboard() {
                       <li>• Periodization models</li>
                       <li>• 5-6 days/week programming</li>
                     </ul>
-                    <Button variant="outline" className="w-full" disabled>
-                      Coming Soon
-                    </Button>
+                    <Button variant="outline" className="w-full" disabled>Coming Soon</Button>
                   </div>
                 </div>
               </Card>
             </div>
-
-            {/* 1-on-1 Coaching Card */}
             <Card variant="elevated" className="mt-6 p-6">
               <div className="flex items-start gap-4">
-                <div className="p-3 rounded-lg bg-accent/10 text-accent">
-                  <Crown className="w-6 h-6" />
-                </div>
+                <div className="p-3 rounded-lg bg-accent/10 text-accent"><Crown className="w-6 h-6" /></div>
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
                     <h3 className="font-semibold text-lg">1-on-1 Coaching</h3>
                     <Badge variant="elite" className="text-xs">ELITE</Badge>
                   </div>
                   <p className="text-sm text-muted-foreground mb-4">
-                    Ready for elite-level attention? If your audit shows you're in the Performance 
-                    or Elite tier, you may qualify for personalized coaching with Andy.
+                    Ready for elite-level attention? If your audit shows you're in the Performance or Elite tier, you may qualify for personalized coaching with Andy.
                   </p>
                   <ul className="text-sm text-muted-foreground space-y-1 mb-4">
                     <li>• Fully customized programming</li>
@@ -239,15 +187,9 @@ export function VaultDashboard() {
                     <li>• Direct access to Andy</li>
                     <li>• Comprehensive performance review</li>
                   </ul>
-                  <a 
-                    href="https://docs.google.com/forms/d/e/1FAIpQLSeNZfnUe0PaxJFym_OJehlxbNmvbo9SPA6GDd6GIegdIaAD9Q/viewform?usp=header" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="block"
-                  >
+                  <a href="https://docs.google.com/forms/d/e/1FAIpQLSeNZfnUe0PaxJFym_OJehlxbNmvbo9SPA6GDd6GIegdIaAD9Q/viewform?usp=header" target="_blank" rel="noopener noreferrer" className="block">
                     <Button variant="elite" className="w-full">
-                      <ExternalLink className="w-4 h-4 mr-2" />
-                      Apply Now
+                      <ExternalLink className="w-4 h-4 mr-2" />Apply Now
                     </Button>
                   </a>
                 </div>
@@ -255,11 +197,8 @@ export function VaultDashboard() {
             </Card>
           </TabsContent>
 
-          {/* Admin Panel - Only visible to admins */}
           {isAdmin && (
-            <TabsContent value="admin">
-              <AdminPanel />
-            </TabsContent>
+            <TabsContent value="admin"><AdminPanel /></TabsContent>
           )}
         </Tabs>
       </div>
