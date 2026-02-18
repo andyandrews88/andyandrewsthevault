@@ -11,7 +11,7 @@ import {
   WorkoutDay,
   isConditioningExercise
 } from '@/types/workout';
-import { format, subDays, startOfWeek } from 'date-fns';
+import { format, subDays, startOfWeek, addDays } from 'date-fns';
 import { WeightUnit, getStoredUnit, setStoredUnit } from '@/lib/weightConversion';
 
 interface WorkoutState {
@@ -713,29 +713,42 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
   fetchWorkoutDays: async (weeks = 12): Promise<WorkoutDay[]> => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return [];
-    
+
     const fromDate = format(subDays(new Date(), weeks * 7), 'yyyy-MM-dd');
-    
+    const futureDate = format(addDays(new Date(), weeks * 7), 'yyyy-MM-dd');
+
+    // 1. Free-log completed workouts
     const { data: workouts } = await supabase
       .from('workouts')
       .select('date')
       .eq('user_id', user.id)
       .eq('is_completed', true)
       .gte('date', fromDate);
-    
-    if (!workouts) return [];
-    
-    // Count workouts per day
+
+    // 2. Program calendar workouts (past AND future scheduled)
+    const { data: programWorkouts } = await supabase
+      .from('user_calendar_workouts')
+      .select('scheduled_date, is_completed')
+      .eq('user_id', user.id)
+      .gte('scheduled_date', fromDate)
+      .lte('scheduled_date', futureDate);
+
     const dayMap = new Map<string, number>();
-    for (const w of workouts) {
-      const count = dayMap.get(w.date) || 0;
-      dayMap.set(w.date, count + 1);
+
+    for (const w of workouts || []) {
+      dayMap.set(w.date, (dayMap.get(w.date) || 0) + 1);
     }
-    
-    return Array.from(dayMap.entries()).map(([date, workout_count]) => ({
+    for (const pw of programWorkouts || []) {
+      dayMap.set(pw.scheduled_date, (dayMap.get(pw.scheduled_date) || 0) + 1);
+    }
+
+    const days = Array.from(dayMap.entries()).map(([date, workout_count]) => ({
       date,
       workout_count,
     }));
+
+    set({ workoutDays: days });
+    return days;
   },
   
   getLastSessionSets: async (exerciseName: string): Promise<{ weight: number; reps: number }[]> => {

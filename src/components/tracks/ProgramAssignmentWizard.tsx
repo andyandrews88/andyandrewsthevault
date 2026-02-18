@@ -110,13 +110,12 @@ export function ProgramAssignmentWizard({ program, open, onClose }: Props) {
       <DialogContent className="max-w-md">
         <DialogHeader>
           <div className="flex items-center gap-2 mb-1">
-            <Badge variant="secondary" className="text-xs">Step {step} of {isAddon ? 3 : 2}</Badge>
+            <Badge variant="secondary" className="text-xs">Step {step} of 2</Badge>
           </div>
           <DialogTitle className="text-lg">{program.name}</DialogTitle>
           <DialogDescription>
             {step === 1 && "When do you want to start your program?"}
             {step === 2 && `Which ${requiredDays} days will you train each week?`}
-            {step === 3 && "How should this add-on fit into your schedule?"}
           </DialogDescription>
         </DialogHeader>
 
