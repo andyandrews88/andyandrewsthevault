@@ -1,4 +1,4 @@
-import { Bell } from 'lucide-react';
+import { Bell, RotateCcw } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -58,6 +58,18 @@ export function NotificationSettings() {
               onCheckedChange={(v) => handleToggle('pr_badge_alerts', v)}
             />
           </div>
+        </div>
+        <div className="border-t pt-3 mt-3">
+          <button
+            onClick={() => {
+              localStorage.removeItem('vault_onboarding_complete');
+              window.location.reload();
+            }}
+            className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors w-full"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            Replay Onboarding
+          </button>
         </div>
       </PopoverContent>
     </Popover>
