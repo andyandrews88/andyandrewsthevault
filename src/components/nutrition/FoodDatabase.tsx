@@ -39,7 +39,7 @@ export function FoodDatabase({ targetMacros, onAddFood }: FoodDatabaseProps) {
   const [activeCategory, setActiveCategory] = useState<'all' | FoodCategory>('all');
   const [displayUnit, setDisplayUnit] = useState<'default' | 'metric' | 'imperial'>('default');
   
-  const { addFood } = useMealBuilderStore();
+  const { addDiaryEntry } = useMealBuilderStore();
 
   const filteredFoods = useMemo(() => {
     let foods = foodDatabase;
@@ -59,8 +59,8 @@ export function FoodDatabase({ targetMacros, onAddFood }: FoodDatabaseProps) {
   const proteinNeeded = targetMacros ? targetMacros.protein : null;
 
   const handleAddFood = (food: FoodItem, servings: number, unit?: MeasurementUnit) => {
-    // Add to meal builder
-    addFood(food, servings, unit || 'piece');
+    // Add to diary (defaults to snacks slot from food database)
+    addDiaryEntry(food, 'snacks', servings, unit || 'piece');
     
     // Also call legacy handler if provided
     if (onAddFood) {
