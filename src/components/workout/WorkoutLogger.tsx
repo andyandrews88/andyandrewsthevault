@@ -68,7 +68,8 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
     workoutDays,
     fetchWorkoutDays,
     fetchWorkoutByDate,
-    preferredUnit
+    preferredUnit,
+    isEditing
   } = useWorkoutStore();
   
   const [isExerciseSearchOpen, setIsExerciseSearchOpen] = useState(false);
@@ -80,8 +81,9 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
   const [programWorkoutsForDate, setProgramWorkoutsForDate] = useState<UserCalendarWorkout[]>([]);
 
   const fetchProgramWorkoutsForDate = async (date: Date) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) return;
+    const user = session.user;
     const dateStr = format(date, 'yyyy-MM-dd');
     const { data } = await supabase
       .from('user_calendar_workouts')
@@ -117,23 +119,27 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
   };
 
   const handleFinish = async () => {
+    const wasEditing = isEditing;
     await finishWorkout();
-    // Mark any matching calendar workouts as complete so they show "Done"
-    const dateStr = format(selectedDate, 'yyyy-MM-dd');
-    if (programWorkoutsForDate.length > 0) {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        await supabase
-          .from('user_calendar_workouts')
-          .update({ is_completed: true, completed_at: new Date().toISOString() })
-          .eq('scheduled_date', dateStr)
-          .eq('user_id', user.id)
-          .eq('is_completed', false);
+    
+    // Only mark program calendar workouts and call onBack for NEW workouts, not edits
+    if (!wasEditing) {
+      const dateStr = format(selectedDate, 'yyyy-MM-dd');
+      if (programWorkoutsForDate.length > 0) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          await supabase
+            .from('user_calendar_workouts')
+            .update({ is_completed: true, completed_at: new Date().toISOString() })
+            .eq('scheduled_date', dateStr)
+            .eq('user_id', session.user.id)
+            .eq('is_completed', false);
+        }
       }
+      fetchProgramWorkoutsForDate(selectedDate);
+      onBack();
     }
     fetchWorkoutDays(12);
-    fetchProgramWorkoutsForDate(selectedDate);
-    onBack();
   };
 
   const handleCancel = async () => {
@@ -428,7 +434,9 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
           <AlertDialogHeader>
             <AlertDialogTitle>Cancel Workout?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will delete all exercises and sets from this session. This action cannot be undone.
+              {isEditing
+                ? "This will discard your changes and restore the workout to its previous state."
+                : "This will delete all exercises and sets from this session. This action cannot be undone."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
