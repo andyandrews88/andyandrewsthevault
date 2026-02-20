@@ -1,90 +1,95 @@
 
+# Training Section Audit and Bug Fix
 
-# Comprehensive Onboarding Redesign
+## Critical Bug: Editing Old Workout Crashes and Resets to Today
 
-## The Problem
+**Root Cause** (line 552 in `workoutStore.ts`):
 
-The current onboarding is a 6-step feature list inside a small dialog. It tells users what each tab does but never explains:
+```text
+set({
+  activeWorkout: workout,
+  exercises,
+  viewingWorkout: null,
+  viewingExercises: [],
+  selectedDate: new Date(),   // <-- THIS IS THE BUG
+  isLoading: false,
+});
+```
 
-- Why logging data matters (the AI reads all of it)
-- How features connect to each other (check-in notes influence the weekly review)
-- What the user gets back in return for the effort of filling things in
-- The "everything feeds the AI coach" loop that makes The Vault different from other apps
+When you click "Edit" on a past workout, `editWorkout()` forces `selectedDate` back to `new Date()` (today). This triggers the `useEffect` in `WorkoutLogger` which calls `fetchWorkoutByDate(selectedDate)` and `fetchProgramWorkoutsForDate(selectedDate)` -- those overwrite the state you just set, causing a race condition that resets the view and can crash the UI.
 
-## The New Approach
+**Fix**: Replace `selectedDate: new Date()` with `selectedDate: new Date(workout.date + 'T12:00:00')` so the calendar stays on the workout's actual date.
 
-Replace the current 6-step feature tour with a **narrative onboarding** that follows a "Input -> Intelligence -> Insight" structure. Instead of listing tabs, it explains the system — why every input matters.
+Additionally, `editWorkout` marks the workout as `is_completed: false` in the database but does NOT restore it to `is_completed: true` when the user finishes. The existing `finishWorkout` already does `update({ is_completed: true })`, so this path is covered -- but if the user cancels (`cancelWorkout`), the workout gets DELETED entirely. For an edit of a completed workout, cancelling should restore the `is_completed: true` flag instead of deleting the entire workout. This needs a guard.
 
-### New Step Structure (8 steps)
+## Performance Issues
 
-**Step 1 — Welcome**
-"Welcome to The Vault. This isn't a collection of separate trackers — it's one connected system. Everything you log feeds an AI coaching engine that gives you a personalized weekly performance review."
+### 1. Excessive `supabase.auth.getUser()` calls
+Every single store action (`fetchActiveWorkout`, `fetchWorkoutByDate`, `fetchWorkoutDays`, `fetchPersonalRecords`, `completeSet`, etc.) makes a separate `await supabase.auth.getUser()` network call. On page load, the `useEffect` in `WorkoutLogger` fires 4 fetches simultaneously, each calling `getUser()` independently -- that's 4 redundant auth round-trips before any real data loads.
 
-**Step 2 — The Loop (core concept)**
-"Here's how it works: You log your training, nutrition, and lifestyle data throughout the week. On the Dashboard, your AI coach pulls all of it together into a single review — with specific feedback on what's working, what needs attention, and what to focus on next."
+**Fix**: Cache the user ID once at the top of the component or store initialization, and pass it through. Alternatively, use `supabase.auth.getSession()` which reads from local cache and is instant.
 
-A simple visual showing: Log Data -> AI Analyzes -> You Get Coached -> Adjust -> Repeat
+### 2. `useEffect` in `WorkoutLogger` re-fetches everything on every date change
+The dependency array `[fetchActiveWorkout, fetchPersonalRecords, fetchWorkoutDays, fetchWorkoutByDate, selectedDate]` causes all 5 functions (including `fetchActiveWorkout` and `fetchPersonalRecords` which don't depend on `selectedDate`) to re-run every time the date changes. Only `fetchWorkoutByDate` and `fetchProgramWorkoutsForDate` need to run on date change.
 
-**Step 3 — Daily Check-In (why it matters)**
-"Start each day with a 30-second check-in. Rate your sleep, stress, energy, and drive — these generate your Readiness Score. But the real power is in the notes field. Write what's going on: 'bad sleep, lower back tight, stressed about work.' The AI reads every note and connects the dots you might miss."
+**Fix**: Split into two effects -- one for initial load (active workout, PRs, workout days) and one for date-dependent fetches.
 
-**Step 4 — Training (what gets tracked)**
-"Log your strength and conditioning work. The app tracks volume, PRs, and trends automatically. If you add RIR (Reps in Reserve) to your sets, the AI can tell whether you're pushing too hard or leaving too much in the tank — and adjust its recommendations."
+### 3. `getLastSessionSets` called per ExerciseCard on mount
+Each `ExerciseCard` fires `getLastSessionSets` in a `useEffect` on mount, which is another Supabase query per exercise. With 5 exercises, that's 5 separate queries just to show "previous" data.
 
-**Step 5 — Nutrition and Progress**
-"Track your macros, scan barcodes, and log bodyweight. The AI uses weight trends and nutrition data to spot patterns — like whether a calorie deficit is affecting your training performance."
+**Fix**: This is acceptable for small workouts but should have a loading guard to prevent duplicate calls when exercises array updates.
 
-**Step 6 — The Weekly Review**
-"Every week, the AI pulls together your training volume, conditioning work, readiness scores, check-in notes, bodyweight trends, and RIR data into a single coaching review. The more you log, the smarter and more specific the feedback gets. This is why every input matters."
+### 4. `setSelectedDate` triggers `fetchWorkoutByDate` inside the store AND the useEffect
+When you call `setSelectedDate`, the store setter on line 100-102 immediately calls `fetchWorkoutByDate(date)`. Then the `useEffect` in `WorkoutLogger` also calls `fetchWorkoutByDate(selectedDate)` because `selectedDate` changed. This is a double fetch.
 
-**Step 7 — The More You Log, The Better It Gets**
-"You don't have to fill in everything on day one. But the more data the AI has, the better it can coach you. Notes on your check-ins are especially valuable — they give the AI context that numbers alone can't provide."
+**Fix**: Remove the `fetchWorkoutByDate` call from inside `setSelectedDate` in the store, since the `useEffect` in WorkoutLogger already handles it. Or remove it from the effect. Pick one path.
 
-**Step 8 — Get Started**
-"Head to the Lifestyle tab to do your first Daily Check-In. Start building the data that powers your coaching."
+## Other Issues Found
 
-### UI Improvements
+### 5. Cancel = Delete during Edit mode
+`cancelWorkout` deletes the workout from the database entirely. When editing an old completed workout, this means the user permanently loses their workout data if they cancel the edit. 
 
-- Increase the dialog size from `max-w-md` to `max-w-lg` for breathing room
-- Add a subtle icon illustration for each step (reuse existing lucide icons)
-- Add a "pro tip" callout on the check-in step highlighting the notes field
-- The loop diagram on Step 2 uses a simple row of icons with arrows (not an image — built with Tailwind and lucide icons)
-- Final step has a direct CTA button: "Do Your First Check-In" that dismisses the walkthrough and switches to the Lifestyle tab
+**Fix**: Track whether the active workout was loaded via `editWorkout` (e.g., an `isEditing` flag in the store). If cancelling during edit mode, restore `is_completed: true` instead of deleting.
 
-### Resettable Onboarding
+### 6. PRCelebration shows weight in "lbs" always
+Line 63 of `PRCelebration.tsx` hardcodes `{weight} lbs` regardless of the user's preferred unit.
 
-- Add a "Replay Onboarding" button somewhere accessible (e.g., in the notification settings dropdown or a small link in the dashboard header)
-- This clears the `vault_onboarding_complete` localStorage key and reopens the walkthrough
+**Fix**: Pass `preferredUnit` to PRCelebration and convert/display accordingly.
 
-## Technical Details
+### 7. Dialog always opens in ProgramCalendarView
+Line 204: `open={!!selectedDate && selectedWorkouts.length >= 0}` -- `length >= 0` is always true. This means the dialog opens even on rest days (which is intentional based on the rest day UI), but could be simplified to just `open={!!selectedDate}`.
 
-### Files Changed
+### 8. `fetchWorkoutByDate` only fetches completed workouts
+Line 115: `.eq('is_completed', true)` -- this means if you navigate to a date where you're currently editing (is_completed = false), it shows nothing. This creates confusion during the edit flow.
 
-| File | Change |
-|------|--------|
-| `src/components/vault/OnboardingWalkthrough.tsx` | Complete rewrite of the steps array with narrative content. Wider dialog. Loop diagram component. "Do Your First Check-In" CTA on final step. |
-| `src/pages/Vault.tsx` | Pass a callback to OnboardingWalkthrough so the final CTA can switch the active tab to "lifestyle" |
-| `src/components/vault/NotificationSettings.tsx` | Add a "Replay Onboarding" menu item that clears localStorage and triggers the walkthrough |
+## Implementation Plan
 
-### OnboardingWalkthrough.tsx Changes
+### File: `src/stores/workoutStore.ts`
 
-- Replace the 6 generic steps with 8 narrative steps (content above)
-- Each step gets an `icon`, `title`, `description`, and optional `tip` field
-- Step 2 gets a custom `diagram` component — a row of 4 icon circles connected by arrows:
-  ```
-  [Log] -> [AI Analyzes] -> [You Get Coached] -> [Adjust]
-  ```
-  Built with flex layout and lucide icons (Dumbbell, Brain, MessageSquare, RefreshCw)
-- Dialog widened to `max-w-lg`
-- Final step button changes from "Get Started" to "Do Your First Check-In" and calls `onComplete?.("lifestyle")` to switch tabs
-- Accept an `onComplete` prop: `(tab?: string) => void`
+1. **Fix `editWorkout`** -- set `selectedDate` to the workout's date, not today
+2. **Add `isEditing` flag** to state -- set true in `editWorkout`, false in `finishWorkout`/`cancelWorkout`
+3. **Fix `cancelWorkout`** -- if `isEditing`, restore `is_completed: true` instead of deleting
+4. **Fix `setSelectedDate`** -- remove the redundant `fetchWorkoutByDate` call (let the component handle it)
+5. **Replace `supabase.auth.getUser()`** with `supabase.auth.getSession()` in all store methods for instant cached reads
 
-### Vault.tsx Changes
+### File: `src/components/workout/WorkoutLogger.tsx`
 
-- Pass `onComplete` to `OnboardingWalkthrough` that programmatically sets the active tab
-- Convert from uncontrolled `defaultValue` to controlled `value` state on the Tabs component so the tab can be switched programmatically
+6. **Split the `useEffect`** into two: one for initial load (runs once), one for date changes
+7. **Hide program cards when editing** -- if `activeWorkout` exists, don't show `DailyProgramWorkout` cards (this is already handled by the `!activeWorkout &&` check on line 174, so this is fine)
 
-### NotificationSettings.tsx Changes
+### File: `src/components/workout/PRCelebration.tsx`
 
-- Add a "Replay Walkthrough" button/menu item
-- On click: remove `vault_onboarding_complete` from localStorage and reload the page (or use a state callback to reopen the dialog)
+8. **Use preferred unit** for weight display instead of hardcoded "lbs"
+
+### File: `src/components/workout/ExerciseCard.tsx`
+
+9. **Guard `getLastSessionSets` effect** to prevent re-running when exercises array reference changes but the exercise name hasn't
+
+## Summary of Changes
+
+| File | Changes |
+|------|---------|
+| `src/stores/workoutStore.ts` | Fix `editWorkout` date reset, add `isEditing` flag, fix `cancelWorkout` for edit mode, replace `getUser()` with `getSession()`, remove double-fetch in `setSelectedDate` |
+| `src/components/workout/WorkoutLogger.tsx` | Split useEffect into initial-load and date-change effects |
+| `src/components/workout/PRCelebration.tsx` | Display weight in user's preferred unit |
+| `src/components/workout/ExerciseCard.tsx` | Minor: stabilize useEffect dependency |
