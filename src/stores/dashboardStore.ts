@@ -34,6 +34,12 @@ interface WeeklyData {
   weightStart: number | null;
   weightEnd: number | null;
   usesImperial: boolean;
+  conditioningSessions: number;
+  totalConditioningMinutes: number;
+  totalConditioningCalories: number;
+  avgRIR: number | null;
+  rirSetsCount: number;
+  hardSetsPercent: number;
 }
 
 interface DashboardState {
@@ -53,6 +59,8 @@ export const useDashboardStore = create<DashboardState>((set) => ({
     workoutsCompleted: 0, totalVolume: 0, newPRs: 0,
     avgReadiness: 0, readinessTrend: "stable", lowestReadinessDay: null,
     weightStart: null, weightEnd: null, usesImperial: false,
+    conditioningSessions: 0, totalConditioningMinutes: 0, totalConditioningCalories: 0,
+    avgRIR: null, rirSetsCount: 0, hardSetsPercent: 0,
   },
   isLoading: true,
 
@@ -77,6 +85,8 @@ export const useDashboardStore = create<DashboardState>((set) => ({
         weekPRsRes,
         bodyEntriesRes,
         todayCalendarRes,
+        conditioningSetsRes,
+        rirSetsRes,
       ] = await Promise.all([
         supabase.from("user_daily_checkins").select("*").eq("user_id", user.id).eq("check_date", today).maybeSingle(),
         supabase.from("user_daily_checkins").select("*").eq("user_id", user.id).gte("check_date", weekAgo).order("check_date"),
@@ -87,6 +97,10 @@ export const useDashboardStore = create<DashboardState>((set) => ({
         supabase.from("personal_records").select("id").eq("user_id", user.id).gte("achieved_at", weekAgo),
         supabase.from("user_body_entries").select("weight_kg, entry_date, uses_imperial").eq("user_id", user.id).order("entry_date", { ascending: false }).limit(10),
         supabase.from("user_calendar_workouts").select("*, program_workout:program_workouts(workout_name, program:programs(name))").eq("user_id", user.id).eq("scheduled_date", today).eq("is_completed", false).limit(1).maybeSingle(),
+        // Conditioning sets from completed workouts this week
+        supabase.from("conditioning_sets").select("duration_seconds, calories, is_completed, exercise:workout_exercises!inner(workout:workouts!inner(user_id, date, is_completed))").eq("is_completed", true),
+        // RIR data from completed sets this week
+        supabase.from("exercise_sets").select("rir, is_completed, exercise:workout_exercises!inner(workout:workouts!inner(user_id, date, is_completed))").eq("is_completed", true).not("rir", "is", null),
       ]);
 
       // Today's readiness
@@ -152,6 +166,30 @@ export const useDashboardStore = create<DashboardState>((set) => ({
       const weekEntries = entries.filter(e => e.entry_date >= weekAgo);
       const sortedWeekEntries = [...weekEntries].sort((a, b) => a.entry_date.localeCompare(b.entry_date));
 
+      // Conditioning aggregation — filter to this user's completed workouts this week
+      const allCondSets = (conditioningSetsRes.data || []).filter((cs: any) => {
+        const w = cs.exercise?.workout;
+        return w?.user_id === user.id && w?.is_completed && w?.date >= weekAgo;
+      });
+      const totalCondMinutes = Math.round(allCondSets.reduce((s: number, cs: any) => s + ((cs.duration_seconds || 0) / 60), 0));
+      const totalCondCalories = allCondSets.reduce((s: number, cs: any) => s + (cs.calories || 0), 0);
+      // Count unique workouts with conditioning
+      const condWorkoutDates = new Set(allCondSets.map((cs: any) => cs.exercise?.workout?.date));
+      const conditioningSessions = condWorkoutDates.size;
+
+      // RIR aggregation
+      const allRirSets = (rirSetsRes.data || []).filter((s: any) => {
+        const w = s.exercise?.workout;
+        return w?.user_id === user.id && w?.is_completed && w?.date >= weekAgo;
+      });
+      const rirSetsCount = allRirSets.length;
+      const avgRIR = rirSetsCount > 0
+        ? Math.round((allRirSets.reduce((sum: number, s: any) => sum + s.rir, 0) / rirSetsCount) * 10) / 10
+        : null;
+      const hardSetsPercent = rirSetsCount > 0
+        ? Math.round((allRirSets.filter((s: any) => s.rir <= 1).length / rirSetsCount) * 100)
+        : 0;
+
       const weeklyData: WeeklyData = {
         workoutsCompleted: weekWorkouts.length,
         totalVolume: weekWorkouts.reduce((s, w) => s + (Number(w.total_volume) || 0), 0),
@@ -162,6 +200,12 @@ export const useDashboardStore = create<DashboardState>((set) => ({
         weightStart: sortedWeekEntries.length > 0 ? sortedWeekEntries[0].weight_kg : null,
         weightEnd: sortedWeekEntries.length > 1 ? sortedWeekEntries[sortedWeekEntries.length - 1].weight_kg : null,
         usesImperial: latest?.uses_imperial || false,
+        conditioningSessions,
+        totalConditioningMinutes: totalCondMinutes,
+        totalConditioningCalories: totalCondCalories,
+        avgRIR,
+        rirSetsCount,
+        hardSetsPercent,
       };
 
       set({ todayReadiness, todayTraining, todayBodyComp, weeklyData, isLoading: false });

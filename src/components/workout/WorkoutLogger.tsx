@@ -211,8 +211,8 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
           onMonthClick={() => setShowCalendar(true)}
         />
         
-        {/* Program workouts for selected date */}
-        {programWorkoutsForDate.map(cw => (
+        {/* Program workouts for selected date — only show when no active workout */}
+        {!activeWorkout && programWorkoutsForDate.map(cw => (
           <DailyProgramWorkout
             key={cw.id}
             calendarWorkout={cw}
@@ -223,8 +223,6 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
               fetchProgramWorkoutsForDate(selectedDate);
             }}
             onStartLogging={() => {
-              // fetchActiveWorkout was already called inside DailyProgramWorkout
-              // The component will re-render showing the active workout logger
               fetchWorkoutDays(12);
             }}
           />
