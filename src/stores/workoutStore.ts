@@ -109,12 +109,14 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
     
     const dateStr = format(date, 'yyyy-MM-dd');
     
+    // Prefer the workout with the highest volume to avoid picking up empty orphans
     const { data: workout } = await supabase
       .from('workouts')
       .select('*')
       .eq('user_id', user.id)
       .eq('date', dateStr)
       .eq('is_completed', true)
+      .order('total_volume', { ascending: false, nullsFirst: false })
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -622,10 +624,32 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
       // logging works correctly.
       const isProgramSession = workout.workout_name.includes('—');
       if (workout.date < today && !isProgramSession) {
-        await supabase
-          .from('workouts')
-          .update({ is_completed: true })
-          .eq('id', workout.id);
+        // Check if the stale workout has any completed sets (real data)
+        const { count } = await supabase
+          .from('exercise_sets')
+          .select('id', { count: 'exact', head: true })
+          .in('exercise_id', 
+            (await supabase
+              .from('workout_exercises')
+              .select('id')
+              .eq('workout_id', workout.id)
+            ).data?.map(e => e.id) || []
+          )
+          .eq('is_completed', true);
+
+        if (count && count > 0) {
+          // Has real data — mark as completed
+          await supabase
+            .from('workouts')
+            .update({ is_completed: true })
+            .eq('id', workout.id);
+        } else {
+          // Empty/orphan workout — delete it entirely
+          await supabase
+            .from('workouts')
+            .delete()
+            .eq('id', workout.id);
+        }
         set({ activeWorkout: null, exercises: [], isLoading: false });
         return;
       }
