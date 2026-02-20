@@ -40,8 +40,9 @@ export function ProgramCalendarView({ onSwitchToLogger }: ProgramCalendarViewPro
   }, [viewMonth]);
 
   const fetchMonthWorkouts = async (month: Date) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) return;
+    const user = session.user;
 
     setIsLoading(true);
     const start = format(startOfMonth(month), 'yyyy-MM-dd');
@@ -201,7 +202,7 @@ export function ProgramCalendarView({ onSwitchToLogger }: ProgramCalendarViewPro
       </Card>
 
       {/* Detail drawer for selected date */}
-      <Dialog open={!!selectedDate && selectedWorkouts.length >= 0} onOpenChange={(open) => !open && setSelectedDate(null)}>
+      <Dialog open={!!selectedDate} onOpenChange={(open) => !open && setSelectedDate(null)}>
         <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">

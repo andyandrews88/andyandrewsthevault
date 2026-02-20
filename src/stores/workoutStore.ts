@@ -507,7 +507,13 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
       .update({ is_completed: true })
       .eq('id', activeWorkout.id);
     
+    const wasEditing = get().isEditing;
+    const currentSelectedDate = get().selectedDate;
     set({ activeWorkout: null, exercises: [], isSaving: false, isEditing: false });
+    // After finishing an edit, refresh viewingWorkout so the user sees the completed workout
+    if (wasEditing) {
+      get().fetchWorkoutByDate(currentSelectedDate);
+    }
   },
 
   editWorkout: async (workoutId: string) => {
@@ -577,7 +583,12 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
         .eq('id', activeWorkout.id);
     }
     
+    const currentSelectedDate = get().selectedDate;
     set({ activeWorkout: null, exercises: [], isEditing: false });
+    // After cancelling an edit, refresh viewingWorkout so the restored workout is visible
+    if (isEditing) {
+      get().fetchWorkoutByDate(currentSelectedDate);
+    }
   },
   
   fetchActiveWorkout: async () => {
@@ -585,6 +596,12 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
     if (!session?.user) return;
     const user = session.user;
     
+    // BUG 1 fix: If we're actively editing a workout, skip fetching to prevent
+    // the auto-abandon logic from destroying the editing session on remount.
+    if (get().isEditing) {
+      return;
+    }
+
     set({ isLoading: true });
     
     const today = format(new Date(), 'yyyy-MM-dd');
