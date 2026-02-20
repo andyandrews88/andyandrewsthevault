@@ -1,95 +1,94 @@
 
-# Training Section Audit and Bug Fix
 
-## Critical Bug: Editing Old Workout Crashes and Resets to Today
+# Training Section: Complete Bug Fix and Stability Overhaul
 
-**Root Cause** (line 552 in `workoutStore.ts`):
+## Bugs Identified
 
-```text
-set({
-  activeWorkout: workout,
-  exercises,
-  viewingWorkout: null,
-  viewingExercises: [],
-  selectedDate: new Date(),   // <-- THIS IS THE BUG
-  isLoading: false,
-});
-```
+### BUG 1 (Critical) -- `fetchActiveWorkout` auto-abandons workouts being edited
 
-When you click "Edit" on a past workout, `editWorkout()` forces `selectedDate` back to `new Date()` (today). This triggers the `useEffect` in `WorkoutLogger` which calls `fetchWorkoutByDate(selectedDate)` and `fetchProgramWorkoutsForDate(selectedDate)` -- those overwrite the state you just set, causing a race condition that resets the view and can crash the UI.
+When `editWorkout` marks a past workout as `is_completed: false`, the `fetchActiveWorkout` function contains auto-abandon logic (lines 602-614) that checks `workout.date < today && !isProgramSession` and immediately marks the workout as completed again. If the component ever remounts (e.g., switching between Log Workout / Calendar / Analytics tabs), the initial-load effect re-runs `fetchActiveWorkout`, which finds the now-incomplete past workout and auto-completes it -- destroying the editing session.
 
-**Fix**: Replace `selectedDate: new Date()` with `selectedDate: new Date(workout.date + 'T12:00:00')` so the calendar stays on the workout's actual date.
+**Fix**: Add a guard in `fetchActiveWorkout`: if `isEditing` is already true in the store, skip the auto-abandon logic entirely.
 
-Additionally, `editWorkout` marks the workout as `is_completed: false` in the database but does NOT restore it to `is_completed: true` when the user finishes. The existing `finishWorkout` already does `update({ is_completed: true })`, so this path is covered -- but if the user cancels (`cancelWorkout`), the workout gets DELETED entirely. For an edit of a completed workout, cancelling should restore the `is_completed: true` flag instead of deleting the entire workout. This needs a guard.
+### BUG 2 (Critical) -- After cancel/finish edit, `viewingWorkout` is never refreshed
 
-## Performance Issues
+When `cancelWorkout` or `finishWorkout` runs during an edit:
+- `activeWorkout` is set to null
+- `viewingWorkout` remains null (was cleared by `editWorkout`)
+- `selectedDate` does not change, so the date-change effect does NOT fire
+- Result: the user sees the empty "Start Workout" prompt instead of their restored/finished workout
 
-### 1. Excessive `supabase.auth.getUser()` calls
-Every single store action (`fetchActiveWorkout`, `fetchWorkoutByDate`, `fetchWorkoutDays`, `fetchPersonalRecords`, `completeSet`, etc.) makes a separate `await supabase.auth.getUser()` network call. On page load, the `useEffect` in `WorkoutLogger` fires 4 fetches simultaneously, each calling `getUser()` independently -- that's 4 redundant auth round-trips before any real data loads.
+**Fix**: After `cancelWorkout` and `finishWorkout` (when `isEditing` was true), call `fetchWorkoutByDate(selectedDate)` to reload the completed workout into `viewingWorkout`.
 
-**Fix**: Cache the user ID once at the top of the component or store initialization, and pass it through. Alternatively, use `supabase.auth.getSession()` which reads from local cache and is instant.
+### BUG 3 (Critical) -- `handleFinish` calls `onBack()` which navigates away during edits
 
-### 2. `useEffect` in `WorkoutLogger` re-fetches everything on every date change
-The dependency array `[fetchActiveWorkout, fetchPersonalRecords, fetchWorkoutDays, fetchWorkoutByDate, selectedDate]` causes all 5 functions (including `fetchActiveWorkout` and `fetchPersonalRecords` which don't depend on `selectedDate`) to re-run every time the date changes. Only `fetchWorkoutByDate` and `fetchProgramWorkoutsForDate` need to run on date change.
+After finishing an edited workout, `handleFinish` calls `onBack()`. While `onBack` is currently `() => {}` in WorkoutTab (does nothing), the intent and original design navigates the user away. More importantly, `handleFinish` unconditionally tries to mark program calendar workouts as complete (lines 122-132) even during edit mode, which is incorrect for retroactive edits.
 
-**Fix**: Split into two effects -- one for initial load (active workout, PRs, workout days) and one for date-dependent fetches.
+**Fix**: In `handleFinish`, check if we're editing. If so, skip the `onBack()` call and the program calendar marking logic. Just finish and let the view refresh to show the completed workout.
 
-### 3. `getLastSessionSets` called per ExerciseCard on mount
-Each `ExerciseCard` fires `getLastSessionSets` in a `useEffect` on mount, which is another Supabase query per exercise. With 5 exercises, that's 5 separate queries just to show "previous" data.
+### BUG 4 (Medium) -- `fetchProgramWorkoutsForDate` still uses `getUser()` (network call)
 
-**Fix**: This is acceptable for small workouts but should have a loading guard to prevent duplicate calls when exercises array updates.
+Line 83 of WorkoutLogger still uses `supabase.auth.getUser()` instead of `getSession()`. This adds latency to every date navigation.
 
-### 4. `setSelectedDate` triggers `fetchWorkoutByDate` inside the store AND the useEffect
-When you call `setSelectedDate`, the store setter on line 100-102 immediately calls `fetchWorkoutByDate(date)`. Then the `useEffect` in `WorkoutLogger` also calls `fetchWorkoutByDate(selectedDate)` because `selectedDate` changed. This is a double fetch.
+**Fix**: Switch to `getSession()`.
 
-**Fix**: Remove the `fetchWorkoutByDate` call from inside `setSelectedDate` in the store, since the `useEffect` in WorkoutLogger already handles it. Or remove it from the effect. Pick one path.
+### BUG 5 (Medium) -- `handleFinish` uses `getUser()` for calendar update
 
-## Other Issues Found
+Line 124 of WorkoutLogger uses `getUser()` for the program calendar update.
 
-### 5. Cancel = Delete during Edit mode
-`cancelWorkout` deletes the workout from the database entirely. When editing an old completed workout, this means the user permanently loses their workout data if they cancel the edit. 
+**Fix**: Switch to `getSession()`.
 
-**Fix**: Track whether the active workout was loaded via `editWorkout` (e.g., an `isEditing` flag in the store). If cancelling during edit mode, restore `is_completed: true` instead of deleting.
+### BUG 6 (Minor) -- Cancel dialog text is wrong during edit mode
 
-### 6. PRCelebration shows weight in "lbs" always
-Line 63 of `PRCelebration.tsx` hardcodes `{weight} lbs` regardless of the user's preferred unit.
+The cancel dialog says "This will delete all exercises and sets from this session" -- but during edit mode, cancelling restores the workout instead of deleting it. The text is misleading.
 
-**Fix**: Pass `preferredUnit` to PRCelebration and convert/display accordingly.
+**Fix**: Show different text based on `isEditing` state.
 
-### 7. Dialog always opens in ProgramCalendarView
-Line 204: `open={!!selectedDate && selectedWorkouts.length >= 0}` -- `length >= 0` is always true. This means the dialog opens even on rest days (which is intentional based on the rest day UI), but could be simplified to just `open={!!selectedDate}`.
+### BUG 7 (Minor) -- `ProgramCalendarView` dialog condition is always true
 
-### 8. `fetchWorkoutByDate` only fetches completed workouts
-Line 115: `.eq('is_completed', true)` -- this means if you navigate to a date where you're currently editing (is_completed = false), it shows nothing. This creates confusion during the edit flow.
+Line 204: `selectedWorkouts.length >= 0` is always true (arrays always have length >= 0). Should be `!!selectedDate`.
+
+**Fix**: Simplify to `open={!!selectedDate}`.
+
+### BUG 8 (Minor) -- `ProgramCalendarView` uses `getUser()` for month fetch
+
+Line 43: `supabase.auth.getUser()` should be `getSession()`.
+
+**Fix**: Switch to `getSession()`.
 
 ## Implementation Plan
 
 ### File: `src/stores/workoutStore.ts`
 
-1. **Fix `editWorkout`** -- set `selectedDate` to the workout's date, not today
-2. **Add `isEditing` flag** to state -- set true in `editWorkout`, false in `finishWorkout`/`cancelWorkout`
-3. **Fix `cancelWorkout`** -- if `isEditing`, restore `is_completed: true` instead of deleting
-4. **Fix `setSelectedDate`** -- remove the redundant `fetchWorkoutByDate` call (let the component handle it)
-5. **Replace `supabase.auth.getUser()`** with `supabase.auth.getSession()` in all store methods for instant cached reads
+1. **Guard `fetchActiveWorkout`**: Check `if (get().isEditing) { set({ isLoading: false }); return; }` before the auto-abandon logic to prevent destroying an active edit session.
+
+2. **Fix `cancelWorkout`**: After restoring the workout (edit mode), call `get().fetchWorkoutByDate(get().selectedDate)` to reload `viewingWorkout`.
+
+3. **Fix `finishWorkout`**: After completing the workout, if `isEditing` was true, call `get().fetchWorkoutByDate(get().selectedDate)` to show the finished workout.
 
 ### File: `src/components/workout/WorkoutLogger.tsx`
 
-6. **Split the `useEffect`** into two: one for initial load (runs once), one for date changes
-7. **Hide program cards when editing** -- if `activeWorkout` exists, don't show `DailyProgramWorkout` cards (this is already handled by the `!activeWorkout &&` check on line 174, so this is fine)
+4. **Fix `handleFinish`**: Guard the `onBack()` call and the program calendar update logic behind `!isEditing`. When editing, just call `finishWorkout()`, refresh workout days, and let the store handle the rest.
 
-### File: `src/components/workout/PRCelebration.tsx`
+5. **Switch `fetchProgramWorkoutsForDate`** from `getUser()` to `getSession()`.
 
-8. **Use preferred unit** for weight display instead of hardcoded "lbs"
+6. **Switch `handleFinish` program calendar update** from `getUser()` to `getSession()`.
 
-### File: `src/components/workout/ExerciseCard.tsx`
+7. **Fix cancel dialog text**: Read `isEditing` from the store and show context-appropriate messaging.
 
-9. **Guard `getLastSessionSets` effect** to prevent re-running when exercises array reference changes but the exercise name hasn't
+8. **Add `isEditing` to the destructured store values** so it's available in the component.
+
+### File: `src/components/workout/ProgramCalendarView.tsx`
+
+9. **Fix dialog open condition**: Change `selectedWorkouts.length >= 0` to simply `!!selectedDate`.
+
+10. **Switch `fetchMonthWorkouts`** from `getUser()` to `getSession()`.
 
 ## Summary of Changes
 
 | File | Changes |
 |------|---------|
-| `src/stores/workoutStore.ts` | Fix `editWorkout` date reset, add `isEditing` flag, fix `cancelWorkout` for edit mode, replace `getUser()` with `getSession()`, remove double-fetch in `setSelectedDate` |
-| `src/components/workout/WorkoutLogger.tsx` | Split useEffect into initial-load and date-change effects |
-| `src/components/workout/PRCelebration.tsx` | Display weight in user's preferred unit |
-| `src/components/workout/ExerciseCard.tsx` | Minor: stabilize useEffect dependency |
+| `src/stores/workoutStore.ts` | Guard `fetchActiveWorkout` against `isEditing`, refresh `viewingWorkout` after cancel/finish in edit mode |
+| `src/components/workout/WorkoutLogger.tsx` | Guard `handleFinish` for edit mode, fix `getUser()` to `getSession()`, fix cancel dialog text, add `isEditing` state |
+| `src/components/workout/ProgramCalendarView.tsx` | Fix dialog open condition, fix `getUser()` to `getSession()` |
+
