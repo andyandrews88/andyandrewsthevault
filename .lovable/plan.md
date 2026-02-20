@@ -1,79 +1,90 @@
 
 
-# Feed Daily Check-In Notes into AI Weekly Review
+# Comprehensive Onboarding Redesign
 
-## What Changes
+## The Problem
 
-The `dashboardStore` already fetches check-in data for readiness scores but discards the `notes` field. We'll collect those notes for the past 7 days and pass them to the `weekly-review` edge function, where the AI prompt will be updated to interpret subjective context (sleep issues, stress, pain, nutrition, mood) alongside the hard numbers.
+The current onboarding is a 6-step feature list inside a small dialog. It tells users what each tab does but never explains:
 
-## Implementation
+- Why logging data matters (the AI reads all of it)
+- How features connect to each other (check-in notes influence the weekly review)
+- What the user gets back in return for the effort of filling things in
+- The "everything feeds the AI coach" loop that makes The Vault different from other apps
 
-### 1. dashboardStore.ts -- Collect notes from check-ins
+## The New Approach
 
-- The existing check-in query already fetches from `user_daily_checkins` for the past 7 days
-- Add `notes` to the select fields and collect them into a new `WeeklyData` field: `checkinNotes: { date: string; note: string }[]`
-- Only include entries where `notes` is non-empty
+Replace the current 6-step feature tour with a **narrative onboarding** that follows a "Input -> Intelligence -> Insight" structure. Instead of listing tabs, it explains the system — why every input matters.
 
-### 2. WeeklyReview.tsx -- Pass notes to edge function
+### New Step Structure (8 steps)
 
-- Include the `checkinNotes` array in the `weeklyData` payload sent to the `weekly-review` function
-- No UI changes needed -- the notes are already visible in the Daily Check-In card
+**Step 1 — Welcome**
+"Welcome to The Vault. This isn't a collection of separate trackers — it's one connected system. Everything you log feeds an AI coaching engine that gives you a personalized weekly performance review."
 
-### 3. weekly-review edge function -- Update prompt
+**Step 2 — The Loop (core concept)**
+"Here's how it works: You log your training, nutrition, and lifestyle data throughout the week. On the Dashboard, your AI coach pulls all of it together into a single review — with specific feedback on what's working, what needs attention, and what to focus on next."
 
-- If `checkinNotes` exists and has entries, add a new section to the prompt:
-  ```
-  Daily check-in notes from this week:
-  - Monday: "Didn't sleep well, stressed about work"
-  - Wednesday: "Felt great, energy was high"
-  - Friday: "Lower back tight after deadlifts"
-  ```
-- Each note truncated to 150 characters to manage prompt size
-- Update the system prompt to instruct the AI to:
-  - Look for patterns in the subjective notes (recurring stress, sleep issues, pain)
-  - Correlate notes with readiness scores and workout performance
-  - Provide lifestyle recommendations based on what the user reported (not just training advice)
-  - Never echo back sensitive personal details verbatim -- synthesize and advise
-  - Keep the review to 4-6 sentences (slight increase from 3-5 to accommodate the richer data)
+A simple visual showing: Log Data -> AI Analyzes -> You Get Coached -> Adjust -> Repeat
 
-## Files Changed
+**Step 3 — Daily Check-In (why it matters)**
+"Start each day with a 30-second check-in. Rate your sleep, stress, energy, and drive — these generate your Readiness Score. But the real power is in the notes field. Write what's going on: 'bad sleep, lower back tight, stressed about work.' The AI reads every note and connects the dots you might miss."
 
-| File | Change |
-|------|--------|
-| `src/stores/dashboardStore.ts` | Add `checkinNotes` to `WeeklyData`, collect notes from existing check-in query |
-| `src/components/dashboard/WeeklyReview.tsx` | No change needed -- `weeklyData` already passed as-is to edge function |
-| `supabase/functions/weekly-review/index.ts` | Add notes section to prompt, update system prompt for subjective data interpretation |
+**Step 4 — Training (what gets tracked)**
+"Log your strength and conditioning work. The app tracks volume, PRs, and trends automatically. If you add RIR (Reps in Reserve) to your sets, the AI can tell whether you're pushing too hard or leaving too much in the tank — and adjust its recommendations."
+
+**Step 5 — Nutrition and Progress**
+"Track your macros, scan barcodes, and log bodyweight. The AI uses weight trends and nutrition data to spot patterns — like whether a calorie deficit is affecting your training performance."
+
+**Step 6 — The Weekly Review**
+"Every week, the AI pulls together your training volume, conditioning work, readiness scores, check-in notes, bodyweight trends, and RIR data into a single coaching review. The more you log, the smarter and more specific the feedback gets. This is why every input matters."
+
+**Step 7 — The More You Log, The Better It Gets**
+"You don't have to fill in everything on day one. But the more data the AI has, the better it can coach you. Notes on your check-ins are especially valuable — they give the AI context that numbers alone can't provide."
+
+**Step 8 — Get Started**
+"Head to the Lifestyle tab to do your first Daily Check-In. Start building the data that powers your coaching."
+
+### UI Improvements
+
+- Increase the dialog size from `max-w-md` to `max-w-lg` for breathing room
+- Add a subtle icon illustration for each step (reuse existing lucide icons)
+- Add a "pro tip" callout on the check-in step highlighting the notes field
+- The loop diagram on Step 2 uses a simple row of icons with arrows (not an image — built with Tailwind and lucide icons)
+- Final step has a direct CTA button: "Do Your First Check-In" that dismisses the walkthrough and switches to the Lifestyle tab
+
+### Resettable Onboarding
+
+- Add a "Replay Onboarding" button somewhere accessible (e.g., in the notification settings dropdown or a small link in the dashboard header)
+- This clears the `vault_onboarding_complete` localStorage key and reopens the walkthrough
 
 ## Technical Details
 
-### dashboardStore.ts
+### Files Changed
 
-Add to `WeeklyData` interface:
-```typescript
-checkinNotes: { date: string; note: string }[];
-```
+| File | Change |
+|------|--------|
+| `src/components/vault/OnboardingWalkthrough.tsx` | Complete rewrite of the steps array with narrative content. Wider dialog. Loop diagram component. "Do Your First Check-In" CTA on final step. |
+| `src/pages/Vault.tsx` | Pass a callback to OnboardingWalkthrough so the final CTA can switch the active tab to "lifestyle" |
+| `src/components/vault/NotificationSettings.tsx` | Add a "Replay Onboarding" menu item that clears localStorage and triggers the walkthrough |
 
-In the existing check-in fetch block, after computing readiness scores, also collect notes:
-```typescript
-const notes = checkins
-  .filter(c => c.notes && c.notes.trim())
-  .map(c => ({ date: c.check_date, note: c.notes.slice(0, 150) }));
-```
+### OnboardingWalkthrough.tsx Changes
 
-### weekly-review/index.ts
+- Replace the 6 generic steps with 8 narrative steps (content above)
+- Each step gets an `icon`, `title`, `description`, and optional `tip` field
+- Step 2 gets a custom `diagram` component — a row of 4 icon circles connected by arrows:
+  ```
+  [Log] -> [AI Analyzes] -> [You Get Coached] -> [Adjust]
+  ```
+  Built with flex layout and lucide icons (Dumbbell, Brain, MessageSquare, RefreshCw)
+- Dialog widened to `max-w-lg`
+- Final step button changes from "Get Started" to "Do Your First Check-In" and calls `onComplete?.("lifestyle")` to switch tabs
+- Accept an `onComplete` prop: `(tab?: string) => void`
 
-Add after the existing data lines:
-```typescript
-if (d.checkinNotes && d.checkinNotes.length > 0) {
-  lines.push("");
-  lines.push("Daily check-in notes from this week:");
-  for (const n of d.checkinNotes) {
-    lines.push(`- ${n.date}: "${n.note}"`);
-  }
-}
-```
+### Vault.tsx Changes
 
-Update system prompt to include:
-```
-If daily check-in notes are provided, look for patterns (recurring stress, sleep issues, pain, nutrition problems) and correlate them with the performance data. Provide lifestyle recommendations where relevant. Do not echo back sensitive details verbatim — synthesize and advise.
-```
+- Pass `onComplete` to `OnboardingWalkthrough` that programmatically sets the active tab
+- Convert from uncontrolled `defaultValue` to controlled `value` state on the Tabs component so the tab can be switched programmatically
+
+### NotificationSettings.tsx Changes
+
+- Add a "Replay Walkthrough" button/menu item
+- On click: remove `vault_onboarding_complete` from localStorage and reload the page (or use a state callback to reopen the dialog)
