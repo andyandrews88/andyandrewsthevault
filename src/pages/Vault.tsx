@@ -15,6 +15,7 @@ import { CommunityFeed } from "@/components/community/CommunityFeed";
 import { LifestyleTab } from "@/components/lifestyle/LifestyleTab";
 import { VaultDashboard as DashboardView } from "@/components/dashboard/VaultDashboard";
 import { ProgramLibrary } from "@/components/tracks/ProgramLibrary";
+import { useState } from "react";
 import logo from "@/assets/logo.png";
 import { useAdminCheck } from "@/hooks/useAdminCheck";
 import { OnboardingWalkthrough } from "@/components/vault/OnboardingWalkthrough";
@@ -26,20 +27,26 @@ export function VaultDashboard() {
   const { isAdmin } = useAdminCheck();
   const [searchParams] = useSearchParams();
   const defaultTab = searchParams.get('tab') || 'dashboard';
+  const [activeTab, setActiveTab] = useState(defaultTab);
   const { hasNewAnnouncement, markCommunityVisited } = useNotificationStore();
   const { unreadDmCount } = useCommunityStore();
 
   const showCommunityDot = hasNewAnnouncement || unreadDmCount > 0;
 
   const handleTabChange = (value: string) => {
+    setActiveTab(value);
     if (value === 'community') {
       markCommunityVisited();
     }
   };
 
+  const handleOnboardingComplete = (tab?: string) => {
+    if (tab) setActiveTab(tab);
+  };
+
   return (
     <div className="min-h-screen pt-24 pb-12">
-      <OnboardingWalkthrough />
+      <OnboardingWalkthrough onComplete={handleOnboardingComplete} />
       <div className="container mx-auto px-4 md:px-6 max-w-6xl">
         {/* Header with Logo */}
         <div className="flex flex-col items-center text-center mb-6 md:mb-8">
@@ -71,7 +78,7 @@ export function VaultDashboard() {
         </div>
 
         {/* Main tabs */}
-        <Tabs defaultValue={defaultTab} className="space-y-6" onValueChange={handleTabChange}>
+        <Tabs value={activeTab} className="space-y-6" onValueChange={handleTabChange}>
           <div className="overflow-x-auto scrollbar-hide -mx-4 px-4 md:-mx-6 md:px-6">
             <TabsList className="inline-flex w-max min-w-full gap-0.5 sm:gap-1 h-auto p-1">
               <TabsTrigger value="dashboard" className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-2 px-2 sm:px-3 py-2 sm:py-2.5 whitespace-nowrap min-w-[52px] sm:min-w-0" aria-label="Dashboard">
