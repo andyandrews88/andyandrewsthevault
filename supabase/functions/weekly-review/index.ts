@@ -41,7 +41,15 @@ serve(async (req) => {
       lines.push(`- Bodyweight: ${toDisplay(d.weightStart)} -> ${toDisplay(d.weightEnd)} ${unit} (${diff > 0 ? "+" : ""}${Math.round(diff * 10) / 10} ${unit})`);
     }
 
-    const userPrompt = `This athlete's past 7 days:\n${lines.join("\n")}\n\nWrite a 3-5 sentence weekly performance review. Be direct and coaching-oriented. Mention specific numbers. If conditioning work was done, acknowledge it. If RIR data is available, interpret training intensity (RIR 0-1 = near failure, RIR 3+ = moderate effort) and give specific recommendations. If a metric needs attention, call it out with a suggestion.`;
+    if (d.checkinNotes && d.checkinNotes.length > 0) {
+      lines.push("");
+      lines.push("Daily check-in notes from this week:");
+      for (const n of d.checkinNotes) {
+        lines.push(`- ${n.date}: "${n.note}"`);
+      }
+    }
+
+    const userPrompt = `This athlete's past 7 days:\n${lines.join("\n")}\n\nWrite a 4-6 sentence weekly performance review. Be direct and coaching-oriented. Mention specific numbers. If conditioning work was done, acknowledge it. If RIR data is available, interpret training intensity (RIR 0-1 = near failure, RIR 3+ = moderate effort) and give specific recommendations. If daily check-in notes are provided, identify patterns and correlate them with the data. If a metric needs attention, call it out with a suggestion.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -54,7 +62,7 @@ serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: "You are a concise performance coach. Given this athlete's weekly data, write a 3-5 sentence review. Be direct, supportive, and actionable. Mention specific numbers. Consider ALL available data: strength volume, conditioning work, readiness scores, bodyweight trends, and training intensity (RIR). If RIR data shows most sets at 0-1, suggest deload or backing off accessories. If RIR is 3+, suggest pushing harder on compounds. If conditioning data exists, account for total training load (strength + conditioning). Do not use markdown formatting — plain text only.",
+            content: "You are a concise performance coach. Given this athlete's weekly data, write a 4-6 sentence review. Be direct, supportive, and actionable. Mention specific numbers. Consider ALL available data: strength volume, conditioning work, readiness scores, bodyweight trends, and training intensity (RIR). If RIR data shows most sets at 0-1, suggest deload or backing off accessories. If RIR is 3+, suggest pushing harder on compounds. If conditioning data exists, account for total training load (strength + conditioning). If daily check-in notes are provided, look for patterns (recurring stress, sleep issues, pain, nutrition problems) and correlate them with the performance data. Provide lifestyle recommendations where relevant — for example, if notes mention poor sleep and readiness is low, connect those dots. Do not echo back sensitive personal details verbatim — synthesize and advise. Do not use markdown formatting — plain text only.",
           },
           { role: "user", content: userPrompt },
         ],
