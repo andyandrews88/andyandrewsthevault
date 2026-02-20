@@ -108,7 +108,7 @@ export function NutritionResults({ onRecalculate }: { onRecalculate: () => void 
         <TabsList className="grid grid-cols-5 w-full max-w-2xl">
           <TabsTrigger value="builder" className="gap-1">
             <UtensilsCrossed className="w-4 h-4" />
-            <span className="hidden sm:inline">Build Meal</span>
+            <span className="hidden sm:inline">Food Diary</span>
           </TabsTrigger>
           <TabsTrigger value="metrics" className="gap-1">
             <Activity className="w-4 h-4" />

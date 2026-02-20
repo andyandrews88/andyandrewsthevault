@@ -702,6 +702,42 @@ export type Database = {
         }
         Relationships: []
       }
+      user_food_diary: {
+        Row: {
+          amount: number
+          calculated_macros: Json
+          created_at: string
+          entry_date: string
+          food_data: Json
+          id: string
+          meal_slot: string
+          unit: string
+          user_id: string
+        }
+        Insert: {
+          amount?: number
+          calculated_macros?: Json
+          created_at?: string
+          entry_date?: string
+          food_data?: Json
+          id?: string
+          meal_slot: string
+          unit?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          calculated_macros?: Json
+          created_at?: string
+          entry_date?: string
+          food_data?: Json
+          id?: string
+          meal_slot?: string
+          unit?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_goals: {
         Row: {
           achieved_at: string | null

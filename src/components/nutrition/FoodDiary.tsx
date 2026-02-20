@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -9,8 +9,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Search, Folder, Save, Trash2 } from 'lucide-react';
-import { useMealBuilderStore, MealFood, SavedMeal } from '@/stores/mealBuilderStore';
+import { Search, Folder, Trash2 } from 'lucide-react';
+import { useMealBuilderStore, MealFood, SavedMeal, MealSlotType } from '@/stores/mealBuilderStore';
 import { searchFoods } from '@/data/foodDatabase';
 import { FoodItem } from '@/types/nutrition';
 import { DailySummaryBar } from './DailySummaryBar';
@@ -40,39 +40,38 @@ interface FoodDiaryProps {
 
 export function FoodDiary({ targetCalories, targetMacros }: FoodDiaryProps) {
   const {
-    currentMeal,
-    savedMeals,
     selectedDate,
     setSelectedDate,
-    addFood,
-    removeFood,
-    updateFoodAmount,
-    clearCurrentMeal,
-    saveMeal,
-    loadMeal,
+    savedMeals,
+    addDiaryEntry,
+    removeDiaryEntry,
+    updateDiaryEntry,
+    clearDiaryForDate,
+    fetchDiaryForDate,
+    getEntriesForDate,
+    getTotalsForDate,
     deleteSavedMeal,
-    getCurrentTotals,
+    isLoading,
   } = useMealBuilderStore();
 
   const [showFoodSearch, setShowFoodSearch] = useState(false);
   const [activeMealSlot, setActiveMealSlot] = useState<MealSlot>('breakfast');
   const [searchQuery, setSearchQuery] = useState('');
   const [showSavedMeals, setShowSavedMeals] = useState(false);
-  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
-  const [mealName, setMealName] = useState('');
 
-  const totals = getCurrentTotals();
+  const entries = getEntriesForDate(selectedDate);
+  const totals = getTotalsForDate(selectedDate);
 
   const mealSlots: MealSlot[] = ['breakfast', 'lunch', 'dinner', 'snacks'];
 
-  // Get foods for the current date
-  const currentDateStr = format(selectedDate, 'yyyy-MM-dd');
+  // Fetch diary on mount
+  useEffect(() => {
+    fetchDiaryForDate(selectedDate);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // For now, distribute foods evenly for demo purposes
-  // In a full implementation, each MealFood would have a mealSlot property
+  // Filter entries by slot
   const getFoodsForSlot = (slot: MealSlot): MealFood[] => {
-    const slotIndex = mealSlots.indexOf(slot);
-    return currentMeal.filter((_, i) => i % 4 === slotIndex);
+    return entries.filter((e) => e.mealSlot === slot);
   };
 
   const searchResults = useMemo(() => {
@@ -86,30 +85,25 @@ export function FoodDiary({ targetCalories, targetMacros }: FoodDiaryProps) {
   };
 
   const handleSelectFood = (food: FoodItem) => {
-    addFood(food, 1, 'piece');
+    addDiaryEntry(food, activeMealSlot as MealSlotType, 1, 'piece');
     setSearchQuery('');
     setShowFoodSearch(false);
   };
 
-  const handleSaveMeal = () => {
-    if (mealName.trim()) {
-      saveMeal(mealName.trim());
-      setMealName('');
-      setSaveDialogOpen(false);
+  const handleLoadSavedMeal = (meal: SavedMeal) => {
+    // Add each food from the saved template into the active slot
+    for (const f of meal.foods) {
+      addDiaryEntry(f.food, activeMealSlot as MealSlotType, f.amount, f.unit);
     }
-  };
-
-  const handleLoadMeal = (meal: SavedMeal) => {
-    loadMeal(meal.id);
     setShowSavedMeals(false);
   };
 
   return (
     <div className="space-y-4">
       {/* Date Navigator */}
-      <DateNavigator 
-        selectedDate={selectedDate} 
-        onDateChange={setSelectedDate} 
+      <DateNavigator
+        selectedDate={selectedDate}
+        onDateChange={setSelectedDate}
       />
 
       {/* Header with Actions */}
@@ -126,49 +120,28 @@ export function FoodDiary({ targetCalories, targetMacros }: FoodDiaryProps) {
               Saved
             </Button>
           )}
-          {currentMeal.length > 0 && (
-            <>
-              <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
-                <Button variant="outline" size="sm" onClick={() => setSaveDialogOpen(true)}>
-                  <Save className="w-4 h-4 mr-1" />
-                  Save
+          {entries.length > 0 && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Trash2 className="w-4 h-4" />
                 </Button>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Save Meal</DialogTitle>
-                  </DialogHeader>
-                  <Input
-                    placeholder="Meal name (e.g., Post-Workout)"
-                    value={mealName}
-                    onChange={(e) => setMealName(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSaveMeal()}
-                  />
-                  <Button onClick={handleSaveMeal} disabled={!mealName.trim()}>
-                    Save Meal
-                  </Button>
-                </DialogContent>
-              </Dialog>
-
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="outline" size="sm">
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Clear All Foods?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This will remove all foods from your food diary.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={clearCurrentMeal}>Clear</AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Clear All Foods?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will remove all foods from {format(selectedDate, 'MMM d')}'s diary.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => clearDiaryForDate(selectedDate)}>
+                    Clear
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           )}
         </div>
       </div>
@@ -192,8 +165,8 @@ export function FoodDiary({ targetCalories, targetMacros }: FoodDiaryProps) {
             slot={slot}
             foods={getFoodsForSlot(slot)}
             onAddFood={() => handleAddFood(slot)}
-            onRemoveFood={removeFood}
-            onUpdateFood={updateFoodAmount}
+            onRemoveFood={(id) => removeDiaryEntry(id)}
+            onUpdateFood={(id, amount, unit) => updateDiaryEntry(id, amount, unit)}
           />
         ))}
       </div>
@@ -205,7 +178,9 @@ export function FoodDiary({ targetCalories, targetMacros }: FoodDiaryProps) {
       <Dialog open={showFoodSearch} onOpenChange={setShowFoodSearch}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Add Food to {activeMealSlot.charAt(0).toUpperCase() + activeMealSlot.slice(1)}</DialogTitle>
+            <DialogTitle>
+              Add Food to {activeMealSlot.charAt(0).toUpperCase() + activeMealSlot.slice(1)}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="relative">
@@ -255,7 +230,7 @@ export function FoodDiary({ targetCalories, targetMacros }: FoodDiaryProps) {
       <Dialog open={showSavedMeals} onOpenChange={setShowSavedMeals}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Saved Meals</DialogTitle>
+            <DialogTitle>Saved Meal Templates</DialogTitle>
           </DialogHeader>
           <div className="max-h-[400px] overflow-y-auto space-y-2">
             {savedMeals.map((meal) => (
@@ -277,9 +252,9 @@ export function FoodDiary({ targetCalories, targetMacros }: FoodDiaryProps) {
                     size="sm"
                     variant="outline"
                     className="flex-1"
-                    onClick={() => handleLoadMeal(meal)}
+                    onClick={() => handleLoadSavedMeal(meal)}
                   >
-                    Load
+                    Add to {activeMealSlot}
                   </Button>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>

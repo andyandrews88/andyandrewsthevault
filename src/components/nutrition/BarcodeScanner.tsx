@@ -44,7 +44,7 @@ export function BarcodeScanner({ onProductScanned }: BarcodeScannerProps) {
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const scannerContainerId = 'barcode-scanner-container';
   
-  const { addFood } = useMealBuilderStore();
+  const { addDiaryEntry } = useMealBuilderStore();
 
   const stopScanner = useCallback(async () => {
     if (scannerRef.current) {
@@ -139,7 +139,7 @@ export function BarcodeScanner({ onProductScanned }: BarcodeScannerProps) {
 
   const handleAddToMeal = () => {
     if (scannedProduct) {
-      addFood(scannedProduct, 1, 'piece');
+      addDiaryEntry(scannedProduct, 'snacks', 1, 'piece');
       setShowResultDialog(false);
       setScannedProduct(null);
       setManualBarcode('');

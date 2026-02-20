@@ -157,68 +157,8 @@ export function useUserDataSync() {
     return () => unsubscribe();
   }, [isAuthenticated, user?.id]);
 
-  // Save meals to database (debounced)
-  useEffect(() => {
-    if (!isAuthenticated || !user?.id) return;
-    const userId = user.id;
-
-    const saveMealsData = debounce(async () => {
-      const state = useMealBuilderStore.getState();
-      
-      try {
-        // Get current meals from database
-        const { data: existingMeals } = await supabase
-          .from('user_meals')
-          .select('id')
-          .eq('user_id', userId);
-        
-        const existingIds = new Set(existingMeals?.map(m => m.id) || []);
-        const currentIds = new Set(state.savedMeals.map(m => m.id));
-        
-        // Delete removed meals
-        const toDelete = [...existingIds].filter(id => !currentIds.has(id));
-        if (toDelete.length > 0) {
-          await supabase
-            .from('user_meals')
-            .delete()
-            .in('id', toDelete);
-        }
-        
-        // Insert or update current meals
-        for (const meal of state.savedMeals) {
-          const exists = existingIds.has(meal.id);
-          
-          if (exists) {
-            await supabase
-              .from('user_meals')
-              .update({
-                name: meal.name,
-                foods: meal.foods as unknown as Json,
-                totals: meal.totals as Json,
-              })
-              .eq('id', meal.id);
-          } else {
-            await supabase
-              .from('user_meals')
-              .insert({
-                id: meal.id,
-                user_id: userId,
-                name: meal.name,
-                foods: meal.foods as unknown as Json,
-                totals: meal.totals as Json,
-                created_at: meal.createdAt,
-              });
-          }
-        }
-      } catch (error) {
-        console.error('Error saving meals data:', error);
-      }
-    }, 2000);
-
-    const unsubscribe = useMealBuilderStore.subscribe(saveMealsData);
-    
-    return () => unsubscribe();
-  }, [isAuthenticated, user?.id]);
+  // Note: Meal diary entries are now auto-saved directly via the mealBuilderStore
+  // The old debounced savedMeals sync has been removed
 
   // Save audit data to database (debounced)
   useEffect(() => {
