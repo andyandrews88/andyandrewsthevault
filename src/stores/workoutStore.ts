@@ -18,6 +18,7 @@ interface WorkoutState {
   // Current workout session
   activeWorkout: Workout | null;
   exercises: WorkoutExercise[];
+  isEditing: boolean;
   
   // History and records
   recentWorkouts: Workout[];
@@ -78,6 +79,7 @@ interface WorkoutState {
 export const useWorkoutStore = create<WorkoutState>((set, get) => ({
   activeWorkout: null,
   exercises: [],
+  isEditing: false,
   recentWorkouts: [],
   personalRecords: [],
   selectedDate: new Date(),
@@ -98,12 +100,12 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
   
   setSelectedDate: (date: Date) => {
     set({ selectedDate: date });
-    get().fetchWorkoutByDate(date);
   },
   
   fetchWorkoutByDate: async (date: Date) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) return;
+    const user = session.user;
     
     const dateStr = format(date, 'yyyy-MM-dd');
     
@@ -137,8 +139,9 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
   },
   
   startWorkout: async (name: string, date?: Date) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) return;
+    const user = session.user;
     
     set({ isSaving: true });
     
@@ -386,8 +389,9 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
   },
   
   completeSet: async (setId: string, exerciseName: string, weight: number, reps: number, rir?: number | null) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user || !weight) return false;
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user || !weight) return false;
+    const user = session.user;
     
     const { exercises, activeWorkout, personalRecords } = get();
     
@@ -453,8 +457,8 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
   },
   
   loadLastSession: async (exerciseId: string, exerciseName: string) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) return;
     
     const lastSets = await get().getLastSessionSets(exerciseName);
     if (lastSets.length === 0) return;
@@ -503,7 +507,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
       .update({ is_completed: true })
       .eq('id', activeWorkout.id);
     
-    set({ activeWorkout: null, exercises: [], isSaving: false });
+    set({ activeWorkout: null, exercises: [], isSaving: false, isEditing: false });
   },
 
   editWorkout: async (workoutId: string) => {
@@ -549,26 +553,37 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
       exercises,
       viewingWorkout: null,
       viewingExercises: [],
-      selectedDate: new Date(),
+      selectedDate: new Date(workout.date + 'T12:00:00'),
+      isEditing: true,
       isLoading: false,
     });
   },
   
   cancelWorkout: async () => {
-    const { activeWorkout } = get();
+    const { activeWorkout, isEditing } = get();
     if (!activeWorkout) return;
     
-    await supabase
-      .from('workouts')
-      .delete()
-      .eq('id', activeWorkout.id);
+    if (isEditing) {
+      // Restore the workout to completed state instead of deleting
+      await supabase
+        .from('workouts')
+        .update({ is_completed: true })
+        .eq('id', activeWorkout.id);
+    } else {
+      // New workout — delete entirely
+      await supabase
+        .from('workouts')
+        .delete()
+        .eq('id', activeWorkout.id);
+    }
     
-    set({ activeWorkout: null, exercises: [] });
+    set({ activeWorkout: null, exercises: [], isEditing: false });
   },
   
   fetchActiveWorkout: async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) return;
+    const user = session.user;
     
     set({ isLoading: true });
     
@@ -651,8 +666,9 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
   },
   
   fetchWorkoutHistory: async (days = 30) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) return;
+    const user = session.user;
     
     const fromDate = format(subDays(new Date(), days), 'yyyy-MM-dd');
     
@@ -668,8 +684,9 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
   },
   
   fetchPersonalRecords: async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) return;
+    const user = session.user;
     
     const { data: records } = await supabase
       .from('personal_records')
@@ -681,8 +698,9 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
   },
   
   fetchExerciseHistory: async (exerciseName: string): Promise<ExerciseHistory[]> => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return [];
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) return [];
+    const user = session.user;
     
     const normalizedName = exerciseName.toLowerCase();
     
@@ -727,8 +745,9 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
   },
   
   fetchWeeklyVolume: async (weeks = 4): Promise<WeeklyVolume[]> => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return [];
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) return [];
+    const user = session.user;
     
     const fromDate = format(subDays(new Date(), weeks * 7), 'yyyy-MM-dd');
     
@@ -760,8 +779,9 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
   },
   
   fetchWorkoutDays: async (weeks = 12): Promise<WorkoutDay[]> => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return [];
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) return [];
+    const user = session.user;
 
     const fromDate = format(subDays(new Date(), weeks * 7), 'yyyy-MM-dd');
     const futureDate = format(addDays(new Date(), weeks * 7), 'yyyy-MM-dd');
@@ -802,8 +822,9 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
   },
   
   getLastSessionSets: async (exerciseName: string): Promise<{ weight: number; reps: number }[]> => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return [];
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) return [];
+    const user = session.user;
     
     const normalizedName = exerciseName.toLowerCase();
     

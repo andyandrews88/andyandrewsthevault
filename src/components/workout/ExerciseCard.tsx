@@ -36,12 +36,13 @@ export function ExerciseCard({ exercise, onRemove }: ExerciseCardProps) {
   const percentageHint = parsePercentageHint(exercise.notes);
 
   useEffect(() => {
-    // Fetch previous session data on mount
+    let cancelled = false;
     const fetchPrevious = async () => {
       const sets = await getLastSessionSets(exercise.exercise_name);
-      setPreviousSets(sets);
+      if (!cancelled) setPreviousSets(sets);
     };
     fetchPrevious();
+    return () => { cancelled = true; };
   }, [exercise.exercise_name, getLastSessionSets]);
 
   const handleLoadLastSession = async () => {

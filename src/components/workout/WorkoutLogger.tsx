@@ -95,13 +95,18 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
     setProgramWorkoutsForDate((data as unknown as UserCalendarWorkout[]) || []);
   };
 
+  // Initial load — runs once
   useEffect(() => {
     fetchActiveWorkout();
     fetchPersonalRecords();
     fetchWorkoutDays(12);
+  }, [fetchActiveWorkout, fetchPersonalRecords, fetchWorkoutDays]);
+
+  // Date-dependent fetches
+  useEffect(() => {
     fetchWorkoutByDate(selectedDate);
     fetchProgramWorkoutsForDate(selectedDate);
-  }, [fetchActiveWorkout, fetchPersonalRecords, fetchWorkoutDays, fetchWorkoutByDate, selectedDate]);
+  }, [selectedDate, fetchWorkoutByDate]);
 
   const handleStartWorkout = async () => {
     if (workoutName.trim()) {
@@ -320,7 +325,8 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
       {newPR && (
         <PRCelebration
           exerciseName={newPR.exerciseName}
-          weight={newPR.weight}
+          weight={preferredUnit === 'kg' ? convertWeight(newPR.weight, 'lbs', 'kg') : newPR.weight}
+          unit={preferredUnit}
           onComplete={clearNewPR}
         />
       )}
