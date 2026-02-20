@@ -40,6 +40,7 @@ interface WeeklyData {
   avgRIR: number | null;
   rirSetsCount: number;
   hardSetsPercent: number;
+  checkinNotes: { date: string; note: string }[];
 }
 
 interface DashboardState {
@@ -61,6 +62,7 @@ export const useDashboardStore = create<DashboardState>((set) => ({
     weightStart: null, weightEnd: null, usesImperial: false,
     conditioningSessions: 0, totalConditioningMinutes: 0, totalConditioningCalories: 0,
     avgRIR: null, rirSetsCount: 0, hardSetsPercent: 0,
+    checkinNotes: [],
   },
   isLoading: true,
 
@@ -190,6 +192,11 @@ export const useDashboardStore = create<DashboardState>((set) => ({
         ? Math.round((allRirSets.filter((s: any) => s.rir <= 1).length / rirSetsCount) * 100)
         : 0;
 
+      // Collect check-in notes for AI review
+      const checkinNotes = weekCheckins
+        .filter(ch => ch.notes && ch.notes.trim())
+        .map(ch => ({ date: ch.check_date, note: (ch.notes as string).slice(0, 150) }));
+
       const weeklyData: WeeklyData = {
         workoutsCompleted: weekWorkouts.length,
         totalVolume: weekWorkouts.reduce((s, w) => s + (Number(w.total_volume) || 0), 0),
@@ -206,6 +213,7 @@ export const useDashboardStore = create<DashboardState>((set) => ({
         avgRIR,
         rirSetsCount,
         hardSetsPercent,
+        checkinNotes,
       };
 
       set({ todayReadiness, todayTraining, todayBodyComp, weeklyData, isLoading: false });
