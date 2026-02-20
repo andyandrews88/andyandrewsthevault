@@ -50,8 +50,8 @@ export function ExerciseCard({ exercise, onRemove }: ExerciseCardProps) {
     setIsLoadingPrevious(false);
   };
 
-  const handleCompleteSet = async (setId: string, weight: number, reps: number) => {
-    await completeSet(setId, exercise.exercise_name, weight, reps);
+  const handleCompleteSet = async (setId: string, weight: number, reps: number, rir?: number | null) => {
+    await completeSet(setId, exercise.exercise_name, weight, reps, rir);
   };
 
   const completedSets = exercise.sets?.filter(s => s.is_completed).length || 0;
@@ -100,11 +100,12 @@ export function ExerciseCard({ exercise, onRemove }: ExerciseCardProps) {
       
       <CardContent className="p-0">
         {/* Header Row */}
-        <div className="grid grid-cols-[32px_1fr_1fr_1fr_40px_28px] gap-1.5 sm:gap-2 items-center py-2 px-4 border-b border-border bg-muted/30 text-xs font-medium text-muted-foreground">
+        <div className="grid grid-cols-[28px_1fr_1fr_1fr_44px_36px_24px] gap-1 sm:gap-1.5 items-center py-2 px-4 border-b border-border bg-muted/30 text-xs font-medium text-muted-foreground">
           <span className="text-center">Set</span>
           <span className="text-center">Prev</span>
           <span className="text-center">{preferredUnit === 'kg' ? 'Kg' : 'Lbs'}</span>
           <span className="text-center">Reps</span>
+          <span className="text-center">RIR</span>
           <span className="text-center">✓</span>
           <span></span>
         </div>
@@ -117,7 +118,7 @@ export function ExerciseCard({ exercise, onRemove }: ExerciseCardProps) {
               set={set}
               previousData={previousSets[index] || null}
               onUpdate={(data) => updateSet(set.id, data)}
-              onComplete={(weight, reps) => handleCompleteSet(set.id, weight, reps)}
+              onComplete={(weight, reps, rir) => { handleCompleteSet(set.id, weight, reps, rir); }}
               onRemove={() => removeSet(set.id)}
             />
           ))}

@@ -31,6 +31,7 @@ export interface ExerciseSet {
   weight: number | null;
   reps: number | null;
   rpe: number | null;
+  rir: number | null;
   is_completed: boolean;
   created_at: string;
 }

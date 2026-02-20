@@ -11,7 +11,7 @@ interface SetRowProps {
   set: ExerciseSet;
   previousData?: { weight: number; reps: number } | null;
   onUpdate: (data: Partial<ExerciseSet>) => void;
-  onComplete: (weight: number, reps: number) => void;
+  onComplete: (weight: number, reps: number, rir?: number | null) => void;
   onRemove: () => void;
   disabled?: boolean;
 }
@@ -27,6 +27,7 @@ export function SetRow({
   const { preferredUnit } = useWorkoutStore();
   const [weight, setWeight] = useState(set.weight?.toString() || '');
   const [reps, setReps] = useState(set.reps?.toString() || '');
+  const [rir, setRir] = useState(set.rir?.toString() || '');
   const [showWeightPopup, setShowWeightPopup] = useState(false);
 
   useEffect(() => {
@@ -39,7 +40,8 @@ export function SetRow({
       setWeight('');
     }
     setReps(set.reps?.toString() || '');
-  }, [set.weight, set.reps, preferredUnit]);
+    setRir(set.rir?.toString() || '');
+  }, [set.weight, set.reps, set.rir, preferredUnit]);
 
   const handleRepsChange = (value: string) => {
     setReps(value);
@@ -68,14 +70,24 @@ export function SetRow({
     }
   };
 
+  const handleRirChange = (value: string) => {
+    setRir(value);
+    const num = parseInt(value);
+    if (!isNaN(num) && num >= 0 && num <= 5) {
+      onUpdate({ rir: num });
+    } else if (value === '') {
+      onUpdate({ rir: null });
+    }
+  };
+
   const handleComplete = (checked: boolean) => {
     if (checked && weight && reps) {
-      // Convert display weight to lbs for storage if needed
       const displayWeight = parseFloat(weight);
       const storedWeight = preferredUnit === 'kg' 
         ? convertWeight(displayWeight, 'kg', 'lbs') 
         : displayWeight;
-      onComplete(storedWeight, parseInt(reps));
+      const rirVal = rir ? parseInt(rir) : null;
+      onComplete(storedWeight, parseInt(reps), rirVal);
     } else if (!checked) {
       onUpdate({ is_completed: false });
     }
@@ -89,7 +101,7 @@ export function SetRow({
 
   return (
     <>
-      <div className="grid grid-cols-[32px_1fr_1fr_1fr_40px_28px] gap-1.5 sm:gap-2 items-center py-2 border-b border-border/50 last:border-0">
+      <div className="grid grid-cols-[28px_1fr_1fr_1fr_44px_36px_24px] gap-1 sm:gap-1.5 items-center py-2 border-b border-border/50 last:border-0">
         {/* Set Number */}
         <span className="text-center text-sm font-medium text-muted-foreground">
           {set.set_number}
@@ -126,6 +138,19 @@ export function SetRow({
           className="h-9 w-full text-center text-sm rounded-md border border-input bg-background px-2"
         />
         
+        {/* RIR Input */}
+        <input
+          type="number"
+          inputMode="numeric"
+          min="0"
+          max="5"
+          placeholder="RIR"
+          value={rir}
+          onChange={(e) => handleRirChange(e.target.value)}
+          disabled={set.is_completed || disabled}
+          className="h-9 w-full text-center text-xs rounded-md border border-input bg-background px-1"
+        />
+        
         {/* Complete Checkbox */}
         <div className="flex justify-center">
           <Checkbox
@@ -142,9 +167,9 @@ export function SetRow({
           size="icon"
           onClick={onRemove}
           disabled={disabled}
-          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+          className="h-7 w-7 text-muted-foreground hover:text-destructive"
         >
-          <Trash2 className="h-4 w-4" />
+          <Trash2 className="h-3.5 w-3.5" />
         </Button>
       </div>
       

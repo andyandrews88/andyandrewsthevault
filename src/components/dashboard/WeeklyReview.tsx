@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { TrendingUp, TrendingDown, Minus, FileText, Sparkles, Loader2 } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, FileText, Sparkles, Loader2, Timer, Gauge } from "lucide-react";
 import { useDashboardStore } from "@/stores/dashboardStore";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -44,6 +44,17 @@ export function WeeklyReview() {
         s += ` Your lowest day was ${weeklyData.lowestReadinessDay} — consider what affected you that day.`;
       }
       parts.push(s);
+    }
+
+    if (weeklyData.conditioningSessions > 0) {
+      let s = `You logged ${weeklyData.conditioningSessions} conditioning session${weeklyData.conditioningSessions > 1 ? "s" : ""} totaling ${weeklyData.totalConditioningMinutes} minutes`;
+      if (weeklyData.totalConditioningCalories > 0) s += ` and ~${weeklyData.totalConditioningCalories} calories`;
+      s += ".";
+      parts.push(s);
+    }
+
+    if (weeklyData.avgRIR !== null && weeklyData.rirSetsCount > 0) {
+      parts.push(`Average RIR across ${weeklyData.rirSetsCount} tracked sets was ${weeklyData.avgRIR} (${weeklyData.hardSetsPercent}% at RIR 0-1).`);
     }
 
     if (weeklyData.weightStart && weeklyData.weightEnd) {
@@ -119,7 +130,7 @@ export function WeeklyReview() {
         ) : (
           <>
             {/* Stats grid */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
               <div className="text-center p-3 rounded-lg bg-secondary/50">
                 <p className="text-2xl font-mono font-bold text-primary">{weeklyData.workoutsCompleted}</p>
                 <p className="text-xs text-muted-foreground">Workouts</p>
@@ -140,6 +151,24 @@ export function WeeklyReview() {
                 </p>
                 <p className="text-xs text-muted-foreground">Readiness</p>
               </div>
+              {weeklyData.totalConditioningMinutes > 0 && (
+                <div className="text-center p-3 rounded-lg bg-secondary/50">
+                  <p className="text-2xl font-mono font-bold text-primary flex items-center justify-center gap-1">
+                    <Timer className="w-4 h-4" />
+                    {weeklyData.totalConditioningMinutes}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Cond. Min</p>
+                </div>
+              )}
+              {weeklyData.avgRIR !== null && weeklyData.rirSetsCount > 0 && (
+                <div className="text-center p-3 rounded-lg bg-secondary/50">
+                  <p className="text-2xl font-mono font-bold text-primary flex items-center justify-center gap-1">
+                    <Gauge className="w-4 h-4" />
+                    {weeklyData.avgRIR}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Avg RIR</p>
+                </div>
+              )}
             </div>
 
             {/* Write-up box */}

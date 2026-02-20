@@ -25,6 +25,15 @@ serve(async (req) => {
       lines.push(`- Average readiness: ${d.avgReadiness}% (trending ${d.readinessTrend} from last week)`);
       if (d.lowestReadinessDay) lines.push(`- Lowest readiness day: ${d.lowestReadinessDay}`);
     }
+    if (d.conditioningSessions > 0) {
+      lines.push(`- Conditioning sessions: ${d.conditioningSessions}`);
+      lines.push(`- Total conditioning time: ${d.totalConditioningMinutes} minutes`);
+      if (d.totalConditioningCalories > 0) lines.push(`- Conditioning calories burned: ~${d.totalConditioningCalories}`);
+    }
+    if (d.avgRIR !== null && d.avgRIR !== undefined && d.rirSetsCount > 0) {
+      lines.push(`- Average RIR (Reps in Reserve): ${d.avgRIR} across ${d.rirSetsCount} tracked sets`);
+      lines.push(`- Hard sets (RIR 0-1): ${d.hardSetsPercent}% of tracked sets`);
+    }
     if (d.weightStart && d.weightEnd) {
       const unit = d.usesImperial ? "lbs" : "kg";
       const toDisplay = (kg: number) => d.usesImperial ? Math.round(kg * 2.20462 * 10) / 10 : Math.round(kg * 10) / 10;
@@ -32,7 +41,7 @@ serve(async (req) => {
       lines.push(`- Bodyweight: ${toDisplay(d.weightStart)} -> ${toDisplay(d.weightEnd)} ${unit} (${diff > 0 ? "+" : ""}${Math.round(diff * 10) / 10} ${unit})`);
     }
 
-    const userPrompt = `This athlete's past 7 days:\n${lines.join("\n")}\n\nWrite a 3-4 sentence weekly performance review. Be direct and coaching-oriented. Mention specific numbers. If a metric needs attention, call it out with a suggestion.`;
+    const userPrompt = `This athlete's past 7 days:\n${lines.join("\n")}\n\nWrite a 3-5 sentence weekly performance review. Be direct and coaching-oriented. Mention specific numbers. If conditioning work was done, acknowledge it. If RIR data is available, interpret training intensity (RIR 0-1 = near failure, RIR 3+ = moderate effort) and give specific recommendations. If a metric needs attention, call it out with a suggestion.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -45,7 +54,7 @@ serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: "You are a concise performance coach. Given this athlete's weekly data, write a 3-4 sentence review. Be direct, supportive, and actionable. Mention specific numbers. If something needs attention, say so. Do not use markdown formatting — plain text only.",
+            content: "You are a concise performance coach. Given this athlete's weekly data, write a 3-5 sentence review. Be direct, supportive, and actionable. Mention specific numbers. Consider ALL available data: strength volume, conditioning work, readiness scores, bodyweight trends, and training intensity (RIR). If RIR data shows most sets at 0-1, suggest deload or backing off accessories. If RIR is 3+, suggest pushing harder on compounds. If conditioning data exists, account for total training load (strength + conditioning). Do not use markdown formatting — plain text only.",
           },
           { role: "user", content: userPrompt },
         ],

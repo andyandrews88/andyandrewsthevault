@@ -52,7 +52,7 @@ interface WorkoutState {
   addSet: (exerciseId: string) => Promise<void>;
   removeSet: (setId: string) => Promise<void>;
   updateSet: (setId: string, data: Partial<ExerciseSet>) => void;
-  completeSet: (setId: string, exerciseName: string, weight: number, reps: number) => Promise<boolean>;
+  completeSet: (setId: string, exerciseName: string, weight: number, reps: number, rir?: number | null) => Promise<boolean>;
   loadLastSession: (exerciseId: string, exerciseName: string) => Promise<void>;
   finishWorkout: () => Promise<void>;
   cancelWorkout: () => Promise<void>;
@@ -385,16 +385,19 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
       .then(() => {});
   },
   
-  completeSet: async (setId: string, exerciseName: string, weight: number, reps: number) => {
+  completeSet: async (setId: string, exerciseName: string, weight: number, reps: number, rir?: number | null) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user || !weight) return false;
     
     const { exercises, activeWorkout, personalRecords } = get();
     
     // Update the set as completed
+    const updateData: any = { is_completed: true, weight, reps };
+    if (rir !== undefined) updateData.rir = rir;
+    
     await supabase
       .from('exercise_sets')
-      .update({ is_completed: true, weight, reps })
+      .update(updateData)
       .eq('id', setId);
     
     // Update local state
@@ -402,7 +405,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
       exercises: exercises.map(e => ({
         ...e,
         sets: e.sets?.map(s => 
-          s.id === setId ? { ...s, is_completed: true, weight, reps } : s
+          s.id === setId ? { ...s, is_completed: true, weight, reps, rir: rir ?? s.rir } : s
         )
       }))
     });
