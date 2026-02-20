@@ -1,14 +1,16 @@
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Trophy } from "lucide-react";
+import { WeightUnit } from "@/lib/weightConversion";
 
 interface PRCelebrationProps {
   exerciseName: string;
   weight: number;
+  unit?: WeightUnit;
   onComplete: () => void;
 }
 
-export function PRCelebration({ exerciseName, weight, onComplete }: PRCelebrationProps) {
+export function PRCelebration({ exerciseName, weight, unit = 'lbs', onComplete }: PRCelebrationProps) {
   const [visible, setVisible] = useState(true);
   const [confetti, setConfetti] = useState<{ id: number; x: number; delay: number; color: string }[]>([]);
 
@@ -59,7 +61,7 @@ export function PRCelebration({ exerciseName, weight, onComplete }: PRCelebratio
           {exerciseName}
         </h3>
         <p className="text-3xl font-black text-accent-foreground">
-          {weight} lbs
+          {weight} {unit}
         </p>
       </div>
     </div>
