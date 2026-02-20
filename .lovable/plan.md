@@ -1,94 +1,43 @@
 
 
-# Training Section: Complete Bug Fix and Stability Overhaul
+# Fix RIR Logic in AI Weekly Review
 
-## Bugs Identified
+## The Problem
 
-### BUG 1 (Critical) -- `fetchActiveWorkout` auto-abandons workouts being edited
+The system prompt in the `weekly-review` edge function has inverted RIR coaching advice:
 
-When `editWorkout` marks a past workout as `is_completed: false`, the `fetchActiveWorkout` function contains auto-abandon logic (lines 602-614) that checks `workout.date < today && !isProgramSession` and immediately marks the workout as completed again. If the component ever remounts (e.g., switching between Log Workout / Calendar / Analytics tabs), the initial-load effect re-runs `fetchActiveWorkout`, which finds the now-incomplete past workout and auto-completes it -- destroying the editing session.
+**Current (wrong):**
+- RIR 0-1 -> "suggest deload or backing off accessories"
+- RIR 3+ -> "suggest pushing harder on compounds"
 
-**Fix**: Add a guard in `fetchActiveWorkout`: if `isEditing` is already true in the store, skip the auto-abandon logic entirely.
+**Correct interpretation:**
+- RIR 0 = maximum effort, no reps left
+- RIR 1 = one rep left, very hard
+- RIR 2 = two reps left, productive sweet spot
+- RIR 3+ = moderate/low intensity, warm-up territory
 
-### BUG 2 (Critical) -- After cancel/finish edit, `viewingWorkout` is never refreshed
+The fix also needs to account for the **readiness-RIR relationship**: low RIR is only a concern when readiness is also low (risk of injury/overtraining), and high RIR is only a concern when readiness is high (sandbagging).
 
-When `cancelWorkout` or `finishWorkout` runs during an edit:
-- `activeWorkout` is set to null
-- `viewingWorkout` remains null (was cleared by `editWorkout`)
-- `selectedDate` does not change, so the date-change effect does NOT fire
-- Result: the user sees the empty "Start Workout" prompt instead of their restored/finished workout
+## What Changes
 
-**Fix**: After `cancelWorkout` and `finishWorkout` (when `isEditing` was true), call `fetchWorkoutByDate(selectedDate)` to reload the completed workout into `viewingWorkout`.
+### File: `supabase/functions/weekly-review/index.ts`
 
-### BUG 3 (Critical) -- `handleFinish` calls `onBack()` which navigates away during edits
+Replace the RIR section of the system prompt (line 65) with corrected coaching logic that:
 
-After finishing an edited workout, `handleFinish` calls `onBack()`. While `onBack` is currently `() => {}` in WorkoutTab (does nothing), the intent and original design navigates the user away. More importantly, `handleFinish` unconditionally tries to mark program calendar workouts as complete (lines 122-132) even during edit mode, which is incorrect for retroactive edits.
+- Defines the RIR scale correctly (lower = harder)
+- Cross-references RIR with readiness data
+- High readiness + high RIR = athlete may be sandbagging, suggest pushing intensity
+- Low readiness + low RIR = athlete is overreaching, suggest backing off
+- High readiness + low RIR = ideal, performing well when body is ready
+- Low readiness + high RIR = smart autoregulation, acknowledge the adjustment
 
-**Fix**: In `handleFinish`, check if we're editing. If so, skip the `onBack()` call and the program calendar marking logic. Just finish and let the view refresh to show the completed workout.
+Also update the user prompt hint (line 52) to reinforce the correct interpretation.
 
-### BUG 4 (Medium) -- `fetchProgramWorkoutsForDate` still uses `getUser()` (network call)
+## Technical Details
 
-Line 83 of WorkoutLogger still uses `supabase.auth.getUser()` instead of `getSession()`. This adds latency to every date navigation.
+Only one file changes: the edge function prompt text. No database, UI, or store changes needed. The data collection (avg RIR, hard sets %, readiness scores) is already correct -- only the AI's interpretation instructions are wrong.
 
-**Fix**: Switch to `getSession()`.
-
-### BUG 5 (Medium) -- `handleFinish` uses `getUser()` for calendar update
-
-Line 124 of WorkoutLogger uses `getUser()` for the program calendar update.
-
-**Fix**: Switch to `getSession()`.
-
-### BUG 6 (Minor) -- Cancel dialog text is wrong during edit mode
-
-The cancel dialog says "This will delete all exercises and sets from this session" -- but during edit mode, cancelling restores the workout instead of deleting it. The text is misleading.
-
-**Fix**: Show different text based on `isEditing` state.
-
-### BUG 7 (Minor) -- `ProgramCalendarView` dialog condition is always true
-
-Line 204: `selectedWorkouts.length >= 0` is always true (arrays always have length >= 0). Should be `!!selectedDate`.
-
-**Fix**: Simplify to `open={!!selectedDate}`.
-
-### BUG 8 (Minor) -- `ProgramCalendarView` uses `getUser()` for month fetch
-
-Line 43: `supabase.auth.getUser()` should be `getSession()`.
-
-**Fix**: Switch to `getSession()`.
-
-## Implementation Plan
-
-### File: `src/stores/workoutStore.ts`
-
-1. **Guard `fetchActiveWorkout`**: Check `if (get().isEditing) { set({ isLoading: false }); return; }` before the auto-abandon logic to prevent destroying an active edit session.
-
-2. **Fix `cancelWorkout`**: After restoring the workout (edit mode), call `get().fetchWorkoutByDate(get().selectedDate)` to reload `viewingWorkout`.
-
-3. **Fix `finishWorkout`**: After completing the workout, if `isEditing` was true, call `get().fetchWorkoutByDate(get().selectedDate)` to show the finished workout.
-
-### File: `src/components/workout/WorkoutLogger.tsx`
-
-4. **Fix `handleFinish`**: Guard the `onBack()` call and the program calendar update logic behind `!isEditing`. When editing, just call `finishWorkout()`, refresh workout days, and let the store handle the rest.
-
-5. **Switch `fetchProgramWorkoutsForDate`** from `getUser()` to `getSession()`.
-
-6. **Switch `handleFinish` program calendar update** from `getUser()` to `getSession()`.
-
-7. **Fix cancel dialog text**: Read `isEditing` from the store and show context-appropriate messaging.
-
-8. **Add `isEditing` to the destructured store values** so it's available in the component.
-
-### File: `src/components/workout/ProgramCalendarView.tsx`
-
-9. **Fix dialog open condition**: Change `selectedWorkouts.length >= 0` to simply `!!selectedDate`.
-
-10. **Switch `fetchMonthWorkouts`** from `getUser()` to `getSession()`.
-
-## Summary of Changes
-
-| File | Changes |
-|------|---------|
-| `src/stores/workoutStore.ts` | Guard `fetchActiveWorkout` against `isEditing`, refresh `viewingWorkout` after cancel/finish in edit mode |
-| `src/components/workout/WorkoutLogger.tsx` | Guard `handleFinish` for edit mode, fix `getUser()` to `getSession()`, fix cancel dialog text, add `isEditing` state |
-| `src/components/workout/ProgramCalendarView.tsx` | Fix dialog open condition, fix `getUser()` to `getSession()` |
+| File | Change |
+|------|--------|
+| `supabase/functions/weekly-review/index.ts` | Rewrite RIR coaching instructions in both system and user prompts to use correct scale and cross-reference with readiness |
 
