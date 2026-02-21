@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -16,7 +16,8 @@ import {
 } from '@/components/ui/dialog';
 import { Trash2, Edit2 } from 'lucide-react';
 import { MealFood } from '@/stores/mealBuilderStore';
-import { MeasurementUnit, UNIT_OPTIONS, getAvailableUnits } from '@/lib/unitConversions';
+import { MeasurementUnit, UNIT_OPTIONS, getAvailableUnits, calculateMacros } from '@/lib/unitConversions';
+import { inlinePortionLabel } from '@/lib/handPortions';
 
 interface FoodDiaryItemProps {
   mealFood: MealFood;
@@ -33,6 +34,14 @@ export function FoodDiaryItem({ mealFood, onRemove, onUpdate }: FoodDiaryItemPro
   const category = 'category' in food ? food.category : 'supplement';
   const availableUnits = getAvailableUnits(category);
 
+  // Dynamically recalculate macros for the edit preview
+  const previewMacros = useMemo(() => {
+    return calculateMacros(
+      food.calories, food.protein, food.carbs, food.fats,
+      food.servingGrams, editAmount, editUnit
+    );
+  }, [food, editAmount, editUnit]);
+
   const handleSave = () => {
     onUpdate(editAmount, editUnit);
     setIsEditing(false);
@@ -42,6 +51,13 @@ export function FoodDiaryItem({ mealFood, onRemove, onUpdate }: FoodDiaryItemPro
     const unitOption = UNIT_OPTIONS.find((o) => o.value === unit);
     return `${amount} ${unitOption?.shortLabel || unit}`;
   };
+
+  // Inline hand portion indicator
+  const portionText = inlinePortionLabel(
+    calculatedMacros.protein,
+    calculatedMacros.carbs,
+    calculatedMacros.fats
+  );
 
   return (
     <>
@@ -53,26 +69,19 @@ export function FoodDiaryItem({ mealFood, onRemove, onUpdate }: FoodDiaryItemPro
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="font-mono text-sm text-right whitespace-nowrap">
-            {calculatedMacros.calories} cal
-          </span>
+          <div className="text-right whitespace-nowrap">
+            <span className="font-mono text-sm">{calculatedMacros.calories} cal</span>
+            {portionText && (
+              <p className="text-[10px] text-muted-foreground">{portionText}</p>
+            )}
+          </div>
 
-          {/* Action buttons - visible on hover on desktop, always visible on mobile */}
+          {/* Action buttons */}
           <div className="flex gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              onClick={() => setIsEditing(true)}
-            >
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setIsEditing(true)}>
               <Edit2 className="w-3 h-3" />
             </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 text-destructive hover:text-destructive"
-              onClick={onRemove}
-            >
+            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={onRemove}>
               <Trash2 className="w-3 h-3" />
             </Button>
           </div>
@@ -113,15 +122,15 @@ export function FoodDiaryItem({ mealFood, onRemove, onUpdate }: FoodDiaryItemPro
               </Select>
             </div>
 
-            {/* Preview macros */}
+            {/* Live preview macros */}
             <div className="text-center p-3 bg-muted/50 rounded-lg">
               <p className="text-2xl font-bold font-mono text-primary">
-                {calculatedMacros.calories} cal
+                {previewMacros.calories} cal
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                P: {Math.round(calculatedMacros.protein)}g • 
-                C: {Math.round(calculatedMacros.carbs)}g • 
-                F: {Math.round(calculatedMacros.fats)}g
+                P: {Math.round(previewMacros.protein)}g • 
+                C: {Math.round(previewMacros.carbs)}g • 
+                F: {Math.round(previewMacros.fats)}g
               </p>
             </div>
 

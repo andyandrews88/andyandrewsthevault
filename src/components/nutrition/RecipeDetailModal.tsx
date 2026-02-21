@@ -1,19 +1,38 @@
+import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Clock, Users, Flame, Beef, Wheat, Droplets } from 'lucide-react';
+import { Clock, Users, Flame, Beef, Wheat, Droplets, UtensilsCrossed, Coffee, Sun, Moon, Cookie } from 'lucide-react';
 import { Recipe } from '@/types/nutrition';
 import { getPrepTimeLabel } from '@/data/recipes';
 import { getFoodById } from '@/data/foodDatabase';
+import type { MealSlotType } from '@/stores/mealBuilderStore';
 
 interface RecipeDetailModalProps {
   recipe: Recipe | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onLogToDiary?: (recipe: Recipe, slot: MealSlotType) => void;
 }
 
-export function RecipeDetailModal({ recipe, open, onOpenChange }: RecipeDetailModalProps) {
+const SLOT_OPTIONS: { value: MealSlotType; label: string; icon: React.ElementType }[] = [
+  { value: 'breakfast', label: 'Breakfast', icon: Coffee },
+  { value: 'lunch', label: 'Lunch', icon: Sun },
+  { value: 'dinner', label: 'Dinner', icon: Moon },
+  { value: 'snacks', label: 'Snacks', icon: Cookie },
+];
+
+export function RecipeDetailModal({ recipe, open, onOpenChange, onLogToDiary }: RecipeDetailModalProps) {
+  const [showSlotPicker, setShowSlotPicker] = useState(false);
+
   if (!recipe) return null;
+
+  const handleLogToSlot = (slot: MealSlotType) => {
+    onLogToDiary?.(recipe, slot);
+    setShowSlotPicker(false);
+    onOpenChange(false);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -55,6 +74,33 @@ export function RecipeDetailModal({ recipe, open, onOpenChange }: RecipeDetailMo
             <p className="text-[10px] text-muted-foreground">Fats</p>
           </div>
         </div>
+
+        {/* Log to Diary */}
+        {onLogToDiary && (
+          <>
+            {!showSlotPicker ? (
+              <Button className="w-full gap-2" onClick={() => setShowSlotPicker(true)}>
+                <UtensilsCrossed className="w-4 h-4" />
+                Log to Diary
+              </Button>
+            ) : (
+              <div className="grid grid-cols-4 gap-2">
+                {SLOT_OPTIONS.map(({ value, label, icon: Icon }) => (
+                  <Button
+                    key={value}
+                    variant="outline"
+                    size="sm"
+                    className="flex-col h-auto py-2 gap-1"
+                    onClick={() => handleLogToSlot(value)}
+                  >
+                    <Icon className="w-4 h-4" />
+                    <span className="text-[10px]">{label}</span>
+                  </Button>
+                ))}
+              </div>
+            )}
+          </>
+        )}
 
         <Separator />
 
