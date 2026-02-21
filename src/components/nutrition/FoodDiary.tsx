@@ -13,10 +13,11 @@ import { Search, Folder, Trash2 } from 'lucide-react';
 import { useMealBuilderStore, MealFood, SavedMeal, MealSlotType } from '@/stores/mealBuilderStore';
 import { searchFoods } from '@/data/foodDatabase';
 import { FoodItem } from '@/types/nutrition';
-import { DailySummaryBar } from './DailySummaryBar';
+import { CalorieSummary } from './CalorieSummary';
 import { MealSection, MealSlot } from './MealSection';
 import { BarcodeScanner } from './BarcodeScanner';
 import { DateNavigator } from './DateNavigator';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -91,7 +92,6 @@ export function FoodDiary({ targetCalories, targetMacros }: FoodDiaryProps) {
   };
 
   const handleLoadSavedMeal = (meal: SavedMeal) => {
-    // Add each food from the saved template into the active slot
     for (const f of meal.foods) {
       addDiaryEntry(f.food, activeMealSlot as MealSlotType, f.amount, f.unit);
     }
@@ -101,21 +101,14 @@ export function FoodDiary({ targetCalories, targetMacros }: FoodDiaryProps) {
   return (
     <div className="space-y-4">
       {/* Date Navigator */}
-      <DateNavigator
-        selectedDate={selectedDate}
-        onDateChange={setSelectedDate}
-      />
+      <DateNavigator selectedDate={selectedDate} onDateChange={setSelectedDate} />
 
       {/* Header with Actions */}
       <div className="flex items-center justify-between">
         <Badge variant="elite">FOOD DIARY</Badge>
         <div className="flex gap-2">
           {savedMeals.length > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowSavedMeals(true)}
-            >
+            <Button variant="outline" size="sm" onClick={() => setShowSavedMeals(true)}>
               <Folder className="w-4 h-4 mr-1" />
               Saved
             </Button>
@@ -146,8 +139,8 @@ export function FoodDiary({ targetCalories, targetMacros }: FoodDiaryProps) {
         </div>
       </div>
 
-      {/* Daily Summary */}
-      <DailySummaryBar
+      {/* Daily Summary with Hand Portions */}
+      <CalorieSummary
         consumed={totals}
         targets={{
           calories: targetCalories,
@@ -158,21 +151,29 @@ export function FoodDiary({ targetCalories, targetMacros }: FoodDiaryProps) {
       />
 
       {/* Meal Sections */}
-      <div className="space-y-3">
-        {mealSlots.map((slot) => (
-          <MealSection
-            key={slot}
-            slot={slot}
-            foods={getFoodsForSlot(slot)}
-            onAddFood={() => handleAddFood(slot)}
-            onRemoveFood={(id) => removeDiaryEntry(id)}
-            onUpdateFood={(id, amount, unit) => updateDiaryEntry(id, amount, unit)}
-          />
-        ))}
-      </div>
+      {isLoading ? (
+        <div className="space-y-3">
+          {mealSlots.map((slot) => (
+            <Skeleton key={slot} className="h-24 w-full rounded-lg" />
+          ))}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {mealSlots.map((slot) => (
+            <MealSection
+              key={slot}
+              slot={slot}
+              foods={getFoodsForSlot(slot)}
+              onAddFood={() => handleAddFood(slot)}
+              onRemoveFood={(id) => removeDiaryEntry(id)}
+              onUpdateFood={(id, amount, unit) => updateDiaryEntry(id, amount, unit)}
+            />
+          ))}
+        </div>
+      )}
 
-      {/* Barcode Scanner */}
-      <BarcodeScanner />
+      {/* Barcode Scanner — passes active meal slot */}
+      <BarcodeScanner mealSlot={activeMealSlot as MealSlotType} />
 
       {/* Food Search Dialog */}
       <Dialog open={showFoodSearch} onOpenChange={setShowFoodSearch}>
@@ -193,7 +194,6 @@ export function FoodDiary({ targetCalories, targetMacros }: FoodDiaryProps) {
                 autoFocus
               />
             </div>
-
             <div className="max-h-[300px] overflow-y-auto space-y-2">
               {searchQuery.trim() ? (
                 searchResults.length > 0 ? (
@@ -234,10 +234,7 @@ export function FoodDiary({ targetCalories, targetMacros }: FoodDiaryProps) {
           </DialogHeader>
           <div className="max-h-[400px] overflow-y-auto space-y-2">
             {savedMeals.map((meal) => (
-              <div
-                key={meal.id}
-                className="p-3 rounded-lg border hover:bg-muted/50 transition-colors"
-              >
+              <div key={meal.id} className="p-3 rounded-lg border hover:bg-muted/50 transition-colors">
                 <div className="flex items-center justify-between mb-2">
                   <div>
                     <p className="font-medium">{meal.name}</p>
@@ -248,12 +245,7 @@ export function FoodDiary({ targetCalories, targetMacros }: FoodDiaryProps) {
                   <Badge variant="outline">{meal.totals.calories} cal</Badge>
                 </div>
                 <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="flex-1"
-                    onClick={() => handleLoadSavedMeal(meal)}
-                  >
+                  <Button size="sm" variant="outline" className="flex-1" onClick={() => handleLoadSavedMeal(meal)}>
                     Add to {activeMealSlot}
                   </Button>
                   <AlertDialog>

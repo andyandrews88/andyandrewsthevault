@@ -31,9 +31,10 @@ import { Html5Qrcode } from 'html5-qrcode';
 
 interface BarcodeScannerProps {
   onProductScanned?: (product: ScannedProduct) => void;
+  mealSlot?: import('@/stores/mealBuilderStore').MealSlotType;
 }
 
-export function BarcodeScanner({ onProductScanned }: BarcodeScannerProps) {
+export function BarcodeScanner({ onProductScanned, mealSlot = 'snacks' }: BarcodeScannerProps) {
   const [isScanning, setIsScanning] = useState(false);
   const [manualBarcode, setManualBarcode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -139,7 +140,7 @@ export function BarcodeScanner({ onProductScanned }: BarcodeScannerProps) {
 
   const handleAddToMeal = () => {
     if (scannedProduct) {
-      addDiaryEntry(scannedProduct, 'snacks', 1, 'piece');
+      addDiaryEntry(scannedProduct, mealSlot, 1, 'piece');
       setShowResultDialog(false);
       setScannedProduct(null);
       setManualBarcode('');

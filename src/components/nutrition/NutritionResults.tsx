@@ -23,17 +23,37 @@ import {
   UtensilsCrossed,
 } from 'lucide-react';
 import { useNutritionStore } from '@/stores/nutritionStore';
+import { useMealBuilderStore, MealSlotType } from '@/stores/mealBuilderStore';
 import { MacroChart } from './MacroChart';
 import { MealPlanGenerator } from './MealPlanGenerator';
 import { FoodDatabase } from './FoodDatabase';
 import { FoodDiary } from './FoodDiary';
+import { getFoodById } from '@/data/foodDatabase';
+import { Recipe } from '@/types/nutrition';
+import { toast } from '@/hooks/use-toast';
 
 export function NutritionResults({ onRecalculate }: { onRecalculate: () => void }) {
   const { results, biometrics, goals } = useNutritionStore();
+  const { addDiaryEntry } = useMealBuilderStore();
 
   if (!results) return null;
 
   const { macros, metrics, bmrComparison, mealBreakdown, recommendations } = results;
+
+  const handleLogRecipe = (recipe: Recipe, slot: MealSlotType) => {
+    let logged = 0;
+    for (const ing of recipe.ingredients) {
+      const food = getFoodById(ing.foodId);
+      if (food) {
+        addDiaryEntry(food, slot, ing.quantity, 'piece');
+        logged++;
+      }
+    }
+    toast({
+      title: `Logged ${recipe.name}`,
+      description: `${logged} ingredient${logged !== 1 ? 's' : ''} added to ${slot}`,
+    });
+  };
 
   return (
     <div className="space-y-6">
@@ -58,7 +78,6 @@ export function NutritionResults({ onRecalculate }: { onRecalculate: () => void 
           <div className="grid md:grid-cols-2">
             {/* Left: Numbers */}
             <div className="p-6 space-y-6">
-              {/* Calories */}
               <div className="text-center md:text-left">
                 <p className="text-sm text-muted-foreground mb-1">Target Calories</p>
                 <p className="text-5xl font-bold font-mono text-primary">
@@ -67,25 +86,19 @@ export function NutritionResults({ onRecalculate }: { onRecalculate: () => void 
                 <p className="text-sm text-muted-foreground mt-1">kcal/day</p>
               </div>
 
-              {/* Macros Grid */}
               <div className="grid grid-cols-3 gap-4">
-                {/* Protein */}
                 <div className="text-center p-3 rounded-lg bg-primary/10">
                   <Beef className="w-5 h-5 mx-auto mb-1 text-primary" />
                   <p className="text-2xl font-bold font-mono">{macros.protein}g</p>
                   <p className="text-xs text-muted-foreground">Protein</p>
                   <Badge variant="outline" className="mt-1 text-xs">{macros.proteinPercent}%</Badge>
                 </div>
-
-                {/* Carbs */}
                 <div className="text-center p-3 rounded-lg bg-success/10">
                   <Wheat className="w-5 h-5 mx-auto mb-1 text-success" />
                   <p className="text-2xl font-bold font-mono">{macros.carbs}g</p>
                   <p className="text-xs text-muted-foreground">Carbs</p>
                   <Badge variant="outline" className="mt-1 text-xs">{macros.carbPercent}%</Badge>
                 </div>
-
-                {/* Fats */}
                 <div className="text-center p-3 rounded-lg bg-accent/10">
                   <Droplets className="w-5 h-5 mx-auto mb-1 text-accent" />
                   <p className="text-2xl font-bold font-mono">{macros.fats}g</p>
@@ -95,7 +108,6 @@ export function NutritionResults({ onRecalculate }: { onRecalculate: () => void 
               </div>
             </div>
 
-            {/* Right: Chart */}
             <div className="p-6 flex items-center justify-center bg-muted/20">
               <MacroChart macros={macros} />
             </div>
@@ -103,7 +115,7 @@ export function NutritionResults({ onRecalculate }: { onRecalculate: () => void 
         </CardContent>
       </Card>
 
-      {/* Tabs for Additional Info */}
+      {/* Tabs */}
       <Tabs defaultValue="builder" className="space-y-4">
         <TabsList className="grid grid-cols-5 w-full max-w-2xl">
           <TabsTrigger value="builder" className="gap-1">
@@ -128,80 +140,35 @@ export function NutritionResults({ onRecalculate }: { onRecalculate: () => void 
           </TabsTrigger>
         </TabsList>
 
-        {/* Food Diary Tab */}
         <TabsContent value="builder">
-          <FoodDiary 
-            targetCalories={metrics.targetCalories}
-            targetMacros={macros}
-          />
+          <FoodDiary targetCalories={metrics.targetCalories} targetMacros={macros} />
         </TabsContent>
 
-        {/* Advanced Metrics Tab */}
         <TabsContent value="metrics">
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <MetricCard
-              icon={Flame}
-              label="BMR"
-              value={`${metrics.bmr.toLocaleString()} kcal`}
-              description="Basal Metabolic Rate"
-            />
-            <MetricCard
-              icon={Zap}
-              label="TDEE"
-              value={`${metrics.tdee.toLocaleString()} kcal`}
-              description="Total Daily Energy Expenditure"
-            />
-            <MetricCard
-              icon={Target}
-              label="Daily Target"
-              value={`${metrics.targetCalories.toLocaleString()} kcal`}
-              description={`${metrics.calorieDeficitOrSurplus >= 0 ? '+' : ''}${metrics.calorieDeficitOrSurplus} from TDEE`}
-            />
-            <MetricCard
-              icon={Beef}
-              label="Protein/lb"
-              value={`${metrics.proteinPerLb.toFixed(2)}g`}
-              description="Grams per pound bodyweight"
-            />
-            <MetricCard
-              icon={Droplets}
-              label="Water Intake"
-              value={`${Math.round(metrics.waterIntakeOz / 8)} cups`}
-              description={`${metrics.waterIntakeOz} oz daily`}
-            />
-            <MetricCard
-              icon={Wheat}
-              label="Fiber Target"
-              value={`${metrics.fiberTarget}g`}
-              description="Minimum daily fiber"
-            />
+            <MetricCard icon={Flame} label="BMR" value={`${metrics.bmr.toLocaleString()} kcal`} description="Basal Metabolic Rate" />
+            <MetricCard icon={Zap} label="TDEE" value={`${metrics.tdee.toLocaleString()} kcal`} description="Total Daily Energy Expenditure" />
+            <MetricCard icon={Target} label="Daily Target" value={`${metrics.targetCalories.toLocaleString()} kcal`} description={`${metrics.calorieDeficitOrSurplus >= 0 ? '+' : ''}${metrics.calorieDeficitOrSurplus} from TDEE`} />
+            <MetricCard icon={Beef} label="Protein/lb" value={`${metrics.proteinPerLb.toFixed(2)}g`} description="Grams per pound bodyweight" />
+            <MetricCard icon={Droplets} label="Water Intake" value={`${Math.round(metrics.waterIntakeOz / 8)} cups`} description={`${metrics.waterIntakeOz} oz daily`} />
+            <MetricCard icon={Wheat} label="Fiber Target" value={`${metrics.fiberTarget}g`} description="Minimum daily fiber" />
           </div>
 
-          {/* BMR Comparison */}
           <Card className="mt-4">
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
                 <Info className="w-4 h-4" />
                 BMR Formula Comparison
               </CardTitle>
-              <CardDescription>
-                Different formulas for calculating your base metabolism
-              </CardDescription>
+              <CardDescription>Different formulas for calculating your base metabolism</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
                 {bmrComparison.map((formula) => (
-                  <div
-                    key={formula.formula}
-                    className={`flex items-center justify-between p-3 rounded-lg ${
-                      formula.isRecommended ? 'bg-primary/10 border border-primary/20' : 'bg-muted/50'
-                    }`}
-                  >
+                  <div key={formula.formula} className={`flex items-center justify-between p-3 rounded-lg ${formula.isRecommended ? 'bg-primary/10 border border-primary/20' : 'bg-muted/50'}`}>
                     <div className="flex items-center gap-2">
                       <span className="font-medium">{formula.label}</span>
-                      {formula.isRecommended && (
-                        <Badge variant="default" className="text-xs">Recommended</Badge>
-                      )}
+                      {formula.isRecommended && <Badge variant="default" className="text-xs">Recommended</Badge>}
                     </div>
                     <span className="font-mono">{formula.value.toLocaleString()} kcal</span>
                   </div>
@@ -210,7 +177,6 @@ export function NutritionResults({ onRecalculate }: { onRecalculate: () => void 
             </CardContent>
           </Card>
 
-          {/* Weekly Projection */}
           {metrics.weeklyWeightChange !== 0 && (
             <Card className="mt-4">
               <CardContent className="p-4">
@@ -228,21 +194,19 @@ export function NutritionResults({ onRecalculate }: { onRecalculate: () => void 
           )}
         </TabsContent>
 
-        {/* Meal Breakdown Tab */}
         <TabsContent value="meals">
           <MealPlanGenerator
             targetCalories={metrics.targetCalories}
             targetMacros={macros}
             mealBreakdown={mealBreakdown}
+            onLogRecipe={handleLogRecipe}
           />
         </TabsContent>
 
-        {/* Food Database Tab */}
         <TabsContent value="foods">
           <FoodDatabase targetMacros={macros} />
         </TabsContent>
 
-        {/* Recommendations Tab */}
         <TabsContent value="tips">
           <Card>
             <CardHeader>
@@ -250,17 +214,12 @@ export function NutritionResults({ onRecalculate }: { onRecalculate: () => void 
                 <Lightbulb className="w-5 h-5 text-accent" />
                 Personalized Recommendations
               </CardTitle>
-              <CardDescription>
-                Based on your goals and preferences
-              </CardDescription>
+              <CardDescription>Based on your goals and preferences</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
                 {recommendations.map((rec, index) => (
-                  <div
-                    key={index}
-                    className="flex gap-3 p-3 rounded-lg bg-muted/50"
-                  >
+                  <div key={index} className="flex gap-3 p-3 rounded-lg bg-muted/50">
                     <span className="text-primary font-mono text-sm">{String(index + 1).padStart(2, '0')}</span>
                     <p className="text-sm text-muted-foreground">{rec}</p>
                   </div>

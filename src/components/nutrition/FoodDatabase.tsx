@@ -21,6 +21,7 @@ import { MeasurementUnit } from '@/lib/unitConversions';
 interface FoodDatabaseProps {
   targetMacros?: MacroBreakdown;
   onAddFood?: (food: FoodItem, servings: number) => void;
+  mealSlot?: import('@/stores/mealBuilderStore').MealSlotType;
 }
 
 const CATEGORY_TABS: { value: 'all' | FoodCategory; label: string }[] = [
@@ -34,7 +35,7 @@ const CATEGORY_TABS: { value: 'all' | FoodCategory; label: string }[] = [
   { value: 'fruit', label: 'Fruits' },
 ];
 
-export function FoodDatabase({ targetMacros, onAddFood }: FoodDatabaseProps) {
+export function FoodDatabase({ targetMacros, onAddFood, mealSlot = 'snacks' }: FoodDatabaseProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<'all' | FoodCategory>('all');
   const [displayUnit, setDisplayUnit] = useState<'default' | 'metric' | 'imperial'>('default');
@@ -60,7 +61,7 @@ export function FoodDatabase({ targetMacros, onAddFood }: FoodDatabaseProps) {
 
   const handleAddFood = (food: FoodItem, servings: number, unit?: MeasurementUnit) => {
     // Add to diary (defaults to snacks slot from food database)
-    addDiaryEntry(food, 'snacks', servings, unit || 'piece');
+    addDiaryEntry(food, mealSlot, servings, unit || 'piece');
     
     // Also call legacy handler if provided
     if (onAddFood) {

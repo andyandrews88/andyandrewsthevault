@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { 
   Utensils, 
   Clock, 
@@ -10,16 +12,23 @@ import {
   Droplets,
   ChefHat,
   BookOpen,
-  Flame
+  Flame,
+  Plus,
+  Coffee,
+  Sun,
+  Moon,
+  Cookie,
 } from 'lucide-react';
 import { MealBreakdown, MacroBreakdown, Recipe } from '@/types/nutrition';
 import { getRecipesByMealType } from '@/data/recipes';
 import { RecipeDetailModal } from './RecipeDetailModal';
+import type { MealSlotType } from '@/stores/mealBuilderStore';
 
 interface MealPlanGeneratorProps {
   targetCalories: number;
   targetMacros: MacroBreakdown;
   mealBreakdown: MealBreakdown[];
+  onLogRecipe?: (recipe: Recipe, slot: MealSlotType) => void;
 }
 
 const RECIPE_TABS = [
@@ -31,7 +40,14 @@ const RECIPE_TABS = [
   { value: 'bowl', label: 'Bowls' },
 ] as const;
 
-export function MealPlanGenerator({ targetCalories, targetMacros, mealBreakdown }: MealPlanGeneratorProps) {
+const SLOT_OPTIONS: { value: MealSlotType; label: string; icon: React.ElementType }[] = [
+  { value: 'breakfast', label: 'Breakfast', icon: Coffee },
+  { value: 'lunch', label: 'Lunch', icon: Sun },
+  { value: 'dinner', label: 'Dinner', icon: Moon },
+  { value: 'snacks', label: 'Snacks', icon: Cookie },
+];
+
+export function MealPlanGenerator({ targetCalories, targetMacros, mealBreakdown, onLogRecipe }: MealPlanGeneratorProps) {
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
 
@@ -82,10 +98,7 @@ export function MealPlanGenerator({ targetCalories, targetMacros, mealBreakdown 
         <CardContent>
           <div className="space-y-3">
             {mealBreakdown.map((meal) => (
-              <div
-                key={meal.mealNumber}
-                className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
-              >
+              <div key={meal.mealNumber} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
                     <span className="font-mono text-sm font-bold text-primary">{meal.mealNumber}</span>
@@ -128,15 +141,10 @@ export function MealPlanGenerator({ targetCalories, targetMacros, mealBreakdown 
             {RECIPE_TABS.map((tab) => (
               <TabsContent key={tab.value} value={tab.value} className="space-y-3 mt-4">
                 {getRecipesByMealType(tab.value as any).map((recipe) => (
-                  <Card
-                    key={recipe.id}
-                    variant="interactive"
-                    className="overflow-hidden cursor-pointer"
-                    onClick={() => handleRecipeClick(recipe)}
-                  >
+                  <Card key={recipe.id} variant="interactive" className="overflow-hidden">
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between gap-3">
-                        <div className="flex-1">
+                        <div className="flex-1 cursor-pointer" onClick={() => handleRecipeClick(recipe)}>
                           <div className="flex items-center gap-2 mb-1">
                             <h4 className="font-medium">{recipe.name}</h4>
                             <Badge variant="outline" className="text-xs gap-1">
@@ -172,6 +180,38 @@ export function MealPlanGenerator({ targetCalories, targetMacros, mealBreakdown 
                             ))}
                           </div>
                         </div>
+
+                        {/* Quick-log button */}
+                        {onLogRecipe && (
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                className="shrink-0 h-8 w-8"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <Plus className="w-4 h-4" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-2" align="end">
+                              <div className="grid grid-cols-2 gap-1">
+                                {SLOT_OPTIONS.map(({ value, label, icon: Icon }) => (
+                                  <Button
+                                    key={value}
+                                    variant="ghost"
+                                    size="sm"
+                                    className="justify-start gap-2 text-xs"
+                                    onClick={() => onLogRecipe(recipe, value)}
+                                  >
+                                    <Icon className="w-3 h-3" />
+                                    {label}
+                                  </Button>
+                                ))}
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
@@ -195,6 +235,7 @@ export function MealPlanGenerator({ targetCalories, targetMacros, mealBreakdown 
         </CardHeader>
         <CardContent>
           <div className="space-y-4 font-mono text-sm">
+            
             <div className="p-4 rounded-lg bg-muted/50">
               <p className="font-bold mb-2 text-primary">MEAL 1 - Breakfast</p>
               <ul className="space-y-1 text-muted-foreground">
@@ -253,6 +294,7 @@ export function MealPlanGenerator({ targetCalories, targetMacros, mealBreakdown 
         recipe={selectedRecipe}
         open={modalOpen}
         onOpenChange={setModalOpen}
+        onLogToDiary={onLogRecipe}
       />
     </div>
   );
