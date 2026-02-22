@@ -1,6 +1,6 @@
 // ============= Unit Conversion System =============
 
-export type MeasurementUnit = 'g' | 'oz' | 'cup' | 'tbsp' | 'tsp' | 'piece' | 'ml';
+export type MeasurementUnit = 'g' | 'oz' | 'cup' | 'tbsp' | 'tsp' | 'piece' | 'ml' | 'palm' | 'cupped_hand' | 'thumb' | 'fist';
 
 export interface UnitOption {
   value: MeasurementUnit;
@@ -16,17 +16,32 @@ export const UNIT_OPTIONS: UnitOption[] = [
   { value: 'tsp', label: 'Teaspoons', shortLabel: 'tsp' },
   { value: 'piece', label: 'Pieces', shortLabel: 'pc' },
   { value: 'ml', label: 'Milliliters', shortLabel: 'ml' },
+  { value: 'palm', label: 'Palm', shortLabel: '✋' },
+  { value: 'cupped_hand', label: 'Cupped Hand', shortLabel: '🤲' },
+  { value: 'thumb', label: 'Thumb', shortLabel: '👍' },
+  { value: 'fist', label: 'Fist', shortLabel: '👊' },
 ];
+
+// Hand portion units — these use a special calculation path (amount = servings of the food)
+export const HAND_PORTION_UNITS: MeasurementUnit[] = ['palm', 'cupped_hand', 'thumb', 'fist'];
+
+export function isHandPortionUnit(unit: MeasurementUnit): boolean {
+  return HAND_PORTION_UNITS.includes(unit);
+}
 
 // Conversion factors to grams (base unit)
 const GRAMS_CONVERSION: Record<MeasurementUnit, number> = {
   g: 1,
   oz: 28.3495,
-  cup: 240, // Average, varies by food density
+  cup: 240,
   tbsp: 15,
   tsp: 5,
-  piece: 1, // Will use food-specific servingGrams
-  ml: 1, // Approximate for water-like density
+  piece: 1,
+  ml: 1,
+  palm: 1,
+  cupped_hand: 1,
+  thumb: 1,
+  fist: 1,
 };
 
 // Convert from any unit to grams
@@ -67,6 +82,16 @@ export function calculateMacros(
   amount: number,
   unit: MeasurementUnit
 ): { calories: number; protein: number; carbs: number; fats: number } {
+  // Hand portion units treat amount as number of servings directly
+  if (isHandPortionUnit(unit)) {
+    return {
+      calories: Math.round(baseCalories * amount),
+      protein: Math.round(baseProtein * amount * 10) / 10,
+      carbs: Math.round(baseCarbs * amount * 10) / 10,
+      fats: Math.round(baseFats * amount * 10) / 10,
+    };
+  }
+
   const grams = toGrams(amount, unit, baseServingGrams);
   const multiplier = grams / baseServingGrams;
   

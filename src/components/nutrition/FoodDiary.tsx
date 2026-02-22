@@ -10,14 +10,16 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Search, Folder, Trash2 } from 'lucide-react';
-import { useMealBuilderStore, MealFood, SavedMeal, MealSlotType } from '@/stores/mealBuilderStore';
+import { useMealBuilderStore, MealFood, SavedMeal, MealSlotType, TrackingMode } from '@/stores/mealBuilderStore';
 import { searchFoods } from '@/data/foodDatabase';
 import { FoodItem } from '@/types/nutrition';
 import { CalorieSummary } from './CalorieSummary';
 import { MealSection, MealSlot } from './MealSection';
+import { HandPortionLogger } from './HandPortionLogger';
 import { BarcodeScanner } from './BarcodeScanner';
 import { DateNavigator } from './DateNavigator';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -52,6 +54,8 @@ export function FoodDiary({ targetCalories, targetMacros }: FoodDiaryProps) {
     getEntriesForDate,
     getTotalsForDate,
     deleteSavedMeal,
+    trackingMode,
+    setTrackingMode,
     isLoading,
   } = useMealBuilderStore();
 
@@ -103,11 +107,26 @@ export function FoodDiary({ targetCalories, targetMacros }: FoodDiaryProps) {
       {/* Date Navigator */}
       <DateNavigator selectedDate={selectedDate} onDateChange={setSelectedDate} />
 
+      {/* Mode Toggle */}
+      <ToggleGroup
+        type="single"
+        value={trackingMode}
+        onValueChange={(v) => { if (v) setTrackingMode(v as TrackingMode); }}
+        className="w-full border border-border rounded-lg p-1 bg-muted/30"
+      >
+        <ToggleGroupItem value="simple" className="flex-1 text-sm data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
+          ✋ Simple
+        </ToggleGroupItem>
+        <ToggleGroupItem value="detailed" className="flex-1 text-sm data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
+          📊 Detailed
+        </ToggleGroupItem>
+      </ToggleGroup>
+
       {/* Header with Actions */}
       <div className="flex items-center justify-between">
         <Badge variant="elite">FOOD DIARY</Badge>
         <div className="flex gap-2">
-          {savedMeals.length > 0 && (
+          {savedMeals.length > 0 && trackingMode === 'detailed' && (
             <Button variant="outline" size="sm" onClick={() => setShowSavedMeals(true)}>
               <Folder className="w-4 h-4 mr-1" />
               Saved
@@ -139,7 +158,7 @@ export function FoodDiary({ targetCalories, targetMacros }: FoodDiaryProps) {
         </div>
       </div>
 
-      {/* Daily Summary with Hand Portions */}
+      {/* Daily Summary */}
       <CalorieSummary
         consumed={totals}
         targets={{
@@ -150,32 +169,39 @@ export function FoodDiary({ targetCalories, targetMacros }: FoodDiaryProps) {
         }}
       />
 
-      {/* Meal Sections */}
+      {/* Content based on mode */}
       {isLoading ? (
         <div className="space-y-3">
           {mealSlots.map((slot) => (
             <Skeleton key={slot} className="h-24 w-full rounded-lg" />
           ))}
         </div>
+      ) : trackingMode === 'simple' ? (
+        <HandPortionLogger
+          entries={entries}
+          onRemoveFood={(id) => removeDiaryEntry(id)}
+        />
       ) : (
-        <div className="space-y-3">
-          {mealSlots.map((slot) => (
-            <MealSection
-              key={slot}
-              slot={slot}
-              foods={getFoodsForSlot(slot)}
-              onAddFood={() => handleAddFood(slot)}
-              onRemoveFood={(id) => removeDiaryEntry(id)}
-              onUpdateFood={(id, amount, unit) => updateDiaryEntry(id, amount, unit)}
-            />
-          ))}
-        </div>
+        <>
+          <div className="space-y-3">
+            {mealSlots.map((slot) => (
+              <MealSection
+                key={slot}
+                slot={slot}
+                foods={getFoodsForSlot(slot)}
+                onAddFood={() => handleAddFood(slot)}
+                onRemoveFood={(id) => removeDiaryEntry(id)}
+                onUpdateFood={(id, amount, unit) => updateDiaryEntry(id, amount, unit)}
+              />
+            ))}
+          </div>
+
+          {/* Barcode Scanner — detailed mode only */}
+          <BarcodeScanner mealSlot={activeMealSlot as MealSlotType} />
+        </>
       )}
 
-      {/* Barcode Scanner — passes active meal slot */}
-      <BarcodeScanner mealSlot={activeMealSlot as MealSlotType} />
-
-      {/* Food Search Dialog */}
+      {/* Food Search Dialog (detailed mode) */}
       <Dialog open={showFoodSearch} onOpenChange={setShowFoodSearch}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
