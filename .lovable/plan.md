@@ -1,133 +1,122 @@
 
 
-# Nutrition Tracker Enhancement: Hand Portions, Bug Fixes, and Recipe Logging
+# Two-Mode Nutrition Tracker: Hand Portions vs. Detailed Logging
 
-## Overview
+## The Core Idea
 
-Three deliverables: (1) a Precision Nutrition hand-portion conversion layer with a CalorieSummary component, (2) five bug fixes for existing diary issues, and (3) a "Log to Diary" feature on recipes.
+Users choose their tracking method at the top of the Food Diary tab:
 
----
+- **Simple Mode (Hand Portions)**: Tap how many palms/fists/thumbs/cupped hands you ate, then pick what you ate from a quick list. Low friction, Precision Nutrition style.
+- **Detailed Mode (MyFitnessPal style)**: The current food diary with exact foods, amounts, and units. High precision.
 
-## 1. Hand Portion Conversion Utility
-
-**New file: `src/lib/handPortions.ts`**
-
-A utility that converts gram-based macros into PN hand portions:
-
-| Portion | Emoji | Equals | Used For |
-|---------|-------|--------|----------|
-| Palm | ✋ | 25g protein | Protein |
-| Cupped Hand | &#x1F932; | 25g carbs | Carbs |
-| Thumb | &#x1F44D; | 10g fat | Fats |
-| Fist | &#x270A; | 1 serving veggies | Vegetables (estimated from fiber) |
-
-Functions exported:
-- `macrosToPortions(protein, carbs, fats)` -- returns `{ palms, cuppedHands, thumbs }` as decimal values
-- `portionsFromTargets(targetProtein, targetCarbs, targetFats)` -- returns target portions for the day
-- `formatPortionProgress(consumed, target)` -- returns "4/6" style string
+Both modes save to the same `user_food_diary` database table so the AI weekly review can reference all data regardless of method.
 
 ---
 
-## 2. CalorieSummary Component
+## How the Hand Portion Tracker Works (User Flow)
 
-**New file: `src/components/nutrition/CalorieSummary.tsx`**
+1. User sees 4 large tap targets, one per portion type:
+   - ✋ **Palms** (Protein) -- stepper: 0, 0.5, 1, 1.5, 2...
+   - 🤲 **Cupped Hands** (Carbs) -- same stepper
+   - 👍 **Thumbs** (Fats) -- same stepper
+   - 👊 **Fists** (Veggies) -- same stepper
 
-Placed at the top of the Food Diary tab (above the date navigator). Shows:
+2. When the user taps + on any portion (e.g., taps ✋ to add 1 palm of protein), a popup appears asking **"What did you eat?"** with a filtered list of foods from that macro category:
+   - ✋ Palm tapped --> shows protein sources (chicken breast, salmon, eggs, etc.)
+   - 🤲 Cupped Hand tapped --> shows carb sources (rice, oats, sweet potato, etc.)
+   - 👍 Thumb tapped --> shows fat sources (avocado, olive oil, almonds, etc.)
+   - 👊 Fist tapped --> shows vegetables (broccoli, spinach, mixed greens, etc.)
 
-- Row 1: Calories consumed / target with progress bar (existing style)
-- Row 2: Hand portion icons in a horizontal strip:
-  - `✋ 4/6 Palms` (protein)
-  - `&#x1F932; 6/8 Cupped Hands` (carbs)  
-  - `&#x1F44D; 5/7 Thumbs` (fats)
-- Each portion shows a mini progress indicator (filled/empty dots or a small progress bar)
+3. User picks the source from a scrollable list (with search). The entry is logged with the portion count and the source food, and macros are auto-calculated using the formula: `portions x gramsPerPortion = macro grams`, then the food's calorie density fills in the rest.
 
-This replaces the current `DailySummaryBar` in the Food Diary view with a richer component that includes both calorie/gram data AND hand portions side by side.
-
-**Modified file: `src/components/nutrition/FoodDiary.tsx`**
-- Replace `<DailySummaryBar>` with `<CalorieSummary>` which internally renders both the calorie bar and hand portions
-
----
-
-## 3. Bug Fixes
-
-### Bug A: Barcode Scanner hardcodes 'snacks' (line 142)
-**File: `src/components/nutrition/BarcodeScanner.tsx`**
-- Add `mealSlot: MealSlotType` prop to `BarcodeScannerProps`
-- Change `addDiaryEntry(scannedProduct, 'snacks', ...)` to `addDiaryEntry(scannedProduct, mealSlot, ...)`
-
-**File: `src/components/nutrition/FoodDiary.tsx`**
-- Pass `activeMealSlot` as a prop to `<BarcodeScanner mealSlot={activeMealSlot} />`
-
-### Bug B: FoodDatabase hardcodes 'snacks' (line 63)
-**File: `src/components/nutrition/FoodDatabase.tsx`**
-- Add `mealSlot?: MealSlotType` prop
-- Use `mealSlot || 'snacks'` in `addDiaryEntry` call
-- Pass it from `NutritionResults.tsx` when rendered in the Foods tab
-
-### Bug C: FoodDiaryItem edit preview shows stale macros
-**File: `src/components/nutrition/FoodDiaryItem.tsx`**
-- Import `calculateMacros` from `@/lib/unitConversions`
-- Add a `useMemo` that recalculates macros from `editAmount` and `editUnit` using the food's base values
-- Display the recalculated preview macros instead of `calculatedMacros` (which reflects the saved state, not the pending edit)
-
-### Bug D: selectedDate serialization
-**File: `src/stores/mealBuilderStore.ts`**
-- The store already excludes `selectedDate` from `partialize` (only persists `savedMeals` and `preferredUnit`), so the Date object initializes fresh as `new Date()` on each load. This is actually correct behavior -- no change needed. The date is intentionally ephemeral.
-
-### Bug E: Loading indicator during fetch
-**File: `src/components/nutrition/FoodDiary.tsx`**
-- Import `Skeleton` from `@/components/ui/skeleton`
-- When `isLoading` is true, render 4 skeleton cards (one per meal slot) instead of the real `MealSection` components
-- This prevents showing stale data from a previous date during transitions
+4. The entry appears in the meal slot (Breakfast/Lunch/Dinner/Snacks) with a simple display: "✋ 1 Palm -- Chicken Breast (120 cal)"
 
 ---
 
-## 4. Recipe Logging Feature
+## What Gets Stored
 
-### RecipeDetailModal -- "Log to Diary" button
-**File: `src/components/nutrition/RecipeDetailModal.tsx`**
-- Add `onLogToDiary?: (recipe: Recipe, slot: MealSlotType) => void` prop
-- Add a "Log to Diary" button at the bottom of the modal (before tags)
-- On click, show a small inline slot picker (4 buttons: Breakfast / Lunch / Dinner / Snack)
-- On slot selection, call `onLogToDiary(recipe, selectedSlot)` and close the modal
+Each hand-portion entry saves to `user_food_diary` with:
+- `food_data`: the selected food item (same as detailed mode)
+- `amount`: the portion count (e.g., 1.5)
+- `unit`: a new unit value `'palm'`, `'cupped_hand'`, `'thumb'`, or `'fist'`
+- `meal_slot`: which meal it belongs to
+- `calculated_macros`: auto-calculated from portion size x food's macro density
 
-### MealPlanGenerator -- quick-log button on recipe cards
-**File: `src/components/nutrition/MealPlanGenerator.tsx`**
-- Add `onLogRecipe?: (recipe: Recipe, slot: MealSlotType) => void` prop
-- Add a small "+" icon button on each recipe card (top-right, stops click propagation)
-- On click, show a dropdown or popover with the 4 meal slot options
-- On slot selection, call `onLogRecipe(recipe, slot)`
-
-### Recipe logging logic
-**File: `src/components/nutrition/NutritionResults.tsx`**
-- Create a `handleLogRecipe(recipe, slot)` function that:
-  1. Iterates `recipe.ingredients`
-  2. For each ingredient, calls `getFoodById(ing.foodId)` to resolve the food item
-  3. Calls `addDiaryEntry(food, slot, ing.quantity, 'piece')` for each resolved ingredient
-  4. Shows a toast: "Logged {recipe.name} to {slot}"
-- Pass this handler to both `<MealPlanGenerator onLogRecipe={handleLogRecipe} />` and through `<RecipeDetailModal onLogToDiary={handleLogRecipe} />`
-
-### Hand portion display on entries
-**File: `src/components/nutrition/FoodDiaryItem.tsx`**
-- After the calorie display, add a small inline portion indicator using the hand portion utility
-- Example: `120 cal ✋1 👍0.5` showing that this food item contributes 1 palm of protein and half a thumb of fat
-- Keep it subtle (text-xs, muted color) so it doesn't clutter the compact row
+This means both tracking modes produce compatible data for the CalorieSummary, the AI weekly review, and all existing analytics.
 
 ---
 
-## Files Summary
+## Technical Plan
 
-| File | Action | Description |
-|------|--------|-------------|
-| `src/lib/handPortions.ts` | Create | Macro-to-hand-portion conversion utility |
-| `src/components/nutrition/CalorieSummary.tsx` | Create | Combined calorie + hand portion summary bar |
-| `src/components/nutrition/FoodDiary.tsx` | Modify | Use CalorieSummary, pass mealSlot to BarcodeScanner, add loading skeletons |
-| `src/components/nutrition/BarcodeScanner.tsx` | Modify | Accept mealSlot prop instead of hardcoding 'snacks' |
-| `src/components/nutrition/FoodDatabase.tsx` | Modify | Accept mealSlot prop instead of hardcoding 'snacks' |
-| `src/components/nutrition/FoodDiaryItem.tsx` | Modify | Fix edit preview macros, add hand portion indicators |
-| `src/components/nutrition/RecipeDetailModal.tsx` | Modify | Add "Log to Diary" button with slot picker |
-| `src/components/nutrition/MealPlanGenerator.tsx` | Modify | Add quick-log button on recipe cards |
-| `src/components/nutrition/NutritionResults.tsx` | Modify | Wire up recipe logging handler, pass mealSlot to FoodDatabase |
+### New Files
 
-No database changes required. No edge function changes.
+| File | Purpose |
+|------|---------|
+| `src/components/nutrition/HandPortionLogger.tsx` | The simple-mode UI: 4 portion type cards with steppers, source picker popup |
+| `src/components/nutrition/PortionSourcePicker.tsx` | Popup/dialog that shows filtered foods by macro category when a portion is added |
 
+### Modified Files
+
+| File | Change |
+|------|--------|
+| `src/components/nutrition/FoodDiary.tsx` | Add a toggle at the top: "Simple" vs "Detailed" mode. Simple mode renders `HandPortionLogger`, Detailed mode renders the current meal sections |
+| `src/lib/handPortions.ts` | Add `PORTION_UNITS` mapping and a `portionToMacros()` function that converts a portion count + food item into calculated macros |
+| `src/lib/unitConversions.ts` | Add `'palm'`, `'cupped_hand'`, `'thumb'`, `'fist'` to the `MeasurementUnit` type and handle them in `calculateMacros()` |
+| `src/stores/mealBuilderStore.ts` | No structural changes needed -- `addDiaryEntry` already accepts any unit. Just needs the new unit values to flow through |
+
+### HandPortionLogger.tsx (New Component)
+
+The main simple-mode view, organized by meal slot. For each meal slot:
+- 4 portion-type rows (Protein/Carbs/Fats/Veggies), each with:
+  - Emoji + label on the left
+  - Current count in the center (e.g., "2 palms")
+  - Plus/minus stepper buttons on the right
+- Tapping "+" opens the `PortionSourcePicker` filtered to the relevant food category
+- Below the steppers, a list of what was logged (e.g., "1 palm -- Chicken Breast")
+- Daily totals shown at the top via the existing `CalorieSummary` component
+
+### PortionSourcePicker.tsx (New Component)
+
+A dialog/popover that appears when adding a portion:
+- Header: "What protein did you eat?" (or carbs/fats/veggies depending on type)
+- Search bar at top for filtering
+- Scrollable grid of popular items from the food database, filtered by category mapping:
+  - Palm --> `lean_protein`, `whole_protein`, `dairy_vegetarian` (protein-dominant items)
+  - Cupped Hand --> `carbohydrate`, `fruit`
+  - Thumb --> `healthy_fat`
+  - Fist --> `vegetable`
+- Each item shows name + emoji/icon, tapping it confirms the entry
+- "Custom" option at bottom for items not in the database
+
+### Unit Conversion Updates
+
+Add to `src/lib/unitConversions.ts`:
+- New unit types: `'palm' | 'cupped_hand' | 'thumb' | 'fist'`
+- In `calculateMacros()`, when the unit is a portion type, multiply the food's macro values by the portion count (treating each portion as 1 serving of that food, since the food database already has reasonable serving sizes that approximate hand portions)
+
+### Mode Toggle in FoodDiary
+
+At the top of the Food Diary, below the date navigator:
+- A `ToggleGroup` with two options: "✋ Simple" and "📊 Detailed"
+- Persisted in the store as `trackingMode: 'simple' | 'detailed'`
+- Simple mode renders `HandPortionLogger`
+- Detailed mode renders the existing `MealSection` cards
+- Both modes share the same `CalorieSummary` at the top and the same underlying data
+
+### Macro Calculation for Hand Portions
+
+When a user logs "1 palm of chicken breast":
+1. Look up chicken breast: 26g protein, 0g carbs, 1.5g fats per serving (113g / 4oz)
+2. One palm is approximately one serving of protein, so log it as 1 serving
+3. Calculated macros: 120 cal, 26g P, 0g C, 1.5g F
+4. This is stored exactly like a detailed entry but with `unit: 'palm'`
+
+This keeps the math grounded in real food data rather than just assuming "1 palm = 25g protein" generically -- the actual food source makes it more accurate.
+
+---
+
+## Summary
+
+The key insight is that both modes write to the same database and the same store. The hand portion mode is just a simpler UI layer on top of the same data model. Users who want speed use Simple mode. Users who want precision use Detailed mode. The AI review sees all of it.
+
+No database changes needed. No edge function changes.
