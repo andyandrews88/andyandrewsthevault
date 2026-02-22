@@ -38,6 +38,8 @@ export interface SavedMeal {
   createdAt: string;
 }
 
+export type TrackingMode = 'simple' | 'detailed';
+
 interface MealBuilderState {
   // Date-keyed diary entries (dateStr -> entries)
   diaryEntries: Record<string, MealFood[]>;
@@ -51,6 +53,9 @@ interface MealBuilderState {
   // Preferred unit system
   preferredUnit: 'metric' | 'imperial';
 
+  // Tracking mode
+  trackingMode: TrackingMode;
+
   // Loading state
   isLoading: boolean;
 
@@ -62,6 +67,7 @@ interface MealBuilderState {
   clearDiaryForDate: (date: Date) => Promise<void>;
   setSelectedDate: (date: Date) => void;
   setPreferredUnit: (unit: 'metric' | 'imperial') => void;
+  setTrackingMode: (mode: TrackingMode) => void;
 
   // Saved meal templates
   saveMealTemplate: (name: string, foods: MealFood[]) => void;
@@ -96,6 +102,7 @@ export const useMealBuilderStore = create<MealBuilderState>()(
       savedMeals: [],
       selectedDate: new Date(),
       preferredUnit: 'imperial',
+      trackingMode: 'simple' as TrackingMode,
       isLoading: false,
 
       fetchDiaryForDate: async (date) => {
@@ -314,6 +321,7 @@ export const useMealBuilderStore = create<MealBuilderState>()(
       },
 
       setPreferredUnit: (unit) => set({ preferredUnit: unit }),
+      setTrackingMode: (mode) => set({ trackingMode: mode }),
 
       saveMealTemplate: (name, foods) => {
         if (foods.length === 0) return;
@@ -366,6 +374,7 @@ export const useMealBuilderStore = create<MealBuilderState>()(
       partialize: (state) => ({
         savedMeals: state.savedMeals,
         preferredUnit: state.preferredUnit,
+        trackingMode: state.trackingMode,
       }),
     }
   )
