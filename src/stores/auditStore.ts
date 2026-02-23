@@ -33,6 +33,14 @@ export interface AuditData {
   injuryHistory?: 'none' | 'upper' | 'lower' | 'back' | 'multiple';
   waterIntake?: '<1L' | '1-2L' | '2-3L' | '3L+';
   alcohol?: 'never' | '1-2x' | '3-4x' | 'daily';
+
+  // Precision Nutrition habits
+  eatsSlowly?: 'always' | 'sometimes' | 'rarely';
+  stopsAt80?: 'always' | 'sometimes' | 'rarely';
+  proteinEveryMeal?: 'always' | 'sometimes' | 'rarely';
+  veggiesEveryMeal?: 'always' | 'sometimes' | 'rarely';
+  mealPrep?: 'always' | 'sometimes' | 'rarely';
+  eatingConsistency?: 'very' | 'somewhat' | 'inconsistent';
 }
 
 export interface ResourceLink {
@@ -176,6 +184,20 @@ function detectLeaks(data: AuditData): { leaks: Leak[]; skippedAreas: string[] }
         { title: 'Recovery Protocol', url: '#recovery' },
         { title: 'Stress Management Guide', url: '#stress-management' }
       ]
+    });
+  }
+
+  // Nutrition Behavior Leak (Precision Nutrition habits)
+  const pnHabits = [data.eatsSlowly, data.stopsAt80, data.proteinEveryMeal, data.veggiesEveryMeal, data.mealPrep, data.eatingConsistency];
+  const rarelyCount = pnHabits.filter(h => h === 'rarely' || h === 'inconsistent').length;
+  if (rarelyCount >= 3) {
+    leaks.push({
+      id: 'nutrition-behavior',
+      title: 'Nutrition Behavior Leak',
+      description: `${rarelyCount} of 6 foundational eating habits are inconsistent, undermining nutrition quality regardless of what you eat`,
+      severity: rarelyCount >= 5 ? 'critical' : 'warning',
+      metric: `${rarelyCount}/6 weak habits`,
+      recommendation: 'Focus on Precision Nutrition anchor habits: pick one habit (e.g., eating slowly or adding protein to every meal) and practice it consistently for 2 weeks before adding another. Behavior change beats meal plans.',
     });
   }
 

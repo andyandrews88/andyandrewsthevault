@@ -46,7 +46,7 @@ export function VaultDashboard() {
 
   return (
     <div className="min-h-screen pt-24 pb-12">
-      <OnboardingWalkthrough onComplete={handleOnboardingComplete} />
+      <OnboardingWalkthrough onComplete={handleOnboardingComplete} onTabChange={handleTabChange} currentTab={activeTab} />
       <div className="container mx-auto px-4 md:px-6 max-w-6xl">
         {/* Header with Logo */}
         <div className="flex flex-col items-center text-center mb-6 md:mb-8">

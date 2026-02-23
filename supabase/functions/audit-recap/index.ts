@@ -63,12 +63,30 @@ serve(async (req) => {
       lines.push(`- ${leak.severity.toUpperCase()}: ${leak.title} — ${leak.description}`);
     });
 
+    // Precision Nutrition habits
+    const pnHabits = [
+      { key: 'eatsSlowly', label: 'Eats slowly and without distractions' },
+      { key: 'stopsAt80', label: 'Stops eating at 80% full' },
+      { key: 'proteinEveryMeal', label: 'Includes protein at every meal' },
+      { key: 'veggiesEveryMeal', label: 'Eats vegetables/fruit at every meal' },
+      { key: 'mealPrep', label: 'Plans or preps meals in advance' },
+      { key: 'eatingConsistency', label: 'Eating schedule consistency' },
+    ];
+    const hasAnyPnHabit = pnHabits.some(h => (d as any)[h.key]);
+    if (hasAnyPnHabit) {
+      lines.push(`\n## Nutrition Habits (Precision Nutrition)`);
+      for (const h of pnHabits) {
+        const val = (d as any)[h.key];
+        if (val) lines.push(`- ${h.label}: ${val}`);
+      }
+    }
+
     if (results.skippedAreas?.length > 0) {
       lines.push(`\n## Areas Not Assessed (data not provided):`);
       results.skippedAreas.forEach((area: string) => lines.push(`- ${area}`));
     }
 
-    const userPrompt = `Here is the full audit data for this athlete:\n\n${lines.join("\n")}\n\nWrite a personalized analysis with these 3 sections:\n1. **Overall Assessment** — 2-3 sentences summarizing where this athlete stands\n2. **Key Findings** — Interpret each leak and skipped area. Explain WHY it matters for their goals\n3. **Action Plan** — 3-5 prioritized, specific recommendations\n\nUse markdown formatting. Be direct and coaching-oriented. Reference their specific numbers.`;
+    const userPrompt = `Here is the full audit data for this athlete:\n\n${lines.join("\n")}\n\nWrite a personalized analysis with these 3 sections:\n1. **Overall Assessment** — 2-3 sentences summarizing where this athlete stands\n2. **Key Findings** — Interpret each leak and skipped area. Explain WHY it matters for their goals. If Precision Nutrition habit data is provided, analyze their eating behaviors and connect them to performance outcomes.\n3. **Action Plan** — 3-5 prioritized, specific recommendations. If nutrition habits are weak, include a Precision Nutrition anchor habit recommendation (pick ONE habit to focus on for 2 weeks).\n\nUse markdown formatting. Be direct and coaching-oriented. Reference their specific numbers.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
