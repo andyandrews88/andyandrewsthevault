@@ -2,12 +2,45 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { TrendingUp, TrendingDown, Minus, FileText, Sparkles, Loader2, Timer, Gauge } from "lucide-react";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { TrendingUp, TrendingDown, Minus, FileText, Sparkles, Loader2, Timer, Gauge, Dumbbell, Apple, Heart } from "lucide-react";
 import { useDashboardStore } from "@/stores/dashboardStore";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
 function kgToLbs(kg: number) { return Math.round(kg * 2.20462 * 10) / 10; }
+
+interface ReviewSection {
+  title: string;
+  content: string;
+  icon: React.ElementType;
+}
+
+const sectionIcons: Record<string, React.ElementType> = {
+  "training": Dumbbell,
+  "nutrition": Apple,
+  "lifestyle": Heart,
+  "overall summary": Sparkles,
+  "overall": Sparkles,
+};
+
+function parseSections(text: string): ReviewSection[] | null {
+  const parts = text.split(/^## /m).filter(Boolean);
+  if (parts.length < 3) return null; // fallback if AI didn't structure properly
+
+  return parts.map((p) => {
+    const [titleLine, ...rest] = p.split("\n");
+    const title = titleLine.trim();
+    const key = title.toLowerCase();
+    const icon = sectionIcons[key] || Object.entries(sectionIcons).find(([k]) => key.includes(k))?.[1] || Sparkles;
+    return { title, content: rest.join("\n").trim(), icon };
+  });
+}
 
 export function WeeklyReview() {
   const { weeklyData } = useDashboardStore();
@@ -107,6 +140,7 @@ export function WeeklyReview() {
   };
 
   const hasData = weeklyData.workoutsCompleted > 0 || weeklyData.avgReadiness > 0 || weeklyData.weightEnd;
+  const sections = aiReview ? parseSections(aiReview) : null;
 
   return (
     <Card variant="elevated">
@@ -171,17 +205,41 @@ export function WeeklyReview() {
               )}
             </div>
 
-            {/* Write-up box */}
-            <div className="p-4 rounded-lg bg-muted/50 border border-border">
-              <p className="text-sm leading-relaxed text-foreground/90">
-                {aiReview || generateWriteup()}
-              </p>
-              {aiReview && (
-                <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
-                  <Sparkles className="w-3 h-3" /> AI-generated review
+            {/* AI structured sections or fallback */}
+            {sections ? (
+              <Accordion type="multiple" defaultValue={sections.map((_, i) => `section-${i}`)} className="space-y-2">
+                {sections.map((section, i) => {
+                  const Icon = section.icon;
+                  return (
+                    <AccordionItem key={i} value={`section-${i}`} className="rounded-lg border border-border/50 bg-muted/30 px-4">
+                      <AccordionTrigger className="py-3 hover:no-underline">
+                        <div className="flex items-center gap-2 text-sm font-semibold">
+                          <Icon className="w-4 h-4 text-primary" />
+                          {section.title}
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent className="pb-3">
+                        <p className="text-sm leading-relaxed text-foreground/90">
+                          {section.content}
+                        </p>
+                      </AccordionContent>
+                    </AccordionItem>
+                  );
+                })}
+              </Accordion>
+            ) : (
+              <div className="p-4 rounded-lg bg-muted/50 border border-border">
+                <p className="text-sm leading-relaxed text-foreground/90">
+                  {aiReview || generateWriteup()}
                 </p>
-              )}
-            </div>
+              </div>
+            )}
+
+            {aiReview && (
+              <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
+                <Sparkles className="w-3 h-3" /> AI-generated review
+              </p>
+            )}
 
             {/* Generate button */}
             <Button

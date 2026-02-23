@@ -11,7 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useAuditStore, AuditData } from "@/stores/auditStore";
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, ArrowLeft, User, Dumbbell, Timer, CheckCircle, Heart, Calculator } from "lucide-react";
+import { ArrowRight, ArrowLeft, User, Dumbbell, Timer, CheckCircle, Heart, Calculator, Apple } from "lucide-react";
 
 const steps = [
   { id: 'biometrics', title: 'Biometrics', icon: User, description: 'Basic measurements' },
@@ -520,6 +520,44 @@ export function AuditForm() {
                     ))}
                   </ToggleGroup>
                 </div>
+
+                {/* Precision Nutrition Habits Section */}
+                <div className="border-t border-border/50 pt-6 mt-2">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Apple className="w-4 h-4 text-primary" />
+                    <Label className="text-sm font-semibold">Nutrition Habits</Label>
+                    <Badge variant="secondary" className="text-[10px]">OPTIONAL</Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-5">
+                    These help the AI understand your eating behaviors — not just what you eat, but how you eat.
+                  </p>
+
+                  {[
+                    { key: 'eatsSlowly', label: 'Do you eat slowly and without distractions?', opts: ['always', 'sometimes', 'rarely'] },
+                    { key: 'stopsAt80', label: 'Do you stop eating at about 80% full?', opts: ['always', 'sometimes', 'rarely'] },
+                    { key: 'proteinEveryMeal', label: 'Do you include protein at every meal?', opts: ['always', 'sometimes', 'rarely'] },
+                    { key: 'veggiesEveryMeal', label: 'Do you eat vegetables or fruit at every meal?', opts: ['always', 'sometimes', 'rarely'] },
+                    { key: 'mealPrep', label: 'Do you plan or prep meals in advance?', opts: ['always', 'sometimes', 'rarely'] },
+                    { key: 'eatingConsistency', label: 'How consistent is your eating schedule?', opts: ['very', 'somewhat', 'inconsistent'] },
+                  ].map(({ key, label, opts }) => (
+                    <div key={key} className="space-y-2 mb-4">
+                      <Label className="text-sm text-muted-foreground">{label}</Label>
+                      <ToggleGroup
+                        type="single"
+                        value={(data as any)[key] || ''}
+                        onValueChange={(v) => { if (v) updateData({ [key]: v }); }}
+                        className="justify-start flex-wrap gap-2"
+                      >
+                        {opts.map((o) => (
+                          <ToggleGroupItem key={o} value={o} variant="outline"
+                            className={`font-mono px-3 py-2 text-sm capitalize ${(data as any)[key] === o ? 'bg-primary/20 border-primary text-primary' : ''}`}>
+                            {o}
+                          </ToggleGroupItem>
+                        ))}
+                      </ToggleGroup>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -586,10 +624,22 @@ export function AuditForm() {
                     <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5">Stress</p>
                     <p className="font-mono text-base md:text-lg">{data.stress}/10</p>
                   </div>
-                  <div className="p-3 md:p-4 rounded-lg bg-secondary/50 col-span-2">
+                  <div className="p-3 md:p-4 rounded-lg bg-secondary/50">
                     <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5">Training Experience</p>
                     <p className="font-mono text-base md:text-lg">{data.experience ? experienceLabels[data.experience] : '-'}</p>
                   </div>
+                  {(() => {
+                    const habits = [data.eatsSlowly, data.stopsAt80, data.proteinEveryMeal, data.veggiesEveryMeal, data.mealPrep, data.eatingConsistency];
+                    const strong = habits.filter(h => h === 'always' || h === 'very').length;
+                    const answered = habits.filter(Boolean).length;
+                    if (answered === 0) return null;
+                    return (
+                      <div className="p-3 md:p-4 rounded-lg bg-secondary/50 col-span-2">
+                        <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5">Nutrition Habits</p>
+                        <p className="font-mono text-base md:text-lg">{strong}/{answered} strong</p>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             )}
