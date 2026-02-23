@@ -1,122 +1,157 @@
 
 
-# Two-Mode Nutrition Tracker: Hand Portions vs. Detailed Logging
+# Three Enhancements: Interactive Onboarding, Structured Weekly Review, and Audit Nutrition Habits
 
-## The Core Idea
+## 1. Interactive Onboarding Tutorial (Navigate Between Tabs)
 
-Users choose their tracking method at the top of the Food Diary tab:
+### Current State
+The onboarding is a static dialog modal with 8 steps of text. It never leaves the dialog or shows users the actual UI. Users read descriptions but never interact with the real features.
 
-- **Simple Mode (Hand Portions)**: Tap how many palms/fists/thumbs/cupped hands you ate, then pick what you ate from a quick list. Low friction, Precision Nutrition style.
-- **Detailed Mode (MyFitnessPal style)**: The current food diary with exact foods, amounts, and units. High precision.
+### New Approach
+Replace the dialog-only walkthrough with a **guided tour** that navigates users through the actual Vault tabs. Each step highlights the real UI on the real page, with a floating tooltip/card overlay explaining what they're looking at.
 
-Both modes save to the same `user_food_diary` database table so the AI weekly review can reference all data regardless of method.
+### How It Works
 
----
+1. **Step 1 (Welcome)** -- Still a centered dialog. Explains the system and the loop.
+2. **Step 2 (Dashboard)** -- Closes dialog, sets `activeTab` to `"dashboard"`, renders a floating tooltip card pointing at the Weekly Review section: "This is where your AI coaching review appears each week."
+3. **Step 3 (Lifestyle)** -- Switches to `"lifestyle"` tab, tooltip highlights the Daily Check-In card: "Start each day here. Rate your sleep, stress, energy -- and write notes."
+4. **Step 4 (Training)** -- Switches to `"workouts"` tab, tooltip highlights the workout logger: "Log your strength and conditioning work here. Add RIR to help the AI assess intensity."
+5. **Step 5 (Nutrition)** -- Switches to the Nutrition page link or stays on Vault. Tooltip explains Simple vs Detailed tracking modes.
+6. **Step 6 (Progress)** -- Switches to `"progress"` tab. "Track bodyweight and body measurements here."
+7. **Step 7 (Get Started)** -- Switches back to `"lifestyle"` tab with a final CTA: "Do Your First Check-In."
 
-## How the Hand Portion Tracker Works (User Flow)
+### Technical Details
 
-1. User sees 4 large tap targets, one per portion type:
-   - ✋ **Palms** (Protein) -- stepper: 0, 0.5, 1, 1.5, 2...
-   - 🤲 **Cupped Hands** (Carbs) -- same stepper
-   - 👍 **Thumbs** (Fats) -- same stepper
-   - 👊 **Fists** (Veggies) -- same stepper
+**File: `src/components/vault/OnboardingWalkthrough.tsx`** -- Full rewrite.
+- Instead of a `Dialog`, the component renders a **floating card** (`position: fixed`, bottom-center or top-center) that persists across tab changes.
+- Each step definition includes a `tab` property (e.g., `tab: 'lifestyle'`) and an optional `highlightSelector` for future spotlight support.
+- On each step transition, the component calls the parent's `onTabChange` callback to programmatically switch the active tab.
+- Step 1 remains a full centered dialog (the welcome/intro). Steps 2-7 use the floating tooltip card.
+- Navigation: Back, Next, Skip buttons on the floating card. Progress dots.
+- The floating card has a semi-transparent backdrop pulse or subtle border glow to draw attention.
 
-2. When the user taps + on any portion (e.g., taps ✋ to add 1 palm of protein), a popup appears asking **"What did you eat?"** with a filtered list of foods from that macro category:
-   - ✋ Palm tapped --> shows protein sources (chicken breast, salmon, eggs, etc.)
-   - 🤲 Cupped Hand tapped --> shows carb sources (rice, oats, sweet potato, etc.)
-   - 👍 Thumb tapped --> shows fat sources (avocado, olive oil, almonds, etc.)
-   - 👊 Fist tapped --> shows vegetables (broccoli, spinach, mixed greens, etc.)
+**File: `src/pages/Vault.tsx`** -- Modify.
+- Pass `activeTab` and `setActiveTab` (via `handleTabChange`) to `OnboardingWalkthrough` as props: `onTabChange={(tab) => handleTabChange(tab)}` and `currentTab={activeTab}`.
+- The onboarding component calls `onTabChange('lifestyle')` etc. to drive navigation.
 
-3. User picks the source from a scrollable list (with search). The entry is logged with the portion count and the source food, and macros are auto-calculated using the formula: `portions x gramsPerPortion = macro grams`, then the food's calorie density fills in the rest.
-
-4. The entry appears in the meal slot (Breakfast/Lunch/Dinner/Snacks) with a simple display: "✋ 1 Palm -- Chicken Breast (120 cal)"
-
----
-
-## What Gets Stored
-
-Each hand-portion entry saves to `user_food_diary` with:
-- `food_data`: the selected food item (same as detailed mode)
-- `amount`: the portion count (e.g., 1.5)
-- `unit`: a new unit value `'palm'`, `'cupped_hand'`, `'thumb'`, or `'fist'`
-- `meal_slot`: which meal it belongs to
-- `calculated_macros`: auto-calculated from portion size x food's macro density
-
-This means both tracking modes produce compatible data for the CalorieSummary, the AI weekly review, and all existing analytics.
-
----
-
-## Technical Plan
-
-### New Files
-
-| File | Purpose |
-|------|---------|
-| `src/components/nutrition/HandPortionLogger.tsx` | The simple-mode UI: 4 portion type cards with steppers, source picker popup |
-| `src/components/nutrition/PortionSourcePicker.tsx` | Popup/dialog that shows filtered foods by macro category when a portion is added |
-
-### Modified Files
-
-| File | Change |
-|------|--------|
-| `src/components/nutrition/FoodDiary.tsx` | Add a toggle at the top: "Simple" vs "Detailed" mode. Simple mode renders `HandPortionLogger`, Detailed mode renders the current meal sections |
-| `src/lib/handPortions.ts` | Add `PORTION_UNITS` mapping and a `portionToMacros()` function that converts a portion count + food item into calculated macros |
-| `src/lib/unitConversions.ts` | Add `'palm'`, `'cupped_hand'`, `'thumb'`, `'fist'` to the `MeasurementUnit` type and handle them in `calculateMacros()` |
-| `src/stores/mealBuilderStore.ts` | No structural changes needed -- `addDiaryEntry` already accepts any unit. Just needs the new unit values to flow through |
-
-### HandPortionLogger.tsx (New Component)
-
-The main simple-mode view, organized by meal slot. For each meal slot:
-- 4 portion-type rows (Protein/Carbs/Fats/Veggies), each with:
-  - Emoji + label on the left
-  - Current count in the center (e.g., "2 palms")
-  - Plus/minus stepper buttons on the right
-- Tapping "+" opens the `PortionSourcePicker` filtered to the relevant food category
-- Below the steppers, a list of what was logged (e.g., "1 palm -- Chicken Breast")
-- Daily totals shown at the top via the existing `CalorieSummary` component
-
-### PortionSourcePicker.tsx (New Component)
-
-A dialog/popover that appears when adding a portion:
-- Header: "What protein did you eat?" (or carbs/fats/veggies depending on type)
-- Search bar at top for filtering
-- Scrollable grid of popular items from the food database, filtered by category mapping:
-  - Palm --> `lean_protein`, `whole_protein`, `dairy_vegetarian` (protein-dominant items)
-  - Cupped Hand --> `carbohydrate`, `fruit`
-  - Thumb --> `healthy_fat`
-  - Fist --> `vegetable`
-- Each item shows name + emoji/icon, tapping it confirms the entry
-- "Custom" option at bottom for items not in the database
-
-### Unit Conversion Updates
-
-Add to `src/lib/unitConversions.ts`:
-- New unit types: `'palm' | 'cupped_hand' | 'thumb' | 'fist'`
-- In `calculateMacros()`, when the unit is a portion type, multiply the food's macro values by the portion count (treating each portion as 1 serving of that food, since the food database already has reasonable serving sizes that approximate hand portions)
-
-### Mode Toggle in FoodDiary
-
-At the top of the Food Diary, below the date navigator:
-- A `ToggleGroup` with two options: "✋ Simple" and "📊 Detailed"
-- Persisted in the store as `trackingMode: 'simple' | 'detailed'`
-- Simple mode renders `HandPortionLogger`
-- Detailed mode renders the existing `MealSection` cards
-- Both modes share the same `CalorieSummary` at the top and the same underlying data
-
-### Macro Calculation for Hand Portions
-
-When a user logs "1 palm of chicken breast":
-1. Look up chicken breast: 26g protein, 0g carbs, 1.5g fats per serving (113g / 4oz)
-2. One palm is approximately one serving of protein, so log it as 1 serving
-3. Calculated macros: 120 cal, 26g P, 0g C, 1.5g F
-4. This is stored exactly like a detailed entry but with `unit: 'palm'`
-
-This keeps the math grounded in real food data rather than just assuming "1 palm = 25g protein" generically -- the actual food source makes it more accurate.
+**Props change for OnboardingWalkthrough:**
+```
+interface OnboardingWalkthroughProps {
+  onComplete?: (tab?: string) => void;
+  onTabChange?: (tab: string) => void;
+  currentTab?: string;
+}
+```
 
 ---
 
-## Summary
+## 2. Structured Weekly Review (Training / Nutrition / Lifestyle / Overall)
 
-The key insight is that both modes write to the same database and the same store. The hand portion mode is just a simpler UI layer on top of the same data model. Users who want speed use Simple mode. Users who want precision use Detailed mode. The AI review sees all of it.
+### Current State
+The AI returns a single 4-6 sentence paragraph. No structure, no categories. Hard to scan.
 
-No database changes needed. No edge function changes.
+### New Approach
+Instruct the AI to return its review in **4 labeled sections** using a simple delimiter format. The frontend parses the response and renders each section in its own card/accordion.
+
+### Sections
+1. **Training** -- Volume, PRs, RIR analysis, conditioning load, autoregulation assessment
+2. **Nutrition** -- Weight trends, hand-portion adherence, calorie patterns, PN habit data
+3. **Lifestyle** -- Readiness scores, sleep patterns, stress, check-in note analysis, recovery
+4. **Overall Summary** -- 2-3 sentence synthesis with the top 1-2 action items for next week
+
+### Technical Details
+
+**File: `supabase/functions/weekly-review/index.ts`**
+- Update the system prompt to instruct the AI to return its review in exactly 4 sections with headers: `## Training`, `## Nutrition`, `## Lifestyle`, `## Overall Summary`.
+- Update the user prompt to say: "Structure your review into exactly four sections: Training, Nutrition, Lifestyle, and Overall Summary. Use ## headers for each."
+- Change output length from "4-6 sentences" to "3-4 sentences per section" (roughly the same total length but organized).
+
+**File: `src/components/dashboard/WeeklyReview.tsx`**
+- After receiving `aiReview`, parse it by splitting on `## ` headers into sections.
+- Render each section in a collapsible card or accordion with icons:
+  - Training (Dumbbell icon)
+  - Nutrition (Apple icon)
+  - Lifestyle (Heart icon)
+  - Overall Summary (Sparkles icon)
+- Fallback: if the AI doesn't return headers (e.g., old cached response), display the full text as-is in the current single block.
+- Add a simple parser:
+  ```
+  function parseSections(text: string): { title: string; content: string }[] {
+    const parts = text.split(/^## /m).filter(Boolean);
+    return parts.map(p => {
+      const [title, ...rest] = p.split('\n');
+      return { title: title.trim(), content: rest.join('\n').trim() };
+    });
+  }
+  ```
+
+---
+
+## 3. Precision Nutrition Habit Questions in the Audit
+
+### Current State
+The Lifestyle step (step 3) asks about sleep, protein intake, stress, experience, training frequency, primary goal, injury history, water, and alcohol. No questions about eating behaviors or PN-specific habits.
+
+### New Questions (Added to Step 3: Lifestyle)
+These gather behavioral nutrition data that the audit-recap AI can use:
+
+| Question | Options | Data Key |
+|----------|---------|----------|
+| Do you eat slowly and without distractions? | Always / Sometimes / Rarely | `eatsSlowly` |
+| Do you stop eating at 80% full? | Always / Sometimes / Rarely | `stopsAt80` |
+| Do you include protein at every meal? | Always / Sometimes / Rarely | `proteinEveryMeal` |
+| Do you eat vegetables or fruit at every meal? | Always / Sometimes / Rarely | `veggiesEveryMeal` |
+| Do you plan or prep meals in advance? | Always / Sometimes / Rarely | `mealPrep` |
+| How consistent is your eating schedule? | Very / Somewhat / Inconsistent | `eatingConsistency` |
+
+### Technical Details
+
+**File: `src/stores/auditStore.ts`**
+- Add 6 new optional fields to `AuditData`:
+  ```
+  eatsSlowly?: 'always' | 'sometimes' | 'rarely';
+  stopsAt80?: 'always' | 'sometimes' | 'rarely';
+  proteinEveryMeal?: 'always' | 'sometimes' | 'rarely';
+  veggiesEveryMeal?: 'always' | 'sometimes' | 'rarely';
+  mealPrep?: 'always' | 'sometimes' | 'rarely';
+  eatingConsistency?: 'very' | 'somewhat' | 'inconsistent';
+  ```
+- Update `detectLeaks()` to add a new "Nutrition Habits Leak" if 3+ of these are "rarely":
+  - Title: "Nutrition Behavior Leak"
+  - Description: "Multiple foundational eating habits are inconsistent, undermining nutrition quality regardless of what you eat."
+  - Recommendation: Reference Precision Nutrition's anchor habits framework.
+
+**File: `src/components/audit/AuditForm.tsx`**
+- Add a new section within Step 3 (Lifestyle) titled "Nutrition Habits" with a subtle divider.
+- Render 6 ToggleGroup rows (Always / Sometimes / Rarely) for each habit question.
+- All are optional -- they don't block progression.
+
+**File: `supabase/functions/audit-recap/index.ts`**
+- Add a new `## Nutrition Habits` section to the data summary sent to the AI:
+  ```
+  lines.push(`\n## Nutrition Habits`);
+  if (d.eatsSlowly) lines.push(`- Eats slowly: ${d.eatsSlowly}`);
+  // ... etc for each habit
+  ```
+- Update the user prompt to instruct the AI to reference PN habits in its analysis when the data is present.
+
+### Review Step Update
+**File: `src/components/audit/AuditForm.tsx`** (Step 4: Review)
+- Add a row showing the count of "strong" habits (those marked "always") out of 6, e.g., "Nutrition Habits: 4/6 strong".
+
+---
+
+## Files Summary
+
+| File | Action | Change |
+|------|--------|--------|
+| `src/components/vault/OnboardingWalkthrough.tsx` | Rewrite | Dialog-first welcome, then floating tooltip that drives tab navigation |
+| `src/pages/Vault.tsx` | Modify | Pass `onTabChange` and `currentTab` to onboarding component |
+| `supabase/functions/weekly-review/index.ts` | Modify | Restructure prompt for 4 sections (Training/Nutrition/Lifestyle/Overall) |
+| `src/components/dashboard/WeeklyReview.tsx` | Modify | Parse AI response into sections, render in accordion/cards |
+| `src/stores/auditStore.ts` | Modify | Add 6 PN habit fields to AuditData, add nutrition behavior leak detection |
+| `src/components/audit/AuditForm.tsx` | Modify | Add "Nutrition Habits" section with 6 toggle questions in Step 3, update Review step |
+| `supabase/functions/audit-recap/index.ts` | Modify | Include PN habit data in AI summary prompt |
+
+No database changes required. Two edge functions redeployed.
+
