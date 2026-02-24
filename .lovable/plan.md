@@ -1,59 +1,76 @@
 
 
-# Weekly Review: Collapsible Sections with Insufficient-Data Guidance
+# Plan: Google Login, Profile Settings, and Auth-Gated Data Input
 
-## What Changes
+Three changes requested, all interconnected. Here is the full plan.
 
-### 1. Accordion Behavior: One Section Open at a Time (Collapsed by Default)
+---
 
-Currently the accordion uses `type="multiple"` with all sections open by default. This defeats the purpose of sections -- everything is visible at once.
+## 1. Add Google Sign-In
 
-**Change:** Switch to `type="single" collapsible` with no `defaultValue`. All four sections render as collapsed cards. User taps Training to expand it, reads it, taps it to collapse, then taps Nutrition, and so on. Only one section is visible at a time.
+**How it works:** A "Sign in with Google" button is added to the Auth page. Users tap it, authorize with their Google account, and are logged in automatically.
 
-Each collapsed card shows the icon + title as a button-like row with a chevron. Spacing between cards via the existing `space-y-2` class (bumped to `space-y-3` for more breathing room).
+**Technical steps:**
+- Use the Lovable Cloud social auth configuration tool to enable Google OAuth and generate the required `src/integrations/lovable/` module
+- Add a "Sign in with Google" button to `src/pages/Auth.tsx` in both the Sign In and Create Account tabs
+- The button calls `lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin })`
+- The PWA config already has `navigateFallbackDenylist: [/^\/~oauth/]` so OAuth redirects will work correctly
 
-### 2. Insufficient Data: Per-Section Guidance
+---
 
-When the AI review has not been generated yet (no `aiReview`), instead of showing a single paragraph writeup, render the same 4 accordion cards but with **guidance content** instead of AI analysis.
+## 2. Profile Settings Page
 
-Each section checks whether the user logged enough data for that category this week:
+**What users see:** A new `/profile` page where they can view and edit their display name and avatar. Their name is also shown in the navbar on every page so they know they are logged in.
 
-| Section | Has Data If... | Guidance When Missing |
-|---------|---------------|----------------------|
-| Training | `workoutsCompleted > 0` | "No workouts logged this week. Head to the Training tab and log your sessions -- include RIR on each set so we can assess your effort." |
-| Nutrition | `weightStart && weightEnd` | "No weight entries this week. Log your bodyweight in Progress and track meals in Nutrition to get dietary insights." |
-| Lifestyle | `avgReadiness > 0` | "No daily check-ins this week. Open the Lifestyle tab and complete your daily check-in -- rate sleep, stress, energy, and write a short note about your day." |
-| Overall Summary | Any of the above missing | "We need more data to build your summary. Log workouts, check in daily, and track your weight. The more consistently you log, the better your AI review becomes." |
+**Technical steps:**
 
-When data IS present but the AI review hasn't been generated yet, show the existing `generateWriteup()` text broken into the relevant section. But the key UX improvement is that when data is missing, each section explicitly tells the user what to do.
+### New page: `src/pages/ProfileSettings.tsx`
+- Fetches the user's profile from the `user_profiles` table
+- Shows editable fields: display name (pre-filled from their profile)
+- Save button updates `user_profiles` via Supabase
+- Wrapped in `ProtectedRoute`
 
-### 3. Visual Polish
+### Navbar changes: `src/components/layout/Navbar.tsx`
+- When authenticated, fetch display name from `user_profiles` table
+- Show the user's display name (instead of email prefix) in the account dropdown button
+- Add a "Profile Settings" menu item in the dropdown that navigates to `/profile`
 
-- Each accordion item keeps the current styling: `rounded-lg border border-border/50 bg-muted/30 px-4`
-- The trigger row has `hover:no-underline` (already set) so it feels like a card/button tap, not a link
-- Add a subtle color accent to the icon when the section has data vs. when it's showing guidance (use `text-primary` for data, `text-muted-foreground` for guidance)
+### Routing: `src/App.tsx`
+- Add `/profile` route wrapped in `ProtectedRoute`
 
-## File Changes
+No database changes needed -- the `user_profiles` table already has `display_name` and `avatar_url` columns with appropriate RLS policies.
 
-**`src/components/dashboard/WeeklyReview.tsx`** -- the only file that changes:
+---
 
-1. Change `<Accordion type="multiple" defaultValue={...}>` to `<Accordion type="single" collapsible>`
-2. Remove `defaultValue` so all sections start collapsed
-3. Add a `getGuidanceSections()` function that returns the 4 sections with guidance text when `aiReview` is null but `hasData` is partially true
-4. When `aiReview` is null, render the guidance accordion instead of the single paragraph fallback
-5. When `aiReview` exists, render the parsed AI sections as before (but now single-open)
-6. Keep the "not enough data" empty state for when there is truly zero data across all categories
+## 3. Require Login Before Inputting Data
 
-### Data Sufficiency Check Per Section
+**What users see:** If they visit Vault, Nutrition, or Audit pages without being logged in, they see a prompt to sign in rather than being able to input data freely.
 
-```text
-Training sufficient:  workoutsCompleted > 0
-Nutrition sufficient: weightStart != null && weightEnd != null
-Lifestyle sufficient: avgReadiness > 0
-Overall sufficient:   all three above are true
-```
+**Technical steps:**
 
-Each section that lacks data shows a guidance message with specific actions. Sections with data show a brief data summary (from the existing `generateWriteup` logic, split by category).
+### Wrap data-input routes in `ProtectedRoute`
 
-No edge function changes. No database changes. Single file edit.
+In `src/App.tsx`, wrap these routes with `<ProtectedRoute>`:
+- `/vault` -- the main dashboard with workout logging, check-ins, food diary, etc.
+- `/nutrition` -- the nutrition calculator
+- `/audit` -- the performance audit form
+- `/admin` and `/admin/user/:userId` -- already should be protected
+
+The `ProtectedRoute` component already exists and works correctly: it shows a loading spinner during initialization, then redirects to `/auth` if not authenticated.
+
+The landing page (`/`), auth page (`/auth`), and results page (`/results`) remain public.
+
+---
+
+## Summary of File Changes
+
+| File | Change |
+|------|--------|
+| `src/integrations/lovable/*` | Auto-generated by social auth tool (Google OAuth) |
+| `src/pages/Auth.tsx` | Add Google sign-in button |
+| `src/pages/ProfileSettings.tsx` | **New file** -- profile editing page |
+| `src/components/layout/Navbar.tsx` | Show display name, add Profile Settings link |
+| `src/App.tsx` | Add `/profile` route, wrap `/vault`, `/nutrition`, `/audit`, `/admin` in `ProtectedRoute` |
+
+No database migrations needed. No edge function changes.
 
