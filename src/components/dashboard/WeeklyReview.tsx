@@ -94,58 +94,6 @@ export function WeeklyReview() {
   const trendLabel = weeklyData.readinessTrend === "up" ? "Trending Up"
     : weeklyData.readinessTrend === "down" ? "Trending Down" : "Stable";
 
-  const generateWriteup = (): string => {
-    const parts: string[] = [];
-
-    if (weeklyData.workoutsCompleted > 0) {
-      let s = `This week you completed ${weeklyData.workoutsCompleted} workout${weeklyData.workoutsCompleted > 1 ? "s" : ""}`;
-      if (weeklyData.totalVolume > 0) {
-        s += ` with a total volume of ${weeklyData.totalVolume.toLocaleString()} lbs`;
-      }
-      s += ".";
-      if (weeklyData.newPRs > 0) {
-        s += ` You hit ${weeklyData.newPRs} new personal record${weeklyData.newPRs > 1 ? "s" : ""} 🎉`;
-      }
-      parts.push(s);
-    } else {
-      parts.push("No workouts logged this week. Consider getting a session in if you're feeling up to it.");
-    }
-
-    if (weeklyData.avgReadiness > 0) {
-      let s = `Your average readiness score was ${weeklyData.avgReadiness}%, ${trendLabel.toLowerCase()} from last week.`;
-      if (weeklyData.lowestReadinessDay) {
-        s += ` Your lowest day was ${weeklyData.lowestReadinessDay} — consider what affected you that day.`;
-      }
-      parts.push(s);
-    }
-
-    if (weeklyData.conditioningSessions > 0) {
-      let s = `You logged ${weeklyData.conditioningSessions} conditioning session${weeklyData.conditioningSessions > 1 ? "s" : ""} totaling ${weeklyData.totalConditioningMinutes} minutes`;
-      if (weeklyData.totalConditioningCalories > 0) s += ` and ~${weeklyData.totalConditioningCalories} calories`;
-      s += ".";
-      parts.push(s);
-    }
-
-    if (weeklyData.avgRIR !== null && weeklyData.rirSetsCount > 0) {
-      parts.push(`Average RIR across ${weeklyData.rirSetsCount} tracked sets was ${weeklyData.avgRIR} (${weeklyData.hardSetsPercent}% at RIR 0-1).`);
-    }
-
-    if (weeklyData.weightStart && weeklyData.weightEnd) {
-      const diff = weeklyData.weightEnd - weeklyData.weightStart;
-      const displayDiff = weeklyData.usesImperial ? kgToLbs(Math.abs(diff)) : Math.round(Math.abs(diff) * 10) / 10;
-      const unit = weeklyData.usesImperial ? "lbs" : "kg";
-      const startW = weeklyData.usesImperial ? kgToLbs(weeklyData.weightStart) : Math.round(weeklyData.weightStart * 10) / 10;
-      const endW = weeklyData.usesImperial ? kgToLbs(weeklyData.weightEnd) : Math.round(weeklyData.weightEnd * 10) / 10;
-
-      if (Math.abs(diff) < 0.1) {
-        parts.push(`Bodyweight held steady around ${endW} ${unit}.`);
-      } else {
-        parts.push(`Bodyweight moved from ${startW} to ${endW} ${unit} (${diff > 0 ? "+" : "-"}${displayDiff} ${unit}).`);
-      }
-    }
-
-    return parts.join(" ");
-  };
 
   const handleGenerateAI = async () => {
     setIsGenerating(true);
@@ -179,8 +127,107 @@ export function WeeklyReview() {
     }
   };
 
-  const hasData = weeklyData.workoutsCompleted > 0 || weeklyData.avgReadiness > 0 || weeklyData.weightEnd;
+  const hasTraining = weeklyData.workoutsCompleted > 0;
+  const hasNutrition = !!(weeklyData.weightStart && weeklyData.weightEnd);
+  const hasLifestyle = weeklyData.avgReadiness > 0;
+  const hasAllData = hasTraining && hasNutrition && hasLifestyle;
+  const hasAnyData = hasTraining || hasNutrition || hasLifestyle;
+
   const sections = aiReview ? parseSections(aiReview) : null;
+
+  const getTrainingSummary = () => {
+    if (!hasTraining) return null;
+    let s = `You completed ${weeklyData.workoutsCompleted} workout${weeklyData.workoutsCompleted > 1 ? "s" : ""}`;
+    if (weeklyData.totalVolume > 0) s += ` with a total volume of ${weeklyData.totalVolume.toLocaleString()} lbs`;
+    s += ".";
+    if (weeklyData.newPRs > 0) s += ` You hit ${weeklyData.newPRs} new PR${weeklyData.newPRs > 1 ? "s" : ""} 🎉`;
+    if (weeklyData.avgRIR !== null && weeklyData.rirSetsCount > 0) {
+      s += ` Average RIR across ${weeklyData.rirSetsCount} sets was ${weeklyData.avgRIR} (${weeklyData.hardSetsPercent}% at RIR 0-1).`;
+    }
+    if (weeklyData.conditioningSessions > 0) {
+      s += ` ${weeklyData.conditioningSessions} conditioning session${weeklyData.conditioningSessions > 1 ? "s" : ""} totaling ${weeklyData.totalConditioningMinutes} min.`;
+    }
+    return s;
+  };
+
+  const getNutritionSummary = () => {
+    if (!hasNutrition) return null;
+    const diff = weeklyData.weightEnd! - weeklyData.weightStart!;
+    const unit = weeklyData.usesImperial ? "lbs" : "kg";
+    const startW = weeklyData.usesImperial ? kgToLbs(weeklyData.weightStart!) : Math.round(weeklyData.weightStart! * 10) / 10;
+    const endW = weeklyData.usesImperial ? kgToLbs(weeklyData.weightEnd!) : Math.round(weeklyData.weightEnd! * 10) / 10;
+    const displayDiff = weeklyData.usesImperial ? kgToLbs(Math.abs(diff)) : Math.round(Math.abs(diff) * 10) / 10;
+    if (Math.abs(diff) < 0.1) return `Bodyweight held steady around ${endW} ${unit}.`;
+    return `Bodyweight moved from ${startW} to ${endW} ${unit} (${diff > 0 ? "+" : "-"}${displayDiff} ${unit}).`;
+  };
+
+  const getLifestyleSummary = () => {
+    if (!hasLifestyle) return null;
+    let s = `Average readiness score was ${weeklyData.avgReadiness}%, ${trendLabel.toLowerCase()} from last week.`;
+    if (weeklyData.lowestReadinessDay) s += ` Lowest day was ${weeklyData.lowestReadinessDay}.`;
+    return s;
+  };
+
+  type GuidanceSection = { title: string; icon: React.ElementType; content: string; hasData: boolean };
+
+  const guidanceSections: GuidanceSection[] = [
+    {
+      title: "Training",
+      icon: Dumbbell,
+      hasData: hasTraining,
+      content: hasTraining
+        ? getTrainingSummary()!
+        : "No workouts logged this week. Head to the Training tab and log your sessions — include RIR on each set so we can assess your effort.",
+    },
+    {
+      title: "Nutrition",
+      icon: Apple,
+      hasData: hasNutrition,
+      content: hasNutrition
+        ? getNutritionSummary()!
+        : "No weight entries this week. Log your bodyweight in Progress and track meals in Nutrition to get dietary insights.",
+    },
+    {
+      title: "Lifestyle",
+      icon: Heart,
+      hasData: hasLifestyle,
+      content: hasLifestyle
+        ? getLifestyleSummary()!
+        : "No daily check-ins this week. Open the Lifestyle tab and complete your daily check-in — rate sleep, stress, energy, and write a short note about your day.",
+    },
+    {
+      title: "Overall Summary",
+      icon: Sparkles,
+      hasData: hasAllData,
+      content: hasAllData
+        ? "You've logged across all areas this week. Generate your AI review for a personalised breakdown and action items."
+        : "We need more data to build your summary. Log workouts, check in daily, and track your weight. Add notes to give the AI more context — the more consistently you log, the better your review becomes.",
+    },
+  ];
+
+  const renderAccordionSections = (items: { title: string; icon: React.ElementType; content: string; hasData?: boolean }[]) => (
+    <Accordion type="single" collapsible className="space-y-3">
+      {items.map((item, i) => {
+        const Icon = item.icon;
+        const iconColor = item.hasData === false ? "text-muted-foreground" : "text-primary";
+        return (
+          <AccordionItem key={i} value={`section-${i}`} className="rounded-lg border border-border/50 bg-muted/30 px-4">
+            <AccordionTrigger className="py-3 hover:no-underline">
+              <div className="flex items-center gap-2 text-sm font-semibold">
+                <Icon className={`w-4 h-4 ${iconColor}`} />
+                {item.title}
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className="pb-3">
+              <p className="text-sm leading-relaxed text-foreground/90">
+                {item.content}
+              </p>
+            </AccordionContent>
+          </AccordionItem>
+        );
+      })}
+    </Accordion>
+  );
 
   return (
     <Card variant="elevated">
@@ -197,7 +244,7 @@ export function WeeklyReview() {
         )}
       </CardHeader>
       <CardContent>
-        {!hasData ? (
+        {!hasAnyData ? (
           <p className="text-sm text-muted-foreground">
             Not enough data for a weekly review yet. Log workouts, check in daily, and track your weight to see your summary here.
           </p>
@@ -245,35 +292,11 @@ export function WeeklyReview() {
               )}
             </div>
 
-            {/* AI structured sections or fallback */}
-            {sections ? (
-              <Accordion type="multiple" defaultValue={sections.map((_, i) => `section-${i}`)} className="space-y-2">
-                {sections.map((section, i) => {
-                  const Icon = section.icon;
-                  return (
-                    <AccordionItem key={i} value={`section-${i}`} className="rounded-lg border border-border/50 bg-muted/30 px-4">
-                      <AccordionTrigger className="py-3 hover:no-underline">
-                        <div className="flex items-center gap-2 text-sm font-semibold">
-                          <Icon className="w-4 h-4 text-primary" />
-                          {section.title}
-                        </div>
-                      </AccordionTrigger>
-                      <AccordionContent className="pb-3">
-                        <p className="text-sm leading-relaxed text-foreground/90">
-                          {section.content}
-                        </p>
-                      </AccordionContent>
-                    </AccordionItem>
-                  );
-                })}
-              </Accordion>
-            ) : (
-              <div className="p-4 rounded-lg bg-muted/50 border border-border">
-                <p className="text-sm leading-relaxed text-foreground/90">
-                  {aiReview || generateWriteup()}
-                </p>
-              </div>
-            )}
+            {/* AI sections or guidance sections */}
+            {sections
+              ? renderAccordionSections(sections.map(s => ({ ...s, hasData: true })))
+              : renderAccordionSections(guidanceSections)
+            }
 
             {aiReview && (
               <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
