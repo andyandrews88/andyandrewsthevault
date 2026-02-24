@@ -1,34 +1,59 @@
 
 
-# Diagnosis: Weekly Review Rendering
+# Weekly Review: Collapsible Sections with Insufficient-Data Guidance
 
-## What I Found
+## What Changes
 
-I tested the edge function directly and it returns **perfectly structured** markdown with proper `## Training`, `## Nutrition`, `## Lifestyle`, and `## Overall Summary` headers, each on their own line with paragraph content below.
+### 1. Accordion Behavior: One Section Open at a Time (Collapsed by Default)
 
-The parser fix you approved (normalizing inline `##` headers to start on new lines) is correct and handles all edge cases. The rendering code correctly:
-- Splits the response into 4 sections
-- Assigns icons (Dumbbell, Apple, Heart, Sparkles)
-- Renders each in an Accordion with `defaultValue` set to show all sections open
+Currently the accordion uses `type="multiple"` with all sections open by default. This defeats the purpose of sections -- everything is visible at once.
 
-**The screenshot you shared was from before the fix was deployed.** The fix has now been applied.
+**Change:** Switch to `type="single" collapsible` with no `defaultValue`. All four sections render as collapsed cards. User taps Training to expand it, reads it, taps it to collapse, then taps Nutrition, and so on. Only one section is visible at a time.
 
-## What Needs to Happen
+Each collapsed card shows the icon + title as a button-like row with a chevron. Spacing between cards via the existing `space-y-2` class (bumped to `space-y-3` for more breathing room).
 
-Simply **generate a new AI review** by tapping the "Generate AI Review" button on the Dashboard tab. The previous cached review text (stored in component state) was from the old broken render. A fresh generation will:
-1. Call the edge function (which returns structured `## Header` markdown)
-2. Run through the fixed parser (which normalizes any inline headers)
-3. Render in 4 accordion sections with icons
+### 2. Insufficient Data: Per-Section Guidance
 
-If it still shows raw text after regenerating, there is one additional hardening I would apply:
+When the AI review has not been generated yet (no `aiReview`), instead of showing a single paragraph writeup, render the same 4 accordion cards but with **guidance content** instead of AI analysis.
 
-### Safety Net (if still broken after regeneration)
+Each section checks whether the user logged enough data for that category this week:
 
-**File: `src/components/dashboard/WeeklyReview.tsx`**
+| Section | Has Data If... | Guidance When Missing |
+|---------|---------------|----------------------|
+| Training | `workoutsCompleted > 0` | "No workouts logged this week. Head to the Training tab and log your sessions -- include RIR on each set so we can assess your effort." |
+| Nutrition | `weightStart && weightEnd` | "No weight entries this week. Log your bodyweight in Progress and track meals in Nutrition to get dietary insights." |
+| Lifestyle | `avgReadiness > 0` | "No daily check-ins this week. Open the Lifestyle tab and complete your daily check-in -- rate sleep, stress, energy, and write a short note about your day." |
+| Overall Summary | Any of the above missing | "We need more data to build your summary. Log workouts, check in daily, and track your weight. The more consistently you log, the better your AI review becomes." |
 
-Add a more aggressive parser that also handles `**Training**` or `# Training` patterns as fallbacks, and add a `console.log` of the raw AI response so we can see exactly what the model returned. But based on my direct test of the edge function, the output is clean and the current parser handles it correctly.
+When data IS present but the AI review hasn't been generated yet, show the existing `generateWriteup()` text broken into the relevant section. But the key UX improvement is that when data is missing, each section explicitly tells the user what to do.
 
-## Action
+### 3. Visual Polish
 
-No code changes needed right now. Regenerate the review. If it still fails, share a screenshot and I will add deeper logging and fallback parsing.
+- Each accordion item keeps the current styling: `rounded-lg border border-border/50 bg-muted/30 px-4`
+- The trigger row has `hover:no-underline` (already set) so it feels like a card/button tap, not a link
+- Add a subtle color accent to the icon when the section has data vs. when it's showing guidance (use `text-primary` for data, `text-muted-foreground` for guidance)
+
+## File Changes
+
+**`src/components/dashboard/WeeklyReview.tsx`** -- the only file that changes:
+
+1. Change `<Accordion type="multiple" defaultValue={...}>` to `<Accordion type="single" collapsible>`
+2. Remove `defaultValue` so all sections start collapsed
+3. Add a `getGuidanceSections()` function that returns the 4 sections with guidance text when `aiReview` is null but `hasData` is partially true
+4. When `aiReview` is null, render the guidance accordion instead of the single paragraph fallback
+5. When `aiReview` exists, render the parsed AI sections as before (but now single-open)
+6. Keep the "not enough data" empty state for when there is truly zero data across all categories
+
+### Data Sufficiency Check Per Section
+
+```text
+Training sufficient:  workoutsCompleted > 0
+Nutrition sufficient: weightStart != null && weightEnd != null
+Lifestyle sufficient: avgReadiness > 0
+Overall sufficient:   all three above are true
+```
+
+Each section that lacks data shows a guidance message with specific actions. Sections with data show a brief data summary (from the existing `generateWriteup` logic, split by category).
+
+No edge function changes. No database changes. Single file edit.
 
