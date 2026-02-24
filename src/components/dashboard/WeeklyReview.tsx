@@ -30,8 +30,10 @@ const sectionIcons: Record<string, React.ElementType> = {
 };
 
 function parseSections(text: string): ReviewSection[] | null {
-  const parts = text.split(/^## /m).filter(Boolean);
-  if (parts.length < 3) return null; // fallback if AI didn't structure properly
+  // Normalize: ensure ## headers always start on a new line
+  const normalized = text.replace(/([^\n])## /g, "$1\n## ");
+  const parts = normalized.split(/^## /m).filter(Boolean);
+  if (parts.length < 3) return null;
 
   return parts.map((p) => {
     const [titleLine, ...rest] = p.split("\n");
