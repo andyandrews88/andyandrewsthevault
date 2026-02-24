@@ -10,9 +10,11 @@ import Results from "./pages/Results";
 import VaultPage from "./pages/VaultPage";
 import Nutrition from "./pages/Nutrition";
 import AuthPageWrapper from "./pages/AuthPageWrapper";
+import ProfileSettings from "./pages/ProfileSettings";
 import NotFound from "./pages/NotFound";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminUserProfile from "./pages/AdminUserProfile";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 import { useAuthStore } from "./stores/authStore";
 import { useUserDataSync } from "./hooks/useUserDataSync";
 
@@ -21,24 +23,23 @@ const queryClient = new QueryClient();
 function AppContent() {
   const { initialize } = useAuthStore();
   
-  // Initialize auth on app load
   useEffect(() => {
     initialize();
   }, [initialize]);
 
-  // Sync user data with database
   useUserDataSync();
 
   return (
     <Routes>
       <Route path="/" element={<Index />} />
       <Route path="/auth" element={<AuthPageWrapper />} />
-      <Route path="/audit" element={<Audit />} />
       <Route path="/results" element={<Results />} />
-      <Route path="/vault" element={<VaultPage />} />
-      <Route path="/nutrition" element={<Nutrition />} />
-      <Route path="/admin" element={<AdminDashboard />} />
-      <Route path="/admin/user/:userId" element={<AdminUserProfile />} />
+      <Route path="/audit" element={<ProtectedRoute><Audit /></ProtectedRoute>} />
+      <Route path="/vault" element={<ProtectedRoute><VaultPage /></ProtectedRoute>} />
+      <Route path="/nutrition" element={<ProtectedRoute><Nutrition /></ProtectedRoute>} />
+      <Route path="/profile" element={<ProtectedRoute><ProfileSettings /></ProtectedRoute>} />
+      <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
+      <Route path="/admin/user/:userId" element={<ProtectedRoute><AdminUserProfile /></ProtectedRoute>} />
       {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
       <Route path="*" element={<NotFound />} />
     </Routes>
