@@ -1,9 +1,10 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Menu, X, User, LogOut, Shield } from "lucide-react";
-import { useState } from "react";
+import { Menu, X, User, LogOut, Shield, Settings } from "lucide-react";
+import { useState, useEffect } from "react";
 import logo from "@/assets/logo.png";
 import { useAuthStore } from "@/stores/authStore";
 import { useAdminCheck } from "@/hooks/useAdminCheck";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -15,10 +16,27 @@ import { toast } from "sonner";
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
+  const [displayName, setDisplayName] = useState<string | null>(null);
   const location = useLocation();
   const navigate = useNavigate();
   const { isAuthenticated, user, signOut, isLoading } = useAuthStore();
   const { isAdmin } = useAdminCheck();
+
+  useEffect(() => {
+    if (!user) {
+      setDisplayName(null);
+      return;
+    }
+    const fetchName = async () => {
+      const { data } = await supabase
+        .from("user_profiles")
+        .select("display_name")
+        .eq("id", user.id)
+        .single();
+      setDisplayName(data?.display_name || user.email?.split("@")[0] || "Account");
+    };
+    fetchName();
+  }, [user]);
 
   const navLinks = [
     { href: "/", label: "Home" },
@@ -67,12 +85,16 @@ export function Navbar() {
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="gap-2">
                   <User className="w-4 h-4" />
-                  <span className="max-w-[100px] truncate">
-                    {user?.email?.split('@')[0] || 'Account'}
+                  <span className="max-w-[120px] truncate">
+                    {displayName || 'Account'}
                   </span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => navigate('/profile')} className="gap-2 cursor-pointer">
+                  <Settings className="w-4 h-4" />
+                  Profile Settings
+                </DropdownMenuItem>
                 {isAdmin && (
                   <DropdownMenuItem onClick={() => navigate('/admin')} className="gap-2 cursor-pointer">
                     <Shield className="w-4 h-4" />
@@ -129,6 +151,14 @@ export function Navbar() {
             <div className="pt-2 border-t border-border mt-2">
               {isAuthenticated ? (
                 <>
+                  <Link
+                    to="/profile"
+                    className="flex items-center gap-2 py-3 px-4 rounded-lg text-base text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    <Settings className="w-4 h-4" />
+                    Profile Settings
+                  </Link>
                   {isAdmin && (
                     <Link
                       to="/admin"
