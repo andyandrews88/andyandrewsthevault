@@ -30,14 +30,52 @@ const sectionIcons: Record<string, React.ElementType> = {
 };
 
 function parseSections(text: string): ReviewSection[] | null {
-  // Normalize: ensure ## headers always start on a new line
-  const normalized = text.replace(/([^\n])## /g, "$1\n## ");
-  const parts = normalized.split(/^## /m).filter(Boolean);
+  console.log("[WeeklyReview] Raw AI response:", JSON.stringify(text).slice(0, 500));
+
+  // Strategy 1: ## headers (normalize inline ones to newlines first)
+  let normalized = text.replace(/([^\n])## /g, "$1\n## ");
+  let parts = normalized.split(/^## /m).filter(Boolean);
+
+  // Strategy 2: try # headers (single hash)
+  if (parts.length < 3) {
+    normalized = text.replace(/([^\n])# /g, "$1\n# ");
+    parts = normalized.split(/^# /m).filter(Boolean);
+  }
+
+  // Strategy 3: try **Header** bold patterns on their own line
+  if (parts.length < 3) {
+    parts = text.split(/^\*\*([^*]+)\*\*\s*$/m).filter(Boolean);
+    // Re-pair: odd indices are titles, even are content
+    if (parts.length >= 6) {
+      const paired: string[] = [];
+      for (let i = 0; i < parts.length - 1; i += 2) {
+        paired.push(parts[i] + "\n" + (parts[i + 1] || ""));
+      }
+      parts = paired;
+    }
+  }
+
+  // Strategy 4: try splitting by known section names
+  if (parts.length < 3) {
+    const sectionPattern = /(?:^|\n)\s*(?:#{1,3}\s*|(?:\*\*))?\s*(Training|Nutrition|Lifestyle|Overall(?:\s+Summary)?)\s*(?:\*\*)?\s*(?::|\n)/gi;
+    const matches = [...text.matchAll(sectionPattern)];
+    if (matches.length >= 3) {
+      parts = [];
+      for (let i = 0; i < matches.length; i++) {
+        const start = matches[i].index! + matches[i][0].length;
+        const end = i + 1 < matches.length ? matches[i + 1].index! : text.length;
+        parts.push(matches[i][1] + "\n" + text.slice(start, end));
+      }
+    }
+  }
+
+  console.log("[WeeklyReview] Parsed sections count:", parts.length);
+
   if (parts.length < 3) return null;
 
   return parts.map((p) => {
     const [titleLine, ...rest] = p.split("\n");
-    const title = titleLine.trim();
+    const title = titleLine.trim().replace(/^#+\s*/, "").replace(/\*\*/g, "").replace(/:$/, "");
     const key = title.toLowerCase();
     const icon = sectionIcons[key] || Object.entries(sectionIcons).find(([k]) => key.includes(k))?.[1] || Sparkles;
     return { title, content: rest.join("\n").trim(), icon };
