@@ -1,118 +1,69 @@
 
 
-# Plan: World-Class Full-Page Admin Workout Builder
+# Plan: Fix Admin Workout Builder + Add Workout Template Duplication
 
-## Root Cause of Current Failures
+## Root Cause (Why Everything is "Dead")
 
-1. **Exercise dropdown shows nothing**: The exercise library table has **0 rows**. The builder queries `exercise_library` for its dropdown. Empty table = empty dropdown = nothing to add.
-2. **Layout is a small inline card**: The builder renders as a `Card` inside the admin profile page. For a coaching tool, this is inadequate.
-3. **No fallback exercise source**: The user-facing `ExerciseSearch` component uses a hardcoded catalog of 300+ exercises from `src/types/workout.ts` (`EXERCISE_CATEGORIES`). The admin builder ignores this entirely and only queries the empty database table.
+The edge function `admin-workout-builder/index.ts` returns responses WITHOUT setting `Content-Type: application/json` in the headers. The `corsHeaders` object only contains CORS headers. As a result:
 
-## Gap Analysis: Best-in-Class Training Apps vs. Current State
+1. `supabase.functions.invoke()` receives the response as `text/plain` (confirmed in network: `content-type: text/plain;charset=UTF-8`)
+2. The Supabase SDK does NOT auto-parse text/plain as JSON -- it returns the raw string
+3. `data.id` is `undefined` because `data` is a string like `'{"id":"ae28a7a3-...",...}'`
+4. `setWorkoutId(data.id)` sets workoutId to `undefined`/`null`
+5. Every subsequent call (`handleAddExercise`, `handleAddSet`, etc.) checks `if (!workoutId) return;` and silently bails out
 
-| Feature | TrainHeroic / Strong / Trainerize | Current Admin Builder | Fix |
-|---------|-----------------------------------|----------------------|-----|
-| Full-screen workout editor | Dedicated page/modal with sticky header | Small inline card | Full-page route |
-| Exercise search | 300+ exercises, categorized, with search + custom add | Queries empty DB table | Use built-in catalog + library fallback |
-| Set logging UX | Large touch targets, previous session data, quick-fill | Functional but cramped | Match user-facing ExerciseCard/SetRow quality |
-| Coach notes per exercise | Rich text or structured cues | Text input exists | Keep and improve |
-| Workout templates | Duplicate/clone past workouts | None | Future enhancement |
-| Superset grouping | Drag to group exercises | None | Future enhancement |
-| Rest timer | Configurable per exercise | None | Future enhancement |
-| Video demo integration | Inline video in exercise card | Missing (empty library) | Show when library has video_url |
-| Real-time sync | Instant update on client | Writes via service role, client sees on next load | Already works correctly |
-| Session stats | Volume, duration, exercise count | Basic stats shown | Improve with live calculation |
-
-## Architecture
-
-### New dedicated page: `/admin/user/:userId/build-workout`
-
-Instead of the current inline Card, the workout builder becomes a full-page route. This gives the coach a proper workspace with:
-- Sticky header with workout name, client name, date, and action buttons
-- Full-width exercise cards matching the user-facing `ExerciseCard` component quality
-- The same `ExerciseSearch` dialog used by users (300+ categorized exercises with search, category pills, custom add)
-- Session stats footer
-- Coach notes per exercise and per workout
-
-```text
-┌──────────────────────────────────────────────────┐
-│  ← Back   "Upper Body A" for Wiyan   Feb 25     │
-│            3/12 sets · 4,500 kg vol    [Finish]  │
-├──────────────────────────────────────────────────┤
-│                                                  │
-│  ┌────────────────────────────────────────────┐  │
-│  │ BENCH PRESS (BARBELL)                      │  │
-│  │ 2/3 sets completed                    🗑   │  │
-│  ├────────────────────────────────────────────┤  │
-│  │ Set │  Kg  │ Reps │ RIR │  ✓  │  ×  │     │  │
-│  │  1  │  80  │  8   │  2  │  ●  │     │     │  │
-│  │  2  │  85  │  6   │  1  │  ●  │     │     │  │
-│  │  3  │  —   │  —   │  —  │  ○  │     │     │  │
-│  ├────────────────────────────────────────────┤  │
-│  │ Coach cue: Focus on controlled eccentric   │  │
-│  │ [+ Add Set]                                │  │
-│  └────────────────────────────────────────────┘  │
-│                                                  │
-│  ┌────────────────────────────────────────────┐  │
-│  │ ROMANIAN DEADLIFT                          │  │
-│  │ ...                                        │  │
-│  └────────────────────────────────────────────┘  │
-│                                                  │
-│  [+ Add Exercise]                                │
-│                                                  │
-│  ┌─ Coach Notes ─────────────────────────────┐  │
-│  │ Session felt good, push harder next week   │  │
-│  └────────────────────────────────────────────┘  │
-│                                                  │
-│  ┌─ Session Stats ───────────────────────────┐  │
-│  │  Volume: 12,500 kg  │  Exercises: 4       │  │
-│  └────────────────────────────────────────────┘  │
-└──────────────────────────────────────────────────┘
-```
+This is a one-line fix that unblocks the entire feature.
 
 ## File Changes
 
-### 1. `src/App.tsx`
-Add new route: `/admin/user/:userId/build-workout` pointing to a new page component.
+### 1. `supabase/functions/admin-workout-builder/index.ts` -- CRITICAL FIX
 
-### 2. `src/pages/AdminWorkoutBuilderPage.tsx` (NEW)
-Full-page component that:
-- Reads `userId` from URL params
-- Shows sticky header with client name, workout name, date
-- Contains the workout builder logic (moved from the component)
-- Uses the same `ExerciseSearch` dialog that users get (300+ exercises, categorized, with custom add)
-- Each exercise renders with the same visual quality as the user-facing `ExerciseCard`
-- Calls the `admin-workout-builder` edge function for all CRUD
-- "Finish" saves and navigates back to admin user profile
-- "Cancel" navigates back without saving
+Add `Content-Type: application/json` to the `corsHeaders` object:
 
-### 3. `src/components/admin/AdminWorkoutBuilder.tsx` (REWRITE)
-Simplify to just a "Build Workout" button that:
-- Opens a dialog to name the workout and pick a date
-- On confirm, navigates to `/admin/user/:userId/build-workout?name=...&date=...`
+```typescript
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, ...",
+  "Content-Type": "application/json",  // <-- THIS FIXES EVERYTHING
+};
+```
 
-### 4. `src/pages/AdminUserProfile.tsx`
-No changes needed -- the AdminWorkoutBuilder component already renders there and will now just be a button that navigates to the full-page builder.
+This single change makes `supabase.functions.invoke()` parse the response as JSON, giving back the actual object with `data.id`, `data.exercise_name`, etc. All downstream operations (add exercise, add set, update set, finish) will then work because `workoutId` will be correctly set.
 
-### 5. `supabase/functions/admin-workout-builder/index.ts`
-Add `update_exercise_notes` action to persist coach cues per exercise to the `workout_exercises.notes` column. No other edge function changes needed -- the existing actions work correctly.
+### 2. `src/pages/AdminWorkoutBuilderPage.tsx` -- Defensive JSON parsing + Duplication feature
 
-### Key Design Decisions
+Add defensive parsing as a safety net in case `data` comes back as a string:
 
-**Exercise selection**: Uses the same `ExerciseSearch` dialog that users get. This contains 300+ hardcoded exercises organized by muscle group, with category pills and custom add. Falls back to `exercise_library` table if populated. This solves the empty dropdown problem permanently.
+```typescript
+async function invokeBuilder(body: Record<string, unknown>) {
+  const { data, error } = await supabase.functions.invoke("admin-workout-builder", { body });
+  if (error) throw error;
+  return typeof data === "string" ? JSON.parse(data) : data;
+}
+```
 
-**Set logging**: Each exercise card in the builder uses the same grid layout (`Set | Kg | Reps | RIR | ✓ | ×`) as the user-facing `ExerciseCard`. Large touch targets, clean spacing.
+Also add the workout template duplication feature:
+- Add a "Duplicate from Previous" button next to "Add Exercise" that shows a list of the user's completed workouts
+- When selected, load the workout detail via `get_workout_detail` and pre-populate all exercises and sets
+- Each exercise and set gets created via the existing `add_exercise` and `add_set` edge function actions
 
-**Debounced saves**: Set data is saved to the backend with a 500ms debounce on blur, not on every keystroke. This reduces edge function calls.
+### 3. `src/components/admin/AdminWorkoutBuilder.tsx` -- Add duplication option
 
-**No new database tables or migrations needed.** All data writes to existing `workouts`, `workout_exercises`, and `exercise_sets` tables via the service role edge function.
+Add a "Clone Previous" button option in the dialog alongside the name/date picker. When clicked, show a small list of recent workouts (fetched via `get_user_workouts` action). Selecting one pre-fills the workout name and navigates to the builder with a `cloneFrom=<workoutId>` query param.
+
+### 4. `src/pages/AdminWorkoutBuilderPage.tsx` -- Clone flow
+
+On mount, if `cloneFrom` query param exists:
+1. Create the new workout via `create_workout`
+2. Fetch the source workout via `get_workout_detail`
+3. For each exercise in the source, call `add_exercise` then `add_set` for each set (copying weight/reps/rir values)
+4. Pre-populate the local state with all cloned exercises and sets
 
 ## Summary
 
 | File | Change |
 |------|--------|
-| `src/App.tsx` | Add route `/admin/user/:userId/build-workout` |
-| `src/pages/AdminWorkoutBuilderPage.tsx` | **New** -- full-page workout builder for coaches |
-| `src/components/admin/AdminWorkoutBuilder.tsx` | Simplify to navigation button + name/date dialog |
-| `supabase/functions/admin-workout-builder/index.ts` | Add `update_exercise_notes` action |
+| `supabase/functions/admin-workout-builder/index.ts` | Add `Content-Type: application/json` to headers (the actual fix) |
+| `src/pages/AdminWorkoutBuilderPage.tsx` | Defensive JSON parse + clone workout flow |
+| `src/components/admin/AdminWorkoutBuilder.tsx` | Add "Clone Previous" option with workout list |
 
