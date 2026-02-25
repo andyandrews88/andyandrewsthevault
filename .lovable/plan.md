@@ -1,111 +1,75 @@
 
 
-# Plan: Admin Workout Builder, Workout Notes, and Video Refinement
+# Plan: Fix Admin Workout Builder + Exercise Video Feature
 
-## Overview
+## Root Cause Analysis
 
-Three interconnected changes: (1) admin can create/edit workouts for any user from their profile page, (2) a notes field at the bottom of each workout session, (3) refinement of the exercise video feature.
+### 1. Admin Workout Builder is completely broken
+The edge function `admin-workout-builder/index.ts` uses `anonClient.auth.getClaims(token)` on line 32 -- **this method does not exist** in the Supabase JS client. Every other working edge function in the project (e.g., `admin-detail`, `admin-user-profile`) uses `userClient.auth.getUser()` instead. This means every call to the edge function silently fails with a 401, which is why exercises never appear and nothing saves.
+
+### 2. Exercise video URL not working
+The `ExerciseCard` component queries `exercise_library` by name using `.ilike('name', exercise.exercise_name)`. This works correctly as code, but the `toEmbedUrl()` function requires specifying `'youtube'` as the type parameter. The real issue is that if exercises in the library don't have `video_url` populated, no button appears. The video code itself is architecturally sound -- the problem is upstream (the builder never worked, so no exercises ever appeared to test video on).
+
+### 3. Admin Workout Builder UI quality
+The current UI is functional but minimal. It needs to match the quality of the user-facing workout logger: proper set headers, weight/reps columns, visual feedback, and a more professional card layout.
 
 ---
 
-## 1. Admin Workout Builder on User Profile
+## File Changes
 
-**What you get:** From the admin user profile page (`/admin/user/:userId`), you can create a new workout for that user, add exercises, log sets with weights/reps, and add notes. The data writes directly to the user's `workouts`, `workout_exercises`, and `exercise_sets` tables using the service role (via a new edge function). Changes appear on the client's end immediately.
+### `supabase/functions/admin-workout-builder/index.ts`
+**Critical fix**: Replace the broken `getClaims` authentication with the working `getUser()` pattern used by all other edge functions in this project.
 
-### Architecture
-
-The admin cannot use the regular `workoutStore` because RLS restricts writes to the authenticated user's own rows. Instead, a new edge function `admin-workout-builder` handles all CRUD operations on behalf of the target user using the service role key.
-
-**New edge function: `supabase/functions/admin-workout-builder/index.ts`**
-
-Accepts these actions:
-- `create_workout` -- creates a workout row for target user (name, date)
-- `add_exercise` -- adds a workout_exercise to a workout
-- `add_set` -- adds an exercise_set
-- `update_set` -- updates weight/reps/completion on a set
-- `remove_exercise` -- deletes a workout_exercise
-- `finish_workout` -- marks workout as completed
-- `update_notes` -- updates workout-level notes
-- `get_workout_detail` -- fetches full workout with exercises and sets
-
-All actions verify the caller is an admin via `user_roles`.
-
-**New component: `src/components/admin/AdminWorkoutBuilder.tsx`**
-
-A self-contained workout builder UI embedded in the AdminUserProfile page:
-- "Build Workout" button opens a card/dialog
-- Name the workout + pick a date
-- Exercise search (queries `exercise_library` table for admin-curated exercises)
-- For each exercise: add sets with weight/reps fields, complete button
-- Notes textarea at the bottom
-- "Save & Complete" button finishes the workout
-- All operations go through the edge function, not the client-side store
-
-**Changes to `src/pages/AdminUserProfile.tsx`**
-- Import and render `AdminWorkoutBuilder` in the Training section
-- Pass `userId` and user's display name as props
-
-### Data Flow
-
-```text
-Admin taps "Build Workout" on user profile
-  → AdminWorkoutBuilder renders inline
-  → Each action calls admin-workout-builder edge function
-  → Edge function uses service role to write to user's tables
-  → Client user sees the workout in their history on next load
+Lines 27-39 change from:
+```typescript
+const anonClient = createClient(supabaseUrl, supabaseAnonKey, { ... });
+const token = authHeader.replace("Bearer ", "");
+const { data: claimsData, error: claimsError } = await anonClient.auth.getClaims(token);
+if (claimsError || !claimsData?.claims) { ... }
+const adminUserId = claimsData.claims.sub;
+```
+To:
+```typescript
+const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+  global: { headers: { Authorization: authHeader } },
+});
+const { data: { user }, error: authErr } = await userClient.auth.getUser();
+if (authErr || !user) { return 401 }
+const adminUserId = user.id;
 ```
 
-No database schema changes needed. The existing `workouts`, `workout_exercises`, and `exercise_sets` tables already support this -- the edge function just writes with the target user's ID instead of the admin's.
+Also add a `remove_set` action that re-numbers remaining sets after deletion, and a `get_workout_detail` action refinement.
+
+### `src/components/admin/AdminWorkoutBuilder.tsx`
+**Full rebuild** of the UI to match the quality of the user-facing `WorkoutLogger` and `ExerciseCard` components:
+
+- Proper grid layout for sets: `Set | Weight | Reps | ✓ | ×` matching the front-end pattern
+- Exercise cards with the same `bg-secondary/30` header, uppercase tracking, and spacing as `ExerciseCard.tsx`
+- Visual feedback: completed sets get a checkmark, weight/reps inputs match the front-end styling
+- RIR column support (matching user-facing SetRow)
+- Exercise-level notes field per exercise (for coach cues like "focus on tempo" or "@ 85% TM")
+- Workout-level notes at the bottom
+- After saving, auto-refresh the workout list on the admin profile page
+- Loading states during exercise add / set save operations
+- Show the "Build Workout" button even when user has no workouts yet (currently hidden behind a conditional that checks `data.training.workouts.length > 0`)
+
+### `src/pages/AdminUserProfile.tsx`
+- Move `AdminWorkoutBuilder` outside the `data.training.workouts.length > 0` conditional so the button always appears
+- After a workout is saved, trigger a re-fetch of the user profile data so the new workout appears immediately in the Recent Workouts table
+
+### `src/components/workout/ExerciseCard.tsx`
+Minor refinement: the video feature code is correct, but add a fallback `toEmbedUrl` call that auto-detects YouTube vs Vimeo instead of hardcoding `'youtube'`. Currently line 143 passes `'youtube'` -- if someone stores a Vimeo URL it won't convert. Add detection logic.
 
 ---
 
-## 2. Workout Notes Section
-
-**What users see:** A notes textarea at the bottom of the active workout logger (above the session stats footer). Users can type session notes -- how they felt, adjustments made, coaching cues. Notes persist to the `workouts.notes` column which already exists.
-
-### File Changes
-
-**`src/components/workout/WorkoutLogger.tsx`**
-- Add a `Textarea` component below the exercise cards and above the session stats footer
-- The textarea reads from `activeWorkout.notes` and writes via a debounced update to the `workouts` table
-- Label: "Session Notes" with a small icon (StickyNote or FileText)
-- Placeholder: "How did training feel today? Any notes for your coach..."
-
-**`src/stores/workoutStore.ts`**
-- Add `updateWorkoutNotes: (notes: string) => void` action
-- Debounced write to `supabase.from('workouts').update({ notes }).eq('id', activeWorkout.id)`
-
-**`src/components/workout/WorkoutHistoryView.tsx`**
-- Display `workout.notes` in the history view if it exists, in a subtle card below the workout header
-
----
-
-## 3. Exercise Video -- CoachRx-Style Simplification
-
-The current video implementation is already close to CoachRx's pattern (collapsible embed in exercise card). The CoachRx domain is no longer active so I can't inspect their exact UI, but based on standard coaching app patterns and your description, the refinement is:
-
-**Current state:** The Demo button is tiny (`text-[10px]`) and tucked next to the set count. The video iframe loads a full YouTube embed.
-
-**Refinements to `src/components/workout/ExerciseCard.tsx`:**
-- Make the video button more visible: move it to the right side of the header row as a small icon button (Play circle icon), same prominence as the kebab menu
-- When tapped, the video section slides in below the header with a clean 16:9 embed -- this is already implemented and works well
-- No functional changes needed, just the button placement/sizing adjustment
-
-This is a minor polish -- the core architecture is already correct. The exercise library remains the single source of truth.
-
----
-
-## Summary of File Changes
+## Summary
 
 | File | Change |
 |------|--------|
-| `supabase/functions/admin-workout-builder/index.ts` | **New** -- edge function for admin CRUD on user workouts |
-| `src/components/admin/AdminWorkoutBuilder.tsx` | **New** -- workout builder UI for admin user profile |
-| `src/pages/AdminUserProfile.tsx` | Add AdminWorkoutBuilder to training section |
-| `src/components/workout/WorkoutLogger.tsx` | Add notes textarea below exercises |
-| `src/stores/workoutStore.ts` | Add `updateWorkoutNotes` action |
-| `src/components/workout/WorkoutHistoryView.tsx` | Display workout notes in history view |
-| `src/components/workout/ExerciseCard.tsx` | Adjust video button placement for better visibility |
+| `supabase/functions/admin-workout-builder/index.ts` | Fix broken auth (`getClaims` → `getUser`), the actual reason nothing works |
+| `src/components/admin/AdminWorkoutBuilder.tsx` | Rebuild UI to match user-facing workout logger quality |
+| `src/pages/AdminUserProfile.tsx` | Always show builder button; refresh data after save |
+| `src/components/workout/ExerciseCard.tsx` | Auto-detect video platform in `toEmbedUrl` call |
 
-No database migrations needed. The `workouts.notes` column and all required tables already exist.
+No database changes needed.
 
