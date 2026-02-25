@@ -74,6 +74,7 @@ interface WorkoutState {
   fetchWorkoutDays: (weeks?: number) => Promise<WorkoutDay[]>;
   getLastSessionSets: (exerciseName: string) => Promise<{ weight: number; reps: number }[]>;
   editWorkout: (workoutId: string) => Promise<void>;
+  updateWorkoutNotes: (notes: string) => void;
 }
 
 export const useWorkoutStore = create<WorkoutState>((set, get) => ({
@@ -567,6 +568,17 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
     });
   },
   
+  updateWorkoutNotes: (notes: string) => {
+    const { activeWorkout } = get();
+    if (!activeWorkout) return;
+    set({ activeWorkout: { ...activeWorkout, notes } });
+    supabase
+      .from('workouts')
+      .update({ notes })
+      .eq('id', activeWorkout.id)
+      .then(() => {});
+  },
+
   cancelWorkout: async () => {
     const { activeWorkout, isEditing } = get();
     if (!activeWorkout) return;

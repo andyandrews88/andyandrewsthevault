@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.audit-recap]
 verify_jwt = false
+
+[functions.admin-workout-builder]
+verify_jwt = false

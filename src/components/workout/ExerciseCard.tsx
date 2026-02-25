@@ -85,7 +85,7 @@ export function ExerciseCard({ exercise, onRemove }: ExerciseCardProps) {
     <Card variant="elevated" className="overflow-hidden">
       <CardHeader className="py-3 px-4 bg-secondary/30">
         <div className="flex items-center justify-between">
-          <div>
+          <div className="flex-1 min-w-0">
             <h3 className="font-semibold text-base uppercase tracking-wide">
               {exercise.exercise_name}
             </h3>
@@ -99,21 +99,22 @@ export function ExerciseCard({ exercise, onRemove }: ExerciseCardProps) {
                   {percentageHint}% TM
                 </Badge>
               )}
-              {videoUrl && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-5 px-1.5 text-[10px] gap-1 text-primary"
-                  onClick={() => setShowVideo(!showVideo)}
-                >
-                  {showVideo ? <ChevronUp className="w-3 h-3" /> : <Play className="w-3 h-3" />}
-                  Demo
-                </Button>
-              )}
             </div>
           </div>
+
+          <div className="flex items-center gap-1">
+            {videoUrl && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-primary"
+                onClick={() => setShowVideo(!showVideo)}
+              >
+                {showVideo ? <ChevronUp className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+              </Button>
+            )}
           
-          <DropdownMenu>
+            <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="h-8 w-8">
                 <MoreVertical className="h-4 w-4" />
@@ -129,7 +130,8 @@ export function ExerciseCard({ exercise, onRemove }: ExerciseCardProps) {
                 Remove Exercise
               </DropdownMenuItem>
             </DropdownMenuContent>
-          </DropdownMenu>
+            </DropdownMenu>
+          </div>
         </div>
       </CardHeader>
 

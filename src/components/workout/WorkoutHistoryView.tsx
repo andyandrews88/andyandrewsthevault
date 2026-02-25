@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dumbbell, Clock, TrendingUp, Pencil } from "lucide-react";
+import { Dumbbell, Clock, TrendingUp, Pencil, FileText } from "lucide-react";
 import { Workout, WorkoutExercise } from "@/types/workout";
 import { format } from "date-fns";
 import { useWorkoutStore } from "@/stores/workoutStore";
@@ -61,6 +61,18 @@ export function WorkoutHistoryView({ workout, exercises }: WorkoutHistoryViewPro
           </div>
         </CardContent>
       </Card>
+
+      {/* Workout Notes */}
+      {workout.notes && (
+        <Card variant="elevated" className="border-primary/10">
+          <CardContent className="py-3 px-4">
+            <div className="flex items-start gap-2">
+              <FileText className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+              <p className="text-sm text-muted-foreground whitespace-pre-wrap">{workout.notes}</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Exercises */}
       {exercises.map((exercise) => (
