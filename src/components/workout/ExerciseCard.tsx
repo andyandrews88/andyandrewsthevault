@@ -8,10 +8,14 @@ import {
   DropdownMenuItem, 
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
-import { Plus, MoreVertical, History, Trash2, Percent } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { AspectRatio } from "@/components/ui/aspect-ratio";
+import { Plus, MoreVertical, History, Trash2, Percent, Play, ChevronUp } from "lucide-react";
 import { WorkoutExercise } from "@/types/workout";
 import { SetRow } from "./SetRow";
 import { useWorkoutStore } from "@/stores/workoutStore";
+import { supabase } from "@/integrations/supabase/client";
+import { toEmbedUrl } from "@/lib/vaultService";
 
 interface ExerciseCardProps {
   exercise: WorkoutExercise;
@@ -32,8 +36,27 @@ export function ExerciseCard({ exercise, onRemove }: ExerciseCardProps) {
   const { addSet, removeSet, updateSet, completeSet, loadLastSession, getLastSessionSets, preferredUnit } = useWorkoutStore();
   const [previousSets, setPreviousSets] = useState<{ weight: number; reps: number }[]>([]);
   const [isLoadingPrevious, setIsLoadingPrevious] = useState(false);
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [showVideo, setShowVideo] = useState(false);
 
   const percentageHint = parsePercentageHint(exercise.notes);
+
+  // Fetch video URL from exercise_library
+  useEffect(() => {
+    let cancelled = false;
+    const fetchVideo = async () => {
+      const { data } = await supabase
+        .from('exercise_library')
+        .select('video_url')
+        .ilike('name', exercise.exercise_name)
+        .maybeSingle();
+      if (!cancelled && data?.video_url) {
+        setVideoUrl(data.video_url);
+      }
+    };
+    fetchVideo();
+    return () => { cancelled = true; };
+  }, [exercise.exercise_name]);
 
   useEffect(() => {
     let cancelled = false;
@@ -76,6 +99,17 @@ export function ExerciseCard({ exercise, onRemove }: ExerciseCardProps) {
                   {percentageHint}% TM
                 </Badge>
               )}
+              {videoUrl && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-5 px-1.5 text-[10px] gap-1 text-primary"
+                  onClick={() => setShowVideo(!showVideo)}
+                >
+                  {showVideo ? <ChevronUp className="w-3 h-3" /> : <Play className="w-3 h-3" />}
+                  Demo
+                </Button>
+              )}
             </div>
           </div>
           
@@ -98,6 +132,21 @@ export function ExerciseCard({ exercise, onRemove }: ExerciseCardProps) {
           </DropdownMenu>
         </div>
       </CardHeader>
+
+      {/* Collapsible Video Embed */}
+      {videoUrl && showVideo && (
+        <div className="px-4 pb-2">
+          <AspectRatio ratio={16 / 9} className="rounded-md overflow-hidden bg-secondary">
+            <iframe
+              src={toEmbedUrl(videoUrl, 'youtube')}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+              className="w-full h-full"
+              loading="lazy"
+            />
+          </AspectRatio>
+        </div>
+      )}
       
       <CardContent className="p-0">
         {/* Header Row */}

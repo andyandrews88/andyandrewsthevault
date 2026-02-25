@@ -324,16 +324,22 @@ export function ResultsPage() {
           </Card>
         )}
 
-        {/* CTAs */}
-        <div className="grid md:grid-cols-2 gap-4">
-          <CommunityCtaCard />
-          <Card variant="interactive" className="p-6">
-            <h3 className="font-semibold mb-2">Retake Assessment</h3>
-            <p className="text-sm text-muted-foreground mb-4">Made an error? Start over with fresh data</p>
-            <Button variant="outline" className="w-full" onClick={handleStartOver}>
-              <RotateCcw className="w-4 h-4 mr-2" />Start Over
+        {/* Retake Assessment - Prominent */}
+        <Card variant="elevated" className="mb-8 border-primary/30 bg-primary/5">
+          <CardContent className="p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div>
+              <h3 className="font-semibold text-lg">Ready for a New Assessment?</h3>
+              <p className="text-sm text-muted-foreground">Retake the audit to track your progress over time</p>
+            </div>
+            <Button variant="hero" size="lg" onClick={handleStartOver} className="shrink-0">
+              <RotateCcw className="w-4 h-4 mr-2" />Retake Assessment
             </Button>
-          </Card>
+          </CardContent>
+        </Card>
+
+        {/* CTAs */}
+        <div className="grid md:grid-cols-1 gap-4">
+          <CommunityCtaCard />
         </div>
       </div>
     </div>
