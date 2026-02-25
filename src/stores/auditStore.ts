@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
 export interface AuditData {
   // Biometrics (required)
@@ -254,48 +255,55 @@ function formatTime(seconds: number): string {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
-export const useAuditStore = create<AuditStore>((set, get) => ({
-  currentStep: 0,
-  data: {},
-  results: null,
+export const useAuditStore = create<AuditStore>()(
+  persist(
+    (set, get) => ({
+      currentStep: 0,
+      data: {},
+      results: null,
 
-  setStep: (step) => set({ currentStep: step }),
+      setStep: (step) => set({ currentStep: step }),
 
-  updateData: (updates) => set((state) => ({
-    data: { ...state.data, ...updates }
-  })),
+      updateData: (updates) => set((state) => ({
+        data: { ...state.data, ...updates }
+      })),
 
-  calculateResults: () => {
-    const { data } = get();
-    const fullData = data as AuditData;
-    
-    const { leaks, skippedAreas } = detectLeaks(fullData);
-    const scores = calculateScores(fullData);
-    const tier = determineTier(scores, fullData.experience);
-    const overallScore = Math.round(Object.values(scores).reduce((a, b) => a + b, 0) / 5);
+      calculateResults: () => {
+        const { data } = get();
+        const fullData = data as AuditData;
+        
+        const { leaks, skippedAreas } = detectLeaks(fullData);
+        const scores = calculateScores(fullData);
+        const tier = determineTier(scores, fullData.experience);
+        const overallScore = Math.round(Object.values(scores).reduce((a, b) => a + b, 0) / 5);
 
-    const foundationRecommended = fullData.experience === '<1';
-    const foundationReason = foundationRecommended 
-      ? 'With less than 1 year of consistent training, the Foundation track ensures long-term structural integrity and prevents injury.'
-      : undefined;
+        const foundationRecommended = fullData.experience === '<1';
+        const foundationReason = foundationRecommended 
+          ? 'With less than 1 year of consistent training, the Foundation track ensures long-term structural integrity and prevents injury.'
+          : undefined;
 
-    set({
-      results: {
-        data: fullData,
-        leaks,
-        scores,
-        tier,
-        overallScore,
-        foundationRecommended,
-        foundationReason,
-        skippedAreas,
-      }
-    });
-  },
+        set({
+          results: {
+            data: fullData,
+            leaks,
+            scores,
+            tier,
+            overallScore,
+            foundationRecommended,
+            foundationReason,
+            skippedAreas,
+          }
+        });
+      },
 
-  reset: () => set({
-    currentStep: 0,
-    data: {},
-    results: null,
-  }),
-}));
+      reset: () => set({
+        currentStep: 0,
+        data: {},
+        results: null,
+      }),
+    }),
+    {
+      name: 'vault-audit-data',
+    }
+  )
+);
