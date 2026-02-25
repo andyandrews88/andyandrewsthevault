@@ -1,106 +1,111 @@
 
 
-# Plan: Exercise Video Integration + Audit Results Persistence
+# Plan: Admin Workout Builder, Workout Notes, and Video Refinement
 
-## Feature 1: Exercise Demo Videos in Workout Logger
+## Overview
 
-### Current State
-- The `exercise_library` table already stores `video_url` (YouTube URLs) and `name` for each exercise
-- Admins can edit these via `ExerciseLibraryAdmin.tsx`
-- The `ExerciseCard` component displays exercise name and sets but has **zero connection** to the exercise library -- it only uses the `exercise_name` string from `workout_exercises`
-- The `ExerciseSearch` component uses a hardcoded list from `types/workout.ts`, not the database exercise library
-
-### Design: Lean Video Embed in ExerciseCard
-
-When a user adds an exercise to their workout, the `ExerciseCard` will look up the exercise name in the `exercise_library` table and, if a `video_url` exists, show a small collapsible video thumbnail/button in the card header. Tapping it reveals a YouTube embed below the exercise name -- like how strong, Hevy, and other training apps show demo videos.
-
-**Architecture:**
-
-```text
-ExerciseCard header
-┌──────────────────────────────────────┐
-│  BACK SQUAT                    ⋮    │
-│  2/4 sets completed   ▶ Demo        │
-├──────────────────────────────────────┤
-│  [YouTube embed - only when tapped]  │  ← collapsible, 16:9 aspect ratio
-├──────────────────────────────────────┤
-│  Set | Prev | Kg | Reps | RIR | ✓   │
-│  ...                                 │
-└──────────────────────────────────────┘
-```
-
-### File Changes
-
-**`src/components/workout/ExerciseCard.tsx`**
-- Add state: `videoUrl: string | null`, `showVideo: boolean`
-- On mount, query `exercise_library` by name (case-insensitive match) to get `video_url`
-- If `video_url` exists, show a small "Demo" button (Play icon) next to the exercise name
-- When tapped, toggle a collapsible section below the header showing a 16:9 YouTube embed iframe
-- Use the existing `transformToEmbedUrl` utility from `src/lib/vaultService.ts` (or inline a simple YouTube URL-to-embed converter) to convert watch URLs to embed URLs
-- The embed is lazy-loaded (only renders iframe when `showVideo` is true) for performance
-
-**`src/components/workout/ExerciseSearch.tsx`** (optional enhancement)
-- Fetch exercises from `exercise_library` table instead of (or merged with) the hardcoded list
-- This creates the synergy you want: exercises added by admin in the Knowledge Bank exercise library automatically appear in the workout search and carry their video URLs through
-
-This creates full connectivity: Admin adds exercise with video in Exercise Library → Exercise appears in workout search → User selects it → Video demo appears in their logging card.
-
-### Synergy with Knowledge Bank
-The exercise library in the admin panel IS the source of truth. Videos added there flow directly into the workout logger. No duplication, single source.
+Three interconnected changes: (1) admin can create/edit workouts for any user from their profile page, (2) a notes field at the bottom of each workout session, (3) refinement of the exercise video feature.
 
 ---
 
-## Feature 2: Audit Results Persistence
+## 1. Admin Workout Builder on User Profile
 
-### Current State
-- `auditStore` is a Zustand store with **no persistence** -- state lives only in memory
-- When the user navigates away from `/results` and comes back, `results` is `null`, so `ResultsPage` redirects them to `/audit`
-- The `/audit` form re-renders from step 0, though the `data` in the store still has their entries (until page refresh)
-- The store's `reset()` clears everything
+**What you get:** From the admin user profile page (`/admin/user/:userId`), you can create a new workout for that user, add exercises, log sets with weights/reps, and add notes. The data writes directly to the user's `workouts`, `workout_exercises`, and `exercise_sets` tables using the service role (via a new edge function). Changes appear on the client's end immediately.
 
-### Design: Persist Results + Smart Routing
+### Architecture
 
-**Strategy:** Persist the audit store to `localStorage` using Zustand's `persist` middleware. When a user has completed results, navigating to `/audit` should show the results page, not the form. A prominent "Retake Assessment" card is already on the results page but needs to be more visible.
+The admin cannot use the regular `workoutStore` because RLS restricts writes to the authenticated user's own rows. Instead, a new edge function `admin-workout-builder` handles all CRUD operations on behalf of the target user using the service role key.
 
-### File Changes
+**New edge function: `supabase/functions/admin-workout-builder/index.ts`**
 
-**`src/stores/auditStore.ts`**
-- Add Zustand `persist` middleware wrapping the store
-- Storage key: `vault-audit-data`
-- This persists `currentStep`, `data`, and `results` across navigation and page refreshes
+Accepts these actions:
+- `create_workout` -- creates a workout row for target user (name, date)
+- `add_exercise` -- adds a workout_exercise to a workout
+- `add_set` -- adds an exercise_set
+- `update_set` -- updates weight/reps/completion on a set
+- `remove_exercise` -- deletes a workout_exercise
+- `finish_workout` -- marks workout as completed
+- `update_notes` -- updates workout-level notes
+- `get_workout_detail` -- fetches full workout with exercises and sets
 
-**`src/pages/Audit.tsx`**
-- Check if `results` exists in the audit store
-- If yes, render the `ResultsPage` instead of `AuditForm`
-- This means `/audit` becomes the single entry point: it shows the form if no results exist, and shows results if they do
+All actions verify the caller is an admin via `user_roles`.
 
-**`src/pages/Results.tsx`**
-- Keep as-is (it also renders `ResultsPage`), but update the redirect: if `results` is null, redirect to `/audit` (already does this)
+**New component: `src/components/admin/AdminWorkoutBuilder.tsx`**
 
-**`src/components/audit/ResultsPage.tsx`**
-- Make the "Retake Assessment" card more prominent: move it higher in the layout, use `variant="hero"` button styling, larger text, and an eye-catching border/background
-- The `handleStartOver` calls `reset()` which clears persisted data and navigates to `/audit`, which will now show the form since results are null
+A self-contained workout builder UI embedded in the AdminUserProfile page:
+- "Build Workout" button opens a card/dialog
+- Name the workout + pick a date
+- Exercise search (queries `exercise_library` table for admin-curated exercises)
+- For each exercise: add sets with weight/reps fields, complete button
+- Notes textarea at the bottom
+- "Save & Complete" button finishes the workout
+- All operations go through the edge function, not the client-side store
 
-### User Flow After Fix
+**Changes to `src/pages/AdminUserProfile.tsx`**
+- Import and render `AdminWorkoutBuilder` in the Training section
+- Pass `userId` and user's display name as props
+
+### Data Flow
 
 ```text
-1. User completes audit → results shown
-2. User navigates away (to /vault, closes browser, etc.)
-3. User returns to /audit → results page shown (not form)
-4. User taps "Retake Assessment" → form resets, starts fresh
+Admin taps "Build Workout" on user profile
+  → AdminWorkoutBuilder renders inline
+  → Each action calls admin-workout-builder edge function
+  → Edge function uses service role to write to user's tables
+  → Client user sees the workout in their history on next load
 ```
+
+No database schema changes needed. The existing `workouts`, `workout_exercises`, and `exercise_sets` tables already support this -- the edge function just writes with the target user's ID instead of the admin's.
 
 ---
 
-## Summary
+## 2. Workout Notes Section
+
+**What users see:** A notes textarea at the bottom of the active workout logger (above the session stats footer). Users can type session notes -- how they felt, adjustments made, coaching cues. Notes persist to the `workouts.notes` column which already exists.
+
+### File Changes
+
+**`src/components/workout/WorkoutLogger.tsx`**
+- Add a `Textarea` component below the exercise cards and above the session stats footer
+- The textarea reads from `activeWorkout.notes` and writes via a debounced update to the `workouts` table
+- Label: "Session Notes" with a small icon (StickyNote or FileText)
+- Placeholder: "How did training feel today? Any notes for your coach..."
+
+**`src/stores/workoutStore.ts`**
+- Add `updateWorkoutNotes: (notes: string) => void` action
+- Debounced write to `supabase.from('workouts').update({ notes }).eq('id', activeWorkout.id)`
+
+**`src/components/workout/WorkoutHistoryView.tsx`**
+- Display `workout.notes` in the history view if it exists, in a subtle card below the workout header
+
+---
+
+## 3. Exercise Video -- CoachRx-Style Simplification
+
+The current video implementation is already close to CoachRx's pattern (collapsible embed in exercise card). The CoachRx domain is no longer active so I can't inspect their exact UI, but based on standard coaching app patterns and your description, the refinement is:
+
+**Current state:** The Demo button is tiny (`text-[10px]`) and tucked next to the set count. The video iframe loads a full YouTube embed.
+
+**Refinements to `src/components/workout/ExerciseCard.tsx`:**
+- Make the video button more visible: move it to the right side of the header row as a small icon button (Play circle icon), same prominence as the kebab menu
+- When tapped, the video section slides in below the header with a clean 16:9 embed -- this is already implemented and works well
+- No functional changes needed, just the button placement/sizing adjustment
+
+This is a minor polish -- the core architecture is already correct. The exercise library remains the single source of truth.
+
+---
+
+## Summary of File Changes
 
 | File | Change |
 |------|--------|
-| `src/components/workout/ExerciseCard.tsx` | Add video lookup from exercise_library + collapsible YouTube embed |
-| `src/components/workout/ExerciseSearch.tsx` | Optionally merge exercise_library entries into search results |
-| `src/stores/auditStore.ts` | Add Zustand persist middleware |
-| `src/pages/Audit.tsx` | Show ResultsPage when results exist |
-| `src/components/audit/ResultsPage.tsx` | Make "Retake Assessment" more prominent |
+| `supabase/functions/admin-workout-builder/index.ts` | **New** -- edge function for admin CRUD on user workouts |
+| `src/components/admin/AdminWorkoutBuilder.tsx` | **New** -- workout builder UI for admin user profile |
+| `src/pages/AdminUserProfile.tsx` | Add AdminWorkoutBuilder to training section |
+| `src/components/workout/WorkoutLogger.tsx` | Add notes textarea below exercises |
+| `src/stores/workoutStore.ts` | Add `updateWorkoutNotes` action |
+| `src/components/workout/WorkoutHistoryView.tsx` | Display workout notes in history view |
+| `src/components/workout/ExerciseCard.tsx` | Adjust video button placement for better visibility |
 
-No database changes needed. No edge function changes.
+No database migrations needed. The `workouts.notes` column and all required tables already exist.
 
