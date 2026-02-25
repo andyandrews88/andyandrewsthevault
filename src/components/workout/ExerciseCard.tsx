@@ -140,7 +140,7 @@ export function ExerciseCard({ exercise, onRemove }: ExerciseCardProps) {
         <div className="px-4 pb-2">
           <AspectRatio ratio={16 / 9} className="rounded-md overflow-hidden bg-secondary">
             <iframe
-              src={toEmbedUrl(videoUrl, 'youtube')}
+              src={toEmbedUrl(videoUrl)}
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
               className="w-full h-full"

@@ -3,10 +3,13 @@ import { VaultResource, VaultPodcast, ResourceFormData, PodcastFormData } from '
 import { Resource } from '@/types/resources';
 
 // Convert various video URL formats to embed URLs
-export function toEmbedUrl(url: string, type: 'youtube' | 'vimeo'): string {
+export function toEmbedUrl(url: string, type?: 'youtube' | 'vimeo'): string {
   if (!url) return '';
   
-  if (type === 'youtube') {
+  // Auto-detect platform if type not specified
+  const detectedType = type || (url.includes('vimeo.com') ? 'vimeo' : 'youtube');
+
+  if (detectedType === 'youtube') {
     // Already an embed URL
     if (url.includes('youtube.com/embed/')) return url;
     
@@ -30,7 +33,7 @@ export function toEmbedUrl(url: string, type: 'youtube' | 'vimeo'): string {
     }
   }
   
-  if (type === 'vimeo') {
+  if (detectedType === 'vimeo') {
     // Already an embed URL
     if (url.includes('player.vimeo.com/video/')) return url;
     
