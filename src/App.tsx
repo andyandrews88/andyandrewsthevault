@@ -14,6 +14,7 @@ import ProfileSettings from "./pages/ProfileSettings";
 import NotFound from "./pages/NotFound";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminUserProfile from "./pages/AdminUserProfile";
+import AdminWorkoutBuilderPage from "./pages/AdminWorkoutBuilderPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { useAuthStore } from "./stores/authStore";
 import { useUserDataSync } from "./hooks/useUserDataSync";
@@ -40,6 +41,7 @@ function AppContent() {
       <Route path="/profile" element={<ProtectedRoute><ProfileSettings /></ProtectedRoute>} />
       <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
       <Route path="/admin/user/:userId" element={<ProtectedRoute><AdminUserProfile /></ProtectedRoute>} />
+      <Route path="/admin/user/:userId/build-workout" element={<ProtectedRoute><AdminWorkoutBuilderPage /></ProtectedRoute>} />
       {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
       <Route path="*" element={<NotFound />} />
     </Routes>

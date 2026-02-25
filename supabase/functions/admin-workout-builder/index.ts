@@ -185,6 +185,16 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
       }
 
+      case "update_exercise_notes": {
+        const { exerciseId, notes } = body;
+        const { error } = await serviceClient
+          .from("workout_exercises")
+          .update({ notes })
+          .eq("id", exerciseId);
+        if (error) throw error;
+        return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
+      }
+
       case "get_workout_detail": {
         const { workoutId } = body;
         const { data: workout, error: wErr } = await serviceClient
