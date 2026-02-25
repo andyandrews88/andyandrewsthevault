@@ -186,6 +186,9 @@ Deno.serve(async (req) => {
       const { data: podcasts } = await admin.from("vault_podcasts").select("id, title, is_featured, created_at, episode_number").order("created_at", { ascending: false });
 
       result = { resources: resources || [], podcasts: podcasts || [] };
+    } else if (section === "announcements") {
+      const { data: announcements } = await admin.from("announcements").select("*").order("created_at", { ascending: false });
+      result = { announcements: announcements || [] };
     } else {
       throw new Error("Invalid section");
     }
