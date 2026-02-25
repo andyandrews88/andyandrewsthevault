@@ -170,12 +170,18 @@ export default function AdminUserProfile() {
         </div>
 
         {/* Training */}
-        {data.training.workouts.length > 0 && (
-          <section className="space-y-3">
-            <div className="flex items-center justify-between">
-              <Badge variant="outline" className="text-xs">TRAINING</Badge>
-              <AdminWorkoutBuilder userId={userId!} displayName={p?.display_name || "User"} />
-            </div>
+        <section className="space-y-3">
+          <div className="flex items-center justify-between">
+            <Badge variant="outline" className="text-xs">TRAINING</Badge>
+            <AdminWorkoutBuilder userId={userId!} displayName={p?.display_name || "User"} onWorkoutSaved={async () => {
+              // Re-fetch profile data after workout saved
+              try {
+                const { data: result } = await supabase.functions.invoke("admin-user-profile", { body: { userId } });
+                if (result) setData(result);
+              } catch {}
+            }} />
+          </div>
+          {data.training.workouts.length > 0 && (
             <Card className="glass border-border/50">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm">Recent Workouts (Total Volume: {data.training.totalVolume.toLocaleString()} kg)</CardTitle>
@@ -201,23 +207,23 @@ export default function AdminUserProfile() {
                 </Table>
               </CardContent>
             </Card>
-            {data.training.prs.length > 0 && (
-              <Card className="glass border-border/50">
-                <CardHeader className="pb-2"><CardTitle className="text-sm">Personal Records</CardTitle></CardHeader>
-                <CardContent>
-                  <div className="space-y-1.5">
-                    {data.training.prs.map((pr: any) => (
-                      <div key={pr.id} className="flex justify-between text-sm">
-                        <span>{pr.exercise_name}</span>
-                        <span className="text-muted-foreground">{pr.max_weight}kg × {pr.max_reps || 1} — {format(new Date(pr.achieved_at), "MMM d")}</span>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </section>
-        )}
+          )}
+          {data.training.prs.length > 0 && (
+            <Card className="glass border-border/50">
+              <CardHeader className="pb-2"><CardTitle className="text-sm">Personal Records</CardTitle></CardHeader>
+              <CardContent>
+                <div className="space-y-1.5">
+                  {data.training.prs.map((pr: any) => (
+                    <div key={pr.id} className="flex justify-between text-sm">
+                      <span>{pr.exercise_name}</span>
+                      <span className="text-muted-foreground">{pr.max_weight}kg × {pr.max_reps || 1} — {format(new Date(pr.achieved_at), "MMM d")}</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </section>
 
         {/* Check-ins */}
         {data.checkins.totalCount > 0 && (
