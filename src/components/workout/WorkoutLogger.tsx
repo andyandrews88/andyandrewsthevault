@@ -19,13 +19,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { 
   ArrowLeft, 
   Plus, 
   Save, 
   Dumbbell,
   Clock,
-  TrendingUp
+  TrendingUp,
+  FileText
 } from "lucide-react";
 import { useWorkoutStore } from "@/stores/workoutStore";
 import { ExerciseCard } from "./ExerciseCard";
@@ -69,7 +71,8 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
     fetchWorkoutDays,
     fetchWorkoutByDate,
     preferredUnit,
-    isEditing
+    isEditing,
+    updateWorkoutNotes
   } = useWorkoutStore();
   
   const [isExerciseSearchOpen, setIsExerciseSearchOpen] = useState(false);
@@ -389,6 +392,20 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
         <Plus className="h-4 w-4 mr-2" />
         Add Exercise
       </Button>
+
+      {/* Session Notes */}
+      <div className="space-y-1.5">
+        <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+          <FileText className="h-3.5 w-3.5" />
+          Session Notes
+        </label>
+        <Textarea
+          value={activeWorkout.notes || ""}
+          onChange={(e) => updateWorkoutNotes(e.target.value)}
+          placeholder="How did training feel today? Any notes for your coach..."
+          className="min-h-[60px] resize-none text-sm"
+        />
+      </div>
       
       {/* Session Stats Footer */}
       <Card variant="data" className="mt-4">

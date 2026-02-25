@@ -17,6 +17,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { useCommunityStore } from "@/stores/communityStore";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "@/hooks/use-toast";
+import { AdminWorkoutBuilder } from "@/components/admin/AdminWorkoutBuilder";
 
 export default function AdminUserProfile() {
   const { userId } = useParams<{ userId: string }>();
@@ -171,7 +172,10 @@ export default function AdminUserProfile() {
         {/* Training */}
         {data.training.workouts.length > 0 && (
           <section className="space-y-3">
-            <Badge variant="outline" className="text-xs">TRAINING</Badge>
+            <div className="flex items-center justify-between">
+              <Badge variant="outline" className="text-xs">TRAINING</Badge>
+              <AdminWorkoutBuilder userId={userId!} displayName={p?.display_name || "User"} />
+            </div>
             <Card className="glass border-border/50">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm">Recent Workouts (Total Volume: {data.training.totalVolume.toLocaleString()} kg)</CardTitle>
