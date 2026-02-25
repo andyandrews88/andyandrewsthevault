@@ -37,7 +37,7 @@ interface LocalExercise {
 async function invokeBuilder(body: Record<string, unknown>) {
   const { data, error } = await supabase.functions.invoke("admin-workout-builder", { body });
   if (error) throw error;
-  return data;
+  return typeof data === "string" ? JSON.parse(data) : data;
 }
 
 export default function AdminWorkoutBuilderPage() {
@@ -49,11 +49,13 @@ export default function AdminWorkoutBuilderPage() {
   const workoutName = searchParams.get("name") || "Workout";
   const workoutDate = searchParams.get("date") || format(new Date(), "yyyy-MM-dd");
   const displayName = searchParams.get("client") || "Client";
+  const cloneFrom = searchParams.get("cloneFrom");
 
   const [workoutId, setWorkoutId] = useState<string | null>(null);
   const [exercises, setExercises] = useState<LocalExercise[]>([]);
   const [notes, setNotes] = useState("");
   const [isCreating, setIsCreating] = useState(true);
+  const [isCloning, setIsCloning] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [exerciseSearchOpen, setExerciseSearchOpen] = useState(false);
   const [addingExercise, setAddingExercise] = useState(false);
@@ -64,7 +66,7 @@ export default function AdminWorkoutBuilderPage() {
     if (!adminLoading && !isAdmin) navigate("/");
   }, [adminLoading, isAdmin, navigate]);
 
-  // Create workout on mount
+  // Create workout on mount + optional clone
   useEffect(() => {
     if (!userId || !isAdmin || adminLoading) return;
     const create = async () => {
@@ -75,7 +77,81 @@ export default function AdminWorkoutBuilderPage() {
           workoutName,
           date: workoutDate,
         });
-        setWorkoutId(data.id);
+        const newWorkoutId = data.id;
+        setWorkoutId(newWorkoutId);
+
+        // Clone from previous workout if requested
+        if (cloneFrom && newWorkoutId) {
+          setIsCloning(true);
+          try {
+            const sourceData = await invokeBuilder({ action: "get_workout_detail", workoutId: cloneFrom });
+            const sourceExercises = sourceData.exercises || [];
+            for (let i = 0; i < sourceExercises.length; i++) {
+              const srcEx = sourceExercises[i];
+              const exData = await invokeBuilder({
+                action: "add_exercise",
+                workoutId: newWorkoutId,
+                exerciseName: srcEx.exercise_name,
+                orderIndex: i,
+                exerciseType: srcEx.exercise_type || "strength",
+              });
+              const newSets: LocalSet[] = [];
+              const srcSets = srcEx.sets || [];
+              // First set is auto-created, update it if we have source data
+              if (srcSets.length > 0 && exData.sets?.length > 0) {
+                const firstSet = exData.sets[0];
+                await invokeBuilder({
+                  action: "update_set", setId: firstSet.id,
+                  weight: srcSets[0].weight, reps: srcSets[0].reps, rir: srcSets[0].rir,
+                  isCompleted: false,
+                });
+                newSets.push({
+                  id: firstSet.id, set_number: 1,
+                  weight: srcSets[0].weight, reps: srcSets[0].reps, rir: srcSets[0].rir || null,
+                  is_completed: false,
+                });
+              }
+              // Add remaining sets
+              for (let j = 1; j < srcSets.length; j++) {
+                const setData = await invokeBuilder({
+                  action: "add_set", exerciseId: exData.id, setNumber: j + 1,
+                  weight: srcSets[j].weight, reps: srcSets[j].reps,
+                });
+                if (srcSets[j].rir != null) {
+                  await invokeBuilder({
+                    action: "update_set", setId: setData.id,
+                    weight: srcSets[j].weight, reps: srcSets[j].reps, rir: srcSets[j].rir,
+                    isCompleted: false,
+                  });
+                }
+                newSets.push({
+                  id: setData.id, set_number: j + 1,
+                  weight: srcSets[j].weight, reps: srcSets[j].reps, rir: srcSets[j].rir || null,
+                  is_completed: false,
+                });
+              }
+              // If no source sets, use the auto-created first set
+              if (srcSets.length === 0 && exData.sets?.length > 0) {
+                newSets.push({
+                  id: exData.sets[0].id, set_number: 1,
+                  weight: null, reps: null, rir: null, is_completed: false,
+                });
+              }
+              setExercises(prev => [...prev, {
+                id: exData.id,
+                exercise_name: exData.exercise_name,
+                exercise_type: exData.exercise_type || "strength",
+                notes: srcEx.notes || "",
+                sets: newSets,
+              }]);
+            }
+            toast({ title: "Workout cloned", description: `${sourceExercises.length} exercises loaded from previous session` });
+          } catch (cloneErr: any) {
+            toast({ title: "Clone partially failed", description: cloneErr.message, variant: "destructive" });
+          } finally {
+            setIsCloning(false);
+          }
+        }
       } catch (e: any) {
         toast({ title: "Error creating workout", description: e.message, variant: "destructive" });
         navigate(`/admin/user/${userId}`);
@@ -266,7 +342,7 @@ export default function AdminWorkoutBuilderPage() {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center space-y-4">
           <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
-          <p className="text-muted-foreground">Setting up workout...</p>
+          <p className="text-muted-foreground">{isCloning ? "Cloning workout..." : "Setting up workout..."}</p>
         </div>
       </div>
     );
