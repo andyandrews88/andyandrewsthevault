@@ -218,16 +218,63 @@ Deno.serve(async (req) => {
       }
 
       case "get_user_workouts": {
-        const { userId, limit: queryLimit } = body;
-        const { data, error } = await serviceClient
+        const { userId, limit: queryLimit, includeAll } = body;
+        let query = serviceClient
           .from("workouts")
           .select("*")
           .eq("user_id", userId)
-          .eq("is_completed", true)
           .order("date", { ascending: false })
           .limit(queryLimit || 20);
+        if (!includeAll) {
+          query = query.eq("is_completed", true);
+        }
+        const { data, error } = await query;
         if (error) throw error;
         return new Response(JSON.stringify(data), { headers: corsHeaders });
+      }
+
+      case "reopen_workout": {
+        const { workoutId } = body;
+        const { error } = await serviceClient
+          .from("workouts")
+          .update({ is_completed: false })
+          .eq("id", workoutId);
+        if (error) throw error;
+        return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
+      }
+
+      case "upsert_exercise_video": {
+        const { exerciseName, videoUrl } = body;
+        // Check if exercise exists in library
+        const { data: existing } = await serviceClient
+          .from("exercise_library")
+          .select("id")
+          .ilike("name", exerciseName)
+          .maybeSingle();
+        
+        if (existing) {
+          const { error } = await serviceClient
+            .from("exercise_library")
+            .update({ video_url: videoUrl, updated_at: new Date().toISOString() })
+            .eq("id", existing.id);
+          if (error) throw error;
+        } else {
+          const { error } = await serviceClient
+            .from("exercise_library")
+            .insert({ name: exerciseName, video_url: videoUrl, category: "strength" });
+          if (error) throw error;
+        }
+        return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
+      }
+
+      case "get_exercise_video": {
+        const { exerciseName } = body;
+        const { data } = await serviceClient
+          .from("exercise_library")
+          .select("video_url")
+          .ilike("name", exerciseName)
+          .maybeSingle();
+        return new Response(JSON.stringify({ video_url: data?.video_url || null }), { headers: corsHeaders });
       }
 
       default:

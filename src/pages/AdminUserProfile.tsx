@@ -189,20 +189,30 @@ export default function AdminUserProfile() {
               <CardContent className="p-0">
                 <Table>
                   <TableHeader>
-                    <TableRow>
-                      <TableHead>Workout</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead className="text-right">Volume</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {data.training.workouts.slice(0, 15).map((w: any) => (
-                      <TableRow key={w.id}>
-                        <TableCell className="text-sm font-medium">{w.workout_name}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{format(new Date(w.date), "MMM d, yyyy")}</TableCell>
-                        <TableCell className="text-right text-sm">{Number(w.total_volume || 0).toLocaleString()}</TableCell>
-                      </TableRow>
-                    ))}
+                     <TableRow>
+                       <TableHead>Workout</TableHead>
+                       <TableHead>Date</TableHead>
+                       <TableHead>Status</TableHead>
+                       <TableHead className="text-right">Volume</TableHead>
+                     </TableRow>
+                   </TableHeader>
+                   <TableBody>
+                     {data.training.workouts.slice(0, 15).map((w: any) => (
+                       <TableRow
+                         key={w.id}
+                         className="cursor-pointer hover:bg-primary/5 transition-colors"
+                         onClick={() => navigate(`/admin/user/${userId}/build-workout?edit=${w.id}&name=${encodeURIComponent(w.workout_name)}&client=${encodeURIComponent(p?.display_name || 'User')}`)}
+                       >
+                         <TableCell className="text-sm font-medium">{w.workout_name}</TableCell>
+                         <TableCell className="text-sm text-muted-foreground">{format(new Date(w.date), "MMM d, yyyy")}</TableCell>
+                         <TableCell>
+                           <Badge variant={w.is_completed ? "default" : "secondary"} className={`text-[10px] ${w.is_completed ? 'bg-green-600/80' : 'bg-amber-500/80'}`}>
+                             {w.is_completed ? "Completed" : "In Progress"}
+                           </Badge>
+                         </TableCell>
+                         <TableCell className="text-right text-sm">{Number(w.total_volume || 0).toLocaleString()}</TableCell>
+                       </TableRow>
+                     ))}
                   </TableBody>
                 </Table>
               </CardContent>
