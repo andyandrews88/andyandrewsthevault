@@ -42,6 +42,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { UserCalendarWorkout } from "@/stores/programStore";
 import { format } from "date-fns";
 import { convertWeight } from "@/lib/weightConversion";
+import { BodyweightBanner } from "./BodyweightBanner";
+import { classifyExercise, PATTERN_COLORS, MOVEMENT_PATTERN_SHORT, type MovementPattern } from "@/lib/movementPatterns";
 
 
 interface WorkoutLoggerProps {
@@ -383,6 +385,9 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
         ))}
       </div>
       
+      {/* Bodyweight Banner */}
+      <BodyweightBanner />
+
       {/* Add Exercise Button */}
       <Button 
         variant="outline" 
@@ -409,7 +414,7 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
       
       {/* Session Stats Footer */}
       <Card variant="data" className="mt-4">
-        <CardContent className="py-3">
+        <CardContent className="py-3 space-y-2">
           <div className="flex items-center justify-around text-center">
             <div>
               <div className="flex items-center justify-center gap-1 text-muted-foreground">
@@ -435,6 +440,26 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
               <p className="font-bold">{exercises.length}</p>
             </div>
           </div>
+          {/* Pattern dots */}
+          {(() => {
+            const hitPatterns = new Map<MovementPattern, number>();
+            exercises.forEach(ex => {
+              if (ex.exercise_type === 'conditioning') return;
+              const p = classifyExercise(ex.exercise_name);
+              hitPatterns.set(p, (hitPatterns.get(p) || 0) + 1);
+            });
+            if (hitPatterns.size === 0) return null;
+            return (
+              <div className="flex items-center justify-center gap-1.5 pt-1 border-t border-border">
+                {Array.from(hitPatterns.entries()).map(([p, count]) => (
+                  <div key={p} className="flex items-center gap-0.5" title={`${MOVEMENT_PATTERN_SHORT[p]}: ${count} exercise${count > 1 ? 's' : ''}`}>
+                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: PATTERN_COLORS[p] }} />
+                    <span className="text-[10px] text-muted-foreground font-mono">{MOVEMENT_PATTERN_SHORT[p]}</span>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
         </CardContent>
       </Card>
       

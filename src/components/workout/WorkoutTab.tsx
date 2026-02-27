@@ -9,6 +9,7 @@ import { VolumeTrendChart } from "./VolumeTrendChart";
 import { ActivityHeatmap } from "./ActivityHeatmap";
 import { PRBoard } from "./PRBoard";
 import { ProgramCalendarView } from "./ProgramCalendarView";
+import { MovementBalanceChart } from "./MovementBalanceChart";
 
 export function WorkoutTab() {
   const [activeTab, setActiveTab] = useState("logger");
@@ -59,6 +60,9 @@ export function WorkoutTab() {
               <StrengthTrendChart />
               <VolumeTrendChart />
             </div>
+
+            {/* Movement Balance */}
+            <MovementBalanceChart />
 
             {/* Heatmap */}
             <ActivityHeatmap />
