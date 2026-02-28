@@ -38,11 +38,18 @@ export interface ExerciseLibraryEntry {
   muscle_group: string | null;
   video_url: string | null;
   notes: string | null;
+  movement_pattern: string | null;
+  equipment_type: string | null;
   created_at: string;
   updated_at: string;
 }
 
 const CATEGORIES = ["strength", "conditioning", "olympic", "functional"] as const;
+
+const MOVEMENT_PATTERNS = ['hinge', 'squat', 'push', 'pull', 'single_leg', 'core', 'carry', 'olympic', 'isolation'] as const;
+const EQUIPMENT_TYPES = ['barbell', 'dumbbell', 'kettlebell', 'machine', 'cable', 'sandbag', 'bodyweight', 'other'] as const;
+const PATTERN_LABELS: Record<string, string> = { hinge: 'Hinge', squat: 'Squat', push: 'Push', pull: 'Pull', single_leg: 'Single Leg', core: 'Core', carry: 'Carry', olympic: 'Olympic', isolation: 'Isolation' };
+const EQUIP_LABELS: Record<string, string> = { barbell: 'Barbell', dumbbell: 'Dumbbell', kettlebell: 'Kettlebell', machine: 'Machine', cable: 'Cable', sandbag: 'Sandbag', bodyweight: 'Bodyweight', other: 'Other' };
 
 const EMPTY_FORM = {
   name: "",
@@ -50,6 +57,8 @@ const EMPTY_FORM = {
   muscle_group: "",
   video_url: "",
   notes: "",
+  movement_pattern: "",
+  equipment_type: "",
 };
 
 function ExerciseForm({
@@ -113,6 +122,32 @@ function ExerciseForm({
           className="mt-1"
         />
       </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <Label>Movement Pattern</Label>
+          <Select value={form.movement_pattern || "none"} onValueChange={v => setForm(f => ({ ...f, movement_pattern: v === "none" ? "" : v }))}>
+            <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">None</SelectItem>
+              {MOVEMENT_PATTERNS.map(p => (
+                <SelectItem key={p} value={p}>{PATTERN_LABELS[p]}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label>Equipment Type</Label>
+          <Select value={form.equipment_type || "none"} onValueChange={v => setForm(f => ({ ...f, equipment_type: v === "none" ? "" : v }))}>
+            <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">None</SelectItem>
+              {EQUIPMENT_TYPES.map(e => (
+                <SelectItem key={e} value={e}>{EQUIP_LABELS[e]}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
       <div>
         <Label>Coaching Notes</Label>
         <Textarea
@@ -161,6 +196,8 @@ export function ExerciseLibraryAdmin() {
       muscle_group: form.muscle_group.trim() || null,
       video_url: form.video_url.trim() || null,
       notes: form.notes.trim() || null,
+      movement_pattern: form.movement_pattern.trim() || null,
+      equipment_type: form.equipment_type.trim() || null,
     };
     if (editingExercise) {
       const { error } = await supabase.from('exercise_library' as any).update(row).eq('id', editingExercise.id);
@@ -279,6 +316,12 @@ export function ExerciseLibraryAdmin() {
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-medium text-sm">{ex.name}</span>
                   <Badge variant="outline" className="text-xs capitalize">{ex.category}</Badge>
+                  {ex.movement_pattern && (
+                    <Badge variant="secondary" className="text-[10px] capitalize">{PATTERN_LABELS[ex.movement_pattern] || ex.movement_pattern}</Badge>
+                  )}
+                  {ex.equipment_type && ex.equipment_type !== 'other' && (
+                    <Badge variant="secondary" className="text-[10px] capitalize">{EQUIP_LABELS[ex.equipment_type] || ex.equipment_type}</Badge>
+                  )}
                   {ex.muscle_group && (
                     <span className="text-xs text-muted-foreground">{ex.muscle_group}</span>
                   )}
@@ -318,6 +361,8 @@ export function ExerciseLibraryAdmin() {
               muscle_group: editingExercise.muscle_group || "",
               video_url: editingExercise.video_url || "",
               notes: editingExercise.notes || "",
+              movement_pattern: editingExercise.movement_pattern || "",
+              equipment_type: editingExercise.equipment_type || "",
             } : undefined}
             onSave={handleSave}
             onCancel={() => { setShowForm(false); setEditingExercise(null); }}

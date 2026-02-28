@@ -423,11 +423,26 @@ export function calculateSetVolume(
  * Convert raw volume to Normalized Training Units (NTUs).
  * NTU = rawVolume / (patternCoeff * equipmentModifier)
  */
-export function normalizeVolume(rawVolume: number, pattern: MovementPattern, exerciseName?: string): number {
+export function normalizeVolume(rawVolume: number, pattern: MovementPattern, exerciseName?: string, dbEquipment?: string | null): number {
   const patternCoeff = DIFFICULTY_COEFFICIENTS[pattern];
-  const equipMod = exerciseName ? getEquipmentModifier(exerciseName) : 1.0;
+  let equipMod: number;
+  if (dbEquipment && dbEquipment in EQUIPMENT_MODIFIER_VALUES) {
+    equipMod = EQUIPMENT_MODIFIER_VALUES[dbEquipment as EquipmentType];
+  } else {
+    equipMod = exerciseName ? getEquipmentModifier(exerciseName) : 1.0;
+  }
   const combined = patternCoeff * equipMod;
   return combined > 0 ? rawVolume / combined : rawVolume;
+}
+
+/**
+ * Classify exercise using DB-stored pattern if available, falling back to hardcoded.
+ */
+export function classifyExerciseWithDb(name: string, dbPattern?: string | null): MovementPattern {
+  if (dbPattern && ALL_PATTERNS.includes(dbPattern as MovementPattern)) {
+    return dbPattern as MovementPattern;
+  }
+  return classifyExercise(name);
 }
 
 // ─── Aggregation Types ────────────────────────────────────────────────

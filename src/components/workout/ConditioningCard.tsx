@@ -12,6 +12,7 @@ import { WorkoutExercise, ConditioningSet } from "@/types/workout";
 import { ConditioningSetRow } from "./ConditioningSetRow";
 import { ExerciseSearch } from "./ExerciseSearch";
 import { useWorkoutStore } from "@/stores/workoutStore";
+import { AdminExerciseMenu } from "./AdminExerciseMenu";
 
 interface ConditioningCardProps {
   exercise: WorkoutExercise;
@@ -78,6 +79,7 @@ export function ConditioningCard({ exercise, onRemove, onMoveUp, onMoveDown, can
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Replace Exercise
               </DropdownMenuItem>
+              <AdminExerciseMenu exerciseName={exercise.exercise_name} />
               <DropdownMenuItem onClick={onRemove} className="text-destructive">
                 <Trash2 className="h-4 w-4 mr-2" />
                 Remove Exercise

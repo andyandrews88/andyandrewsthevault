@@ -21,6 +21,7 @@ import { useWorkoutStore } from "@/stores/workoutStore";
 import { supabase } from "@/integrations/supabase/client";
 import { toEmbedUrl } from "@/lib/vaultService";
 import { cn } from "@/lib/utils";
+import { AdminExerciseMenu } from "./AdminExerciseMenu";
 
 interface ExerciseCardProps {
   exercise: WorkoutExercise;
@@ -190,6 +191,7 @@ export function ExerciseCard({ exercise, onRemove, allExercises = [], onMoveUp, 
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Replace Exercise
               </DropdownMenuItem>
+              <AdminExerciseMenu exerciseName={exercise.exercise_name} />
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={onRemove} className="text-destructive">
                 <Trash2 className="h-4 w-4 mr-2" />
