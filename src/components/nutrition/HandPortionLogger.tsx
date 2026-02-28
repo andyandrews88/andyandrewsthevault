@@ -48,6 +48,14 @@ export function HandPortionLogger({ entries, onRemoveFood }: HandPortionLoggerPr
     entries.filter(e => e.mealSlot === slot && isHandPortionUnit(e.unit));
 
   const handleAddPortion = (type: PortionType, amount: number) => {
+    // If there's already an entry of this type in this slot, re-use the same food
+    const existing = entries.filter(e => e.mealSlot === activeMealSlot && e.unit === type);
+    if (existing.length > 0) {
+      const lastEntry = existing[existing.length - 1];
+      addDiaryEntry(lastEntry.food, activeMealSlot as MealSlotType, amount, type);
+      return;
+    }
+    // Otherwise open picker to choose a food source
     setActivePortionType(type);
     setPendingAmount(amount);
     setPickerOpen(true);
