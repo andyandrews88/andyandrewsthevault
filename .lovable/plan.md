@@ -1,69 +1,124 @@
 
 
-# Program Builder Redesign + Client List Upgrade
+# Admin Control Center + AI Intelligence Briefing
 
-## Two major improvements inspired by CoachRx:
-
----
-
-## 1. Program Builder — Popup-Based Workout Editor (CoachRx Style)
-
-**Current state**: The workout editor in `ProgramAdmin.tsx` already uses a dialog popup (`WorkoutEditor` component at line 271). The `TemplateEditor.tsx` uses an inline card-based approach. Both work but feel cramped.
-
-**Changes**:
-
-### A. Make the workout editor dialog expandable/larger
-- **`ProgramAdmin.tsx` line 662**: Change `DialogContent` from `sm:max-w-lg` to `sm:max-w-2xl lg:max-w-4xl` — gives room for the exercise fields like CoachRx's layout
-- Add a maximize/expand button on the dialog that toggles to `max-w-[95vw] h-[90vh]` for full-screen editing on desktop
-- On mobile, the dialog already goes full-width via shadcn defaults
-
-### B. Improve exercise row layout to match CoachRx reference
-- **`ExerciseRowEditor`** (line 166): Restructure the grid from current `grid-cols-3` + `grid-cols-2` to a single-row layout on desktop: Name | Sets | Reps | Tempo | Rest | %1RM | Notes — all in one line (like CoachRx image-8)
-- On mobile: stack into 2 rows (name + delete on row 1, fields in `grid-cols-3` on row 2)
-- Video URL stays collapsible below
-
-### C. Improve `TemplateEditor.tsx` to use the same dialog-based editing
-- Currently uses inline card editing which is inconsistent with `ProgramAdmin`
-- Refactor to use the same `WorkoutEditor` dialog pattern for consistency, or deprecate in favor of `ProgramAdmin`'s approach
+## Overview
+Four major additions: user management controls, maximizable drawers, enriched client data with filters, and a comprehensive AI intelligence system.
 
 ---
 
-## 2. Client List — CoachRx-Inspired Table View
+## 1. User Management Controls
 
-**Current state**: The Admin Dashboard shows clients as a simple table with Name + Joined date. The "Users" drawer in `AdminDetailDrawer` shows Name, Joined, Workouts count, Streak — but it's bare.
+### New Edge Function: `supabase/functions/admin-manage-user/index.ts`
+Actions supported via service role:
+- **suspend** — `admin.auth.admin.updateUserById(targetUserId, { ban_duration: "876000h" })` to block login
+- **unsuspend** — reset ban_duration to "none"
+- **archive** — prefix display_name with "[Archived]" + suspend auth
+- **delete** — `admin.auth.admin.deleteUser(targetUserId)` (permanent)
+- **remove_role** — delete from user_roles table
+- **get_status** — return banned status, archived flag, roles, last sign-in
 
-**Changes to `AdminDetailDrawer.tsx` (users section)**:
+Add to `supabase/config.toml`:
+```toml
+[functions.admin-manage-user]
+verify_jwt = false
+```
 
-### A. Add a summary stats bar at top (like CoachRx image-9)
-Four stat cards above the table:
-- **Total Clients** — count
-- **Compliance** — average workout completion rate across all clients (completed workouts / total scheduled from programs)
-- **Active This Week** — users who logged a workout in last 7 days
-- **Avg Check-in Streak** — average streak across users
-
-### B. Enrich the client table rows
-Each row shows:
-- **Avatar** (initials) + **Name** + last active date (like "Last consult" in CoachRx)
-- **Last Workout** — date badge, color-coded: green if within 3 days, yellow if 4-7 days, red if >7 days (like CoachRx's Exercise Due)
-- **Last Check-in** — similar date badge
-- **Workout Compliance** — percentage (completed / total program workouts), displayed as colored text
-- **Tags** — if we add a tagging system later, placeholder for now
-
-### C. Update the `admin-detail` edge function
-- For the `users` section, add: last workout date, total scheduled program workouts, completed program workouts, last check-in date
-- This data already exists in the DB; just needs to be aggregated
+### UI: Action menu in Client Directory (`AdminDetailDrawer.tsx`)
+- Add a `DropdownMenu` on each user row with: Suspend, Unsuspend, Archive, Delete, Remove Roles
+- Delete requires a confirmation `AlertDialog` with the user's name typed to confirm
+- Suspend/unsuspend toggles based on current status (fetched via `get_status` action on drawer open)
+- Color-code suspended/archived rows with a muted/strikethrough style
 
 ---
+
+## 2. Maximizable Drawer Panels
+
+### Changes to `AdminDetailDrawer.tsx`
+- Add `isMaximized` state toggle
+- When maximized: `SheetContent` className changes from `w-full sm:max-w-2xl` to `w-full sm:max-w-[95vw] h-[95vh]`
+- Add a Maximize/Minimize button (Maximize2/Minimize2 icons) in the SheetHeader
+- Works on all section types (users, training, nutrition, lifestyle, community, content)
+
+---
+
+## 3. Enriched Client Directory with Filters
+
+### Update `admin-detail` edge function (users section)
+Add to the user data returned:
+- `hasNutrition` — whether user has entry in user_nutrition_data
+- `mealCount` — count from user_meals
+- `hasAudit` — whether user has entry in user_audit_data
+- `latestWeight` — most recent weight_kg from user_body_entries
+- `latestBF` — most recent body_fat_percent
+- `avgEnergy`, `avgSleep` — from user_daily_checkins (last 30 days)
+- `diaryEntriesThisWeek` — food diary count this week
+- `programEnrolled` — boolean from user_program_enrollments
+- `status` — active/suspended/archived (from auth ban status)
+
+### UI Changes to Client Directory
+- Add a filter bar above the table with toggles: "All", "Active", "Inactive 7d+", "Has Program", "No Nutrition", "Suspended"
+- Add optional columns (toggled via a column picker dropdown): Last Check-in, Avg Energy, Weight, Nutrition Status, Program Status
+- Default view shows: Name, Last Workout, Compliance, Workouts
+- Expanded view adds the lifestyle/nutrition columns
+
+---
+
+## 4. AI Intelligence Briefing System
+
+### New Edge Function: `supabase/functions/admin-intelligence/index.ts`
+- Collects ALL platform data in parallel (users, workouts, PRs, check-ins, goals, nutrition, food diary, body entries, community, programs, calendar workouts, assignments)
+- Builds per-user summaries with every metric
+- Constructs a comprehensive data prompt
+- Sends to Lovable AI (google/gemini-3-flash-preview) with a corporate-grade system prompt
+
+The AI produces a structured report with these sections:
+1. Executive Summary
+2. User Acquisition & Retention
+3. Training Performance Analysis
+4. Readiness & Lifestyle Intelligence
+5. Nutrition & Body Composition
+6. Goal Tracking & Accountability
+7. Program Compliance & Coaching Effectiveness
+8. Community Health
+9. Strategic Recommendations (Top 5 priority actions)
+10. Client Priority Matrix (🟢 On Track / 🟡 Watch / 🔴 Intervention Needed)
+
+Add to `supabase/config.toml`:
+```toml
+[functions.admin-intelligence]
+verify_jwt = false
+```
+
+### New Component: `src/components/admin/AIIntelligenceBriefing.tsx`
+- Full-width card on the Admin Dashboard
+- "Generate Intelligence Briefing" button
+- Loading state with skeleton
+- Renders the report with `react-markdown` for proper formatting of headers, bullets, and the priority matrix
+- Timestamp of when report was generated
+- "Regenerate" button after initial generation
+
+### Integration into `AdminDashboard.tsx`
+- Add the AIIntelligenceBriefing component prominently at the top of the dashboard, right after the header
+- Replace or supplement the existing `AdminWeeklyReport` (which is simpler and less comprehensive)
+
+---
+
+## Files to Create
+| File | Purpose |
+|------|---------|
+| `supabase/functions/admin-manage-user/index.ts` | User suspend/archive/delete/status |
+| `supabase/functions/admin-intelligence/index.ts` | Comprehensive AI analytics |
+| `src/components/admin/AIIntelligenceBriefing.tsx` | AI briefing UI component |
 
 ## Files to Modify
+| File | Changes |
+|------|---------|
+| `supabase/config.toml` | Add admin-manage-user and admin-intelligence function configs |
+| `src/components/admin/AdminDetailDrawer.tsx` | Maximize toggle, user management actions, filter bar, enriched columns |
+| `supabase/functions/admin-detail/index.ts` | Add nutrition/lifestyle/body/program data to users section |
+| `src/pages/AdminDashboard.tsx` | Add AIIntelligenceBriefing component |
 
-| File | Change |
-|------|--------|
-| `src/components/admin/ProgramAdmin.tsx` | Expand dialog size, add maximize toggle, restructure `ExerciseRowEditor` to single-row desktop layout |
-| `src/components/admin/AdminDetailDrawer.tsx` | Redesign users section with stat bar + enriched table rows |
-| `supabase/functions/admin-detail/index.ts` | Add last_workout_date, compliance data, last_checkin_date to users response |
-
-## Mobile Considerations
-- Program builder dialog: full-screen on mobile (already default), exercise fields stack vertically in `grid-cols-3`
-- Client list: on mobile, hide lower-priority columns (compliance, tags) and show only Name + Last Workout + status badge. Use horizontal scroll or responsive hiding via `hidden md:table-cell`
+## Dependencies
+- `react-markdown` — needs to be installed for rendering the AI report with proper formatting
 
