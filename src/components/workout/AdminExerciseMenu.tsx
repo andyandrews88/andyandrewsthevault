@@ -35,9 +35,10 @@ const EQUIPMENT = Object.entries(EQUIPMENT_LABELS) as [EquipmentType, string][];
 interface AdminExerciseMenuProps {
   exerciseName: string;
   isAdmin: boolean;
+  onMetadataChange?: (field: string, value: any) => void;
 }
 
-export function AdminExerciseMenu({ exerciseName, isAdmin }: AdminExerciseMenuProps) {
+export function AdminExerciseMenu({ exerciseName, isAdmin, onMetadataChange }: AdminExerciseMenuProps) {
   const [showVideoDialog, setShowVideoDialog] = useState(false);
   const [videoUrlInput, setVideoUrlInput] = useState("");
 
@@ -51,10 +52,12 @@ export function AdminExerciseMenu({ exerciseName, isAdmin }: AdminExerciseMenuPr
 
   const handleToggleTimed = async (isTimed: boolean) => {
     await upsertExerciseLibraryField(exerciseName, { is_timed: isTimed });
+    onMetadataChange?.("isTimed", isTimed);
   };
 
   const handleToggleUnilateral = async (isUnilateral: boolean) => {
     await upsertExerciseLibraryField(exerciseName, { is_unilateral: isUnilateral });
+    onMetadataChange?.("isUnilateral", isUnilateral);
   };
 
   return (

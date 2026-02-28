@@ -195,8 +195,8 @@ Deno.serve(async (req) => {
 
       case "get_exercise_video": {
         const { exerciseName } = body;
-        const { data } = await serviceClient.from("exercise_library").select("video_url").ilike("name", exerciseName).maybeSingle();
-        return new Response(JSON.stringify({ video_url: data?.video_url || null }), { headers: corsHeaders });
+        const { data } = await serviceClient.from("exercise_library").select("video_url, is_timed, is_unilateral").ilike("name", exerciseName).maybeSingle();
+        return new Response(JSON.stringify({ video_url: data?.video_url || null, is_timed: data?.is_timed || false, is_unilateral: data?.is_unilateral || false }), { headers: corsHeaders });
       }
 
       // ==================== COPY WORKOUT TO USER ====================
