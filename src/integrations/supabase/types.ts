@@ -409,7 +409,9 @@ export type Database = {
         Row: {
           category: string
           created_at: string
+          equipment_type: string | null
           id: string
+          movement_pattern: string | null
           muscle_group: string | null
           name: string
           notes: string | null
@@ -419,7 +421,9 @@ export type Database = {
         Insert: {
           category?: string
           created_at?: string
+          equipment_type?: string | null
           id?: string
+          movement_pattern?: string | null
           muscle_group?: string | null
           name: string
           notes?: string | null
@@ -429,7 +433,9 @@ export type Database = {
         Update: {
           category?: string
           created_at?: string
+          equipment_type?: string | null
           id?: string
+          movement_pattern?: string | null
           muscle_group?: string | null
           name?: string
           notes?: string | null

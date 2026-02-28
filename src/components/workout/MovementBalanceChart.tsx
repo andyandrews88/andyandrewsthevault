@@ -12,7 +12,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "
 import { supabase } from "@/integrations/supabase/client";
 import { format, subDays, startOfWeek } from "date-fns";
 import {
-  classifyExercise, calculateSetVolume, normalizeVolume,
+  classifyExercise, classifyExerciseWithDb, calculateSetVolume, normalizeVolume,
   ALL_PATTERNS, MOVEMENT_PATTERN_LABELS, MOVEMENT_PATTERN_SHORT,
   PATTERN_COLORS, DIFFICULTY_COEFFICIENTS,
   type MovementPattern, type PatternVolumeData, type WeeklyPatternVolume,
@@ -102,6 +102,18 @@ export function MovementBalanceChart() {
       .in('exercise_id', exerciseIds)
       .eq('is_completed', true);
 
+    // Fetch exercise_library entries for DB-stored patterns/equipment
+    const uniqueNames = [...new Set(exercises.map(e => e.exercise_name))];
+    const { data: libEntries } = await supabase
+      .from('exercise_library' as any)
+      .select('name, movement_pattern, equipment_type')
+      .in('name', uniqueNames);
+
+    const libMap = new Map<string, { movement_pattern?: string | null; equipment_type?: string | null }>();
+    for (const entry of (libEntries || []) as any[]) {
+      libMap.set(entry.name?.toLowerCase(), { movement_pattern: entry.movement_pattern, equipment_type: entry.equipment_type });
+    }
+
     // Build aggregation
     const totals: Record<MovementPattern, ExtendedPatternData> = {} as any;
     for (const p of ALL_PATTERNS) {
@@ -119,11 +131,12 @@ export function MovementBalanceChart() {
       const ex = exerciseMap.get(set.exercise_id);
       if (!ex) continue;
 
-      const pattern = classifyExercise(ex.exercise_name);
+      const lib = libMap.get(ex.exercise_name.toLowerCase());
+      const pattern = classifyExerciseWithDb(ex.exercise_name, lib?.movement_pattern);
       const vol = calculateSetVolume(ex.exercise_name, set.weight, set.reps, bodyWeightKg);
 
       totals[pattern].rawVolume += vol;
-      totals[pattern].normalizedVolume += normalizeVolume(vol, pattern);
+      totals[pattern].normalizedVolume += normalizeVolume(vol, pattern, ex.exercise_name, lib?.equipment_type);
       totals[pattern].sets += 1;
       totals[pattern].exercises.add(ex.exercise_name);
 
