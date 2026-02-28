@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Minus, Plus, Trash2 } from 'lucide-react';
+import { Minus, Plus, Trash2, Edit2 } from 'lucide-react';
 import { useMealBuilderStore, MealSlotType, MealFood } from '@/stores/mealBuilderStore';
 import { PortionSourcePicker, PortionType } from './PortionSourcePicker';
 import { FoodItem } from '@/types/nutrition';
@@ -99,14 +99,21 @@ export function HandPortionLogger({ entries, onRemoveFood }: HandPortionLoggerPr
               <p className="text-xs text-muted-foreground font-medium">{macro}</p>
               <p className="text-lg font-bold font-mono">{count}</p>
               <p className="text-[10px] text-muted-foreground">{label}</p>
-              <div className="flex items-center gap-2 mt-1">
+              {/* Current food source label */}
+              {count > 0 && (() => {
+                const matching = entries.filter(e => e.mealSlot === activeMealSlot && e.unit === type);
+                const foodName = matching.length > 0 ? matching[matching.length - 1].food.name : '';
+                return foodName ? (
+                  <p className="text-[10px] text-muted-foreground truncate max-w-[120px]">{foodName}</p>
+                ) : null;
+              })()}
+              <div className="flex items-center gap-1 mt-1">
                 <Button
                   variant="outline"
                   size="icon"
                   className="h-8 w-8 rounded-full"
                   disabled={count === 0}
                   onClick={() => {
-                    // Remove the last entry of this type in this slot
                     const matching = entries.filter(e => e.mealSlot === activeMealSlot && e.unit === type);
                     if (matching.length > 0) {
                       onRemoveFood(matching[matching.length - 1].id);
@@ -122,6 +129,19 @@ export function HandPortionLogger({ entries, onRemoveFood }: HandPortionLoggerPr
                   onClick={() => handleAddPortion(type, 1)}
                 >
                   <Plus className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 rounded-full text-muted-foreground"
+                  title="Change food source"
+                  onClick={() => {
+                    setActivePortionType(type);
+                    setPendingAmount(1);
+                    setPickerOpen(true);
+                  }}
+                >
+                  <Edit2 className="w-3 h-3" />
                 </Button>
               </div>
             </div>
