@@ -22,6 +22,20 @@ export interface AuditData {
   cardioTest?: 'mile' | '2k-row' | '500m-row' | '2k-bike' | 'none';
   cardioTime?: number;
   
+  // Movement Screen (all optional, all skippable)
+  broadJumpFeet?: number;
+  broadJumpMode?: 'heelToToe' | 'feet';
+  deadHangSeconds?: number;
+  toeTouch?: 0 | 1 | 2;
+  heelSit?: 'pass' | 'fail';
+  deepSquat?: 'pass' | 'fail';
+  overheadReach?: 'pass' | 'fail';
+  maxPullups?: number;
+  maxPushups?: number;
+  lSitSeconds?: number;
+  pistolSquatLeft?: 'yes' | 'no';
+  pistolSquatRight?: 'yes' | 'no';
+
   // Lifestyle (required)
   sleep: '<6' | '6-7' | '7-8' | '8+';
   protein: 'yes' | 'no' | 'unsure';
@@ -91,9 +105,9 @@ function convertCardioToMileEquivalent(test: AuditData['cardioTest'], timeSecond
   if (!timeSeconds || !test || test === 'none') return undefined;
   switch (test) {
     case 'mile': return timeSeconds;
-    case '2k-row': return Math.round(timeSeconds * 0.95); // ~similar aerobic demand
-    case '500m-row': return Math.round(timeSeconds * 3.5); // short burst → extrapolate
-    case '2k-bike': return Math.round(timeSeconds * 1.1); // bike erg slightly easier
+    case '2k-row': return Math.round(timeSeconds * 0.95);
+    case '500m-row': return Math.round(timeSeconds * 3.5);
+    case '2k-bike': return Math.round(timeSeconds * 1.1);
     default: return undefined;
   }
 }
@@ -188,7 +202,7 @@ function detectLeaks(data: AuditData): { leaks: Leak[]; skippedAreas: string[] }
     });
   }
 
-  // Nutrition Behavior Leak (Precision Nutrition habits)
+  // Nutrition Behavior Leak
   const pnHabits = [data.eatsSlowly, data.stopsAt80, data.proteinEveryMeal, data.veggiesEveryMeal, data.mealPrep, data.eatingConsistency];
   const rarelyCount = pnHabits.filter(h => h === 'rarely' || h === 'inconsistent').length;
   if (rarelyCount >= 3) {
@@ -202,6 +216,92 @@ function detectLeaks(data: AuditData): { leaks: Leak[]; skippedAreas: string[] }
     });
   }
 
+  // === Movement Screen Leaks ===
+
+  // Mobility Deficit: toeTouch=0 AND (heelSit=fail OR deepSquat=fail)
+  const hasMobilityData = data.toeTouch !== undefined || data.heelSit !== undefined || data.deepSquat !== undefined || data.overheadReach !== undefined;
+  if (hasMobilityData) {
+    const mobilityFailures: string[] = [];
+    if (data.toeTouch === 0) mobilityFailures.push('toe touch');
+    if (data.heelSit === 'fail') mobilityFailures.push('heel sit');
+    if (data.deepSquat === 'fail') mobilityFailures.push('deep squat');
+    if (data.overheadReach === 'fail') mobilityFailures.push('overhead reach');
+    if (mobilityFailures.length >= 2) {
+      leaks.push({
+        id: 'mobility-deficit',
+        title: 'Mobility Deficit',
+        description: `Failed ${mobilityFailures.length} mobility tests (${mobilityFailures.join(', ')}). Multiple restrictions indicate systemic mobility limitations.`,
+        severity: mobilityFailures.length >= 3 ? 'critical' : 'warning',
+        metric: `${mobilityFailures.length} failures`,
+        recommendation: 'Prioritize daily mobility work: hip flexor stretching, thoracic spine rotation, ankle mobility drills, and deep squat holds. Spend 10-15 min daily before training.',
+      });
+    }
+  } else {
+    skippedAreas.push('Mobility Screen (no mobility tests completed)');
+  }
+
+  // Grip/Hanging Stability: deadHang < 30s
+  if (data.deadHangSeconds !== undefined) {
+    if (data.deadHangSeconds < 30) {
+      leaks.push({
+        id: 'grip-stability',
+        title: 'Grip/Hanging Stability Leak',
+        description: `Dead hang of ${data.deadHangSeconds}s indicates weak grip and shoulder stability (target: ≥30s)`,
+        severity: data.deadHangSeconds < 15 ? 'critical' : 'warning',
+        metric: `${data.deadHangSeconds}s`,
+        recommendation: 'Add daily dead hangs (accumulate 2-3 min total), farmer carries, and grip-specific work. Strong grip correlates with longevity and upper body pulling capacity.',
+      });
+    }
+  }
+
+  // L-Sit Stability
+  if (data.lSitSeconds !== undefined) {
+    if (data.lSitSeconds < 15) {
+      leaks.push({
+        id: 'core-stability',
+        title: 'Core Stability Leak',
+        description: `L-Sit hold of ${data.lSitSeconds}s indicates weak hip flexor strength and core compression (target: ≥15s)`,
+        severity: data.lSitSeconds < 10 ? 'critical' : 'warning',
+        metric: `${data.lSitSeconds}s`,
+        recommendation: 'Progress through tucked L-sits, single leg extensions, and hollow body holds. Core compression strength is foundational for athletic control.',
+      });
+    }
+  }
+
+  // Upper Body Endurance: pullups < 3 OR pushups < 10
+  const hasPullups = data.maxPullups !== undefined;
+  const hasPushups = data.maxPushups !== undefined;
+  if (hasPullups || hasPushups) {
+    const enduranceIssues: string[] = [];
+    if (hasPullups && data.maxPullups! < 3) enduranceIssues.push(`${data.maxPullups} pull-ups`);
+    if (hasPushups && data.maxPushups! < 10) enduranceIssues.push(`${data.maxPushups} push-ups`);
+    if (enduranceIssues.length > 0) {
+      leaks.push({
+        id: 'upper-body-endurance',
+        title: 'Upper Body Endurance Leak',
+        description: `Low muscular endurance: ${enduranceIssues.join(' and ')}. Relative bodyweight strength needs development.`,
+        severity: (hasPullups && data.maxPullups! === 0) || (hasPushups && data.maxPushups! < 5) ? 'critical' : 'warning',
+        metric: enduranceIssues.join(', '),
+        recommendation: 'Implement greasing-the-groove: multiple submaximal sets throughout the day. Add band-assisted pull-ups and push-up progressions. Target bodyweight mastery before loading.',
+      });
+    }
+  }
+
+  // Single-Leg Asymmetry: one pistol passes, other fails
+  if (data.pistolSquatLeft !== undefined && data.pistolSquatRight !== undefined) {
+    if (data.pistolSquatLeft !== data.pistolSquatRight) {
+      const weakSide = data.pistolSquatLeft === 'no' ? 'left' : 'right';
+      leaks.push({
+        id: 'single-leg-asymmetry',
+        title: 'Single-Leg Asymmetry',
+        description: `Pistol squat asymmetry detected: ${weakSide} leg cannot perform the movement. Unilateral deficit increases injury risk.`,
+        severity: 'warning',
+        metric: `Weak: ${weakSide}`,
+        recommendation: `Focus on single-leg work for the ${weakSide} side: Bulgarian split squats, single-leg RDLs, and pistol squat progressions. Always train the weaker side first.`,
+      });
+    }
+  }
+
   return { leaks, skippedAreas };
 }
 
@@ -211,25 +311,71 @@ function calculateScores(data: AuditData): AuditResults['scores'] {
   const hasFrontSquat = !!(data.frontSquat && data.backSquat);
   const hasPress = !!(data.strictPress && data.weight);
 
-  const strengthScore = hasStrength
+  let strengthScore = hasStrength
     ? Math.min(100, ((data.backSquat! + data.deadlift!) / data.weight! / 4) * 100)
-    : 50; // neutral default
+    : 50;
 
-  const enduranceScore = effectiveMileTime
+  let enduranceScore = effectiveMileTime
     ? Math.min(100, Math.max(0, 100 - ((effectiveMileTime / 60) - 5) * 15))
     : 50;
 
-  const mobilityScore = hasFrontSquat
+  let mobilityScore = hasFrontSquat
     ? Math.min(100, (data.frontSquat! / data.backSquat!) * 100 + 15)
     : 50;
 
-  const powerScore = hasPress
+  let powerScore = hasPress
     ? Math.min(100, (data.strictPress! / data.weight!) * 150)
     : 50;
 
-  const stabilityScore = hasFrontSquat
+  let stabilityScore = hasFrontSquat
     ? Math.min(100, (data.frontSquat! / data.backSquat!) * 110)
     : 50;
+
+  // === Movement Screen Score Adjustments ===
+
+  // Mobility adjustments
+  if (data.toeTouch !== undefined) {
+    if (data.toeTouch === 2) mobilityScore = Math.min(100, mobilityScore + 20);
+    else if (data.toeTouch === 1) mobilityScore = Math.min(100, mobilityScore + 10);
+  }
+  if (data.heelSit === 'pass') mobilityScore = Math.min(100, mobilityScore + 10);
+  if (data.deepSquat === 'pass') mobilityScore = Math.min(100, mobilityScore + 10);
+  if (data.overheadReach === 'pass') mobilityScore = Math.min(100, mobilityScore + 10);
+
+  // Power adjustments (broad jump)
+  if (data.broadJumpFeet !== undefined) {
+    if (data.broadJumpFeet > 8) powerScore = Math.min(100, powerScore + 15);
+    else if (data.broadJumpFeet > 6) powerScore = Math.min(100, powerScore + 10);
+  }
+
+  // Stability adjustments (dead hang + L-sit)
+  if (data.deadHangSeconds !== undefined) {
+    if (data.deadHangSeconds > 60) stabilityScore = Math.min(100, stabilityScore + 15);
+    else if (data.deadHangSeconds > 30) stabilityScore = Math.min(100, stabilityScore + 10);
+  }
+  if (data.lSitSeconds !== undefined) {
+    if (data.lSitSeconds > 30) stabilityScore = Math.min(100, stabilityScore + 15);
+    else if (data.lSitSeconds > 15) stabilityScore = Math.min(100, stabilityScore + 10);
+  }
+
+  // Endurance adjustments (pull-ups + push-ups)
+  if (data.maxPullups !== undefined) {
+    if (data.maxPullups > 15) enduranceScore = Math.min(100, enduranceScore + 15);
+    else if (data.maxPullups > 8) enduranceScore = Math.min(100, enduranceScore + 10);
+  }
+  if (data.maxPushups !== undefined) {
+    if (data.maxPushups > 30) enduranceScore = Math.min(100, enduranceScore + 15);
+    else if (data.maxPushups > 15) enduranceScore = Math.min(100, enduranceScore + 10);
+  }
+
+  // Pistol squats: both pass = +15 mobility/stability
+  if (data.pistolSquatLeft === 'yes' && data.pistolSquatRight === 'yes') {
+    mobilityScore = Math.min(100, mobilityScore + 15);
+    stabilityScore = Math.min(100, stabilityScore + 15);
+  } else if (data.pistolSquatLeft === 'yes' || data.pistolSquatRight === 'yes') {
+    mobilityScore = Math.min(100, mobilityScore + 5);
+    stabilityScore = Math.min(100, stabilityScore + 5);
+  }
 
   return {
     strength: Math.round(strengthScore),

@@ -53,6 +53,29 @@ serve(async (req) => {
       lines.push(`- No cardio benchmark provided`);
     }
 
+    // Movement Screen section
+    const movementLines: string[] = [];
+    if (d.broadJumpFeet) movementLines.push(`- Broad Jump: ${d.broadJumpFeet} feet`);
+    if (d.deadHangSeconds !== undefined && d.deadHangSeconds !== null) movementLines.push(`- Dead Hang: ${d.deadHangSeconds} seconds`);
+    if (d.toeTouch !== undefined && d.toeTouch !== null) {
+      const toeLabels = ['Cannot reach toes', 'Touches toes', 'Palms flat on ground'];
+      movementLines.push(`- Toe Touch: ${toeLabels[d.toeTouch]}`);
+    }
+    if (d.heelSit) movementLines.push(`- Heel Sit: ${d.heelSit === 'pass' ? 'Pass' : 'Fail'}`);
+    if (d.deepSquat) movementLines.push(`- Deep Squat (30s hold): ${d.deepSquat === 'pass' ? 'Pass' : 'Fail'}`);
+    if (d.overheadReach) movementLines.push(`- Overhead Reach (Wall Test): ${d.overheadReach === 'pass' ? 'Pass' : 'Fail'}`);
+    if (d.maxPullups !== undefined && d.maxPullups !== null) movementLines.push(`- Max Pull-ups: ${d.maxPullups} reps`);
+    if (d.maxPushups !== undefined && d.maxPushups !== null) movementLines.push(`- Max Push-ups (chest to ground, full lockout): ${d.maxPushups} reps`);
+    if (d.lSitSeconds !== undefined && d.lSitSeconds !== null) movementLines.push(`- Parallette L-Sit: ${d.lSitSeconds} seconds`);
+    if (d.pistolSquatLeft || d.pistolSquatRight) {
+      movementLines.push(`- Pistol Squat Barefoot — Left: ${d.pistolSquatLeft === 'yes' ? 'Yes' : d.pistolSquatLeft === 'no' ? 'No' : 'Not tested'}, Right: ${d.pistolSquatRight === 'yes' ? 'Yes' : d.pistolSquatRight === 'no' ? 'No' : 'Not tested'}`);
+    }
+
+    if (movementLines.length > 0) {
+      lines.push(`\n## Movement Screen`);
+      lines.push(...movementLines);
+    }
+
     lines.push(`\n## Scores`);
     lines.push(`- Overall: ${results.overallScore}/100`);
     lines.push(`- Strength: ${scores.strength}, Endurance: ${scores.endurance}, Mobility: ${scores.mobility}, Power: ${scores.power}, Stability: ${scores.stability}`);
@@ -86,7 +109,9 @@ serve(async (req) => {
       results.skippedAreas.forEach((area: string) => lines.push(`- ${area}`));
     }
 
-    const userPrompt = `Here is the full audit data for this athlete:\n\n${lines.join("\n")}\n\nWrite a personalized analysis with these 3 sections:\n1. **Overall Assessment** — 2-3 sentences summarizing where this athlete stands\n2. **Key Findings** — Interpret each leak and skipped area. Explain WHY it matters for their goals. If Precision Nutrition habit data is provided, analyze their eating behaviors and connect them to performance outcomes.\n3. **Action Plan** — 3-5 prioritized, specific recommendations. If nutrition habits are weak, include a Precision Nutrition anchor habit recommendation (pick ONE habit to focus on for 2 weeks).\n\nUse markdown formatting. Be direct and coaching-oriented. Reference their specific numbers.`;
+    const hasMovementData = movementLines.length > 0;
+
+    const userPrompt = `Here is the full audit data for this athlete:\n\n${lines.join("\n")}\n\nWrite a personalized analysis with these ${hasMovementData ? '4' : '3'} sections:\n1. **Overall Assessment** — 2-3 sentences summarizing where this athlete stands\n2. **Key Findings** — Interpret each leak and skipped area. Explain WHY it matters for their goals.${hasMovementData ? ' If movement screen data is provided, analyze mobility patterns (toe touch + heel sit + deep squat + overhead reach), power output (broad jump), grip/core stability (dead hang + L-sit), muscular endurance (pull-ups + push-ups), and single-leg symmetry (pistol squats). Flag asymmetries.' : ''} If Precision Nutrition habit data is provided, analyze their eating behaviors and connect them to performance outcomes.\n${hasMovementData ? '3. **Movement Quality Assessment** — Analyze movement screen results using FMS (Functional Movement Screen) principles and Gray Cook\'s movement hierarchy. Identify mobility restrictions vs stability deficits. Note if the athlete has strength but lacks movement quality (or vice versa). Reference specific test results. For pull-ups and push-ups, evaluate strength-to-bodyweight ratios. For pistol squats, assess single-leg stability and flag any left/right asymmetries.\n4. **Action Plan** — 3-5 prioritized recommendations incorporating movement corrections alongside strength/conditioning work.\n' : '3. **Action Plan** — 3-5 prioritized, specific recommendations. If nutrition habits are weak, include a Precision Nutrition anchor habit recommendation (pick ONE habit to focus on for 2 weeks).\n'}\nUse markdown formatting. Be direct and coaching-oriented. Reference their specific numbers.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -99,7 +124,7 @@ serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: "You are a performance coach writing a personalized audit recap for an athlete. Be direct, knowledgeable, and actionable. Use their specific data points. Write in second person (\"you\"). Format with markdown headers and bullet points. Keep it under 500 words total.",
+            content: "You are a performance coach and movement specialist writing a personalized audit recap for an athlete. You understand FMS (Functional Movement Screen) principles, Gray Cook's movement hierarchy, and strength-to-bodyweight ratios. When movement screen data is provided, analyze it with expertise: toe touch and heel sit reveal hip and ankle mobility; deep squat tests multi-joint mobility and motor control; overhead reach indicates shoulder and thoracic mobility; dead hang and L-sit measure grip endurance and core compression strength; pull-ups and push-ups reveal relative bodyweight strength; pistol squats expose single-leg stability and asymmetry. Be direct, knowledgeable, and actionable. Use their specific data points. Write in second person (\"you\"). Format with markdown headers and bullet points. Keep it under 700 words total.",
           },
           { role: "user", content: userPrompt },
         ],
