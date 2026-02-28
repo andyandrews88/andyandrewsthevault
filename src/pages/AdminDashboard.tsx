@@ -15,8 +15,8 @@ import { formatDistanceToNow } from "date-fns";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { AdminWeeklyReport } from "@/components/admin/AdminWeeklyReport";
 import { AnnouncementManager } from "@/components/admin/AnnouncementManager";
+import { AIIntelligenceBriefing } from "@/components/admin/AIIntelligenceBriefing";
 import { AdminDetailDrawer } from "@/components/admin/AdminDetailDrawer";
 import { QuickAssignDialog } from "@/components/admin/QuickAssignDialog";
 
@@ -135,6 +135,9 @@ export default function AdminDashboard() {
             </Button>
           </div>
         </div>
+
+        {/* AI Intelligence Briefing */}
+        <AIIntelligenceBriefing />
 
         {/* Users Overview */}
         <section className="space-y-3">

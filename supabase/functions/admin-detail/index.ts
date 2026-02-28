@@ -35,12 +35,49 @@ Deno.serve(async (req) => {
     let result: any = {};
 
     if (section === "users") {
-      // Full user list with workout counts, checkin data, compliance, and last activity
-      const { data: profiles } = await admin.from("user_profiles").select("id, display_name, created_at").order("created_at", { ascending: false });
-      const { data: workouts } = await admin.from("workouts").select("user_id, date, is_completed");
-      const { data: checkins } = await admin.from("user_daily_checkins").select("user_id, check_date");
-      const { data: authUsers } = await admin.auth.admin.listUsers({ perPage: 1000 });
-      const { data: calendarWorkouts } = await admin.from("user_calendar_workouts").select("user_id, is_completed");
+      // Full user list with workout counts, checkin data, compliance, nutrition, lifestyle, and last activity
+      const [profilesRes, workoutsRes, checkinsRes, authUsersRes, calendarRes, nutritionRes, mealsRes, auditRes, bodyRes, checkinScoresRes, enrollmentsRes] = await Promise.all([
+        admin.from("user_profiles").select("id, display_name, created_at").order("created_at", { ascending: false }),
+        admin.from("workouts").select("user_id, date, is_completed"),
+        admin.from("user_daily_checkins").select("user_id, check_date"),
+        admin.auth.admin.listUsers({ perPage: 1000 }),
+        admin.from("user_calendar_workouts").select("user_id, is_completed"),
+        admin.from("user_nutrition_data").select("user_id"),
+        admin.from("user_meals").select("user_id"),
+        admin.from("user_audit_data").select("user_id"),
+        admin.from("user_body_entries").select("user_id, weight_kg, body_fat_percent, entry_date").order("entry_date", { ascending: false }),
+        admin.from("user_daily_checkins").select("user_id, energy_score, sleep_score, check_date"),
+        admin.from("user_program_enrollments").select("user_id, status"),
+      ]);
+
+      const profiles = profilesRes.data || [];
+      const workouts = workoutsRes.data || [];
+      const checkins = checkinsRes.data || [];
+      const authUsers = authUsersRes.data;
+      const calendarWorkouts = calendarRes.data || [];
+      const nutritionSet = new Set((nutritionRes.data || []).map(n => n.user_id));
+      const mealCounts: Record<string, number> = {};
+      (mealsRes.data || []).forEach(m => { mealCounts[m.user_id] = (mealCounts[m.user_id] || 0) + 1; });
+      const auditSet = new Set((auditRes.data || []).map(a => a.user_id));
+      const enrolledSet = new Set((enrollmentsRes.data || []).filter(e => e.status === "active").map(e => e.user_id));
+
+      // Latest body entries per user
+      const latestBody: Record<string, { weight: number | null; bf: number | null }> = {};
+      (bodyRes.data || []).forEach(b => {
+        if (!latestBody[b.user_id]) latestBody[b.user_id] = { weight: b.weight_kg, bf: b.body_fat_percent };
+      });
+
+      // Avg energy/sleep last 30 days
+      const thirtyAgo = new Date(now.getTime() - 30 * 86400000).toISOString().slice(0, 10);
+      const avgScores: Record<string, { eSum: number; sSum: number; count: number }> = {};
+      (checkinScoresRes.data || []).forEach(c => {
+        if (c.check_date >= thirtyAgo) {
+          if (!avgScores[c.user_id]) avgScores[c.user_id] = { eSum: 0, sSum: 0, count: 0 };
+          avgScores[c.user_id].eSum += c.energy_score;
+          avgScores[c.user_id].sSum += c.sleep_score;
+          avgScores[c.user_id].count++;
+        }
+      });
 
       // Completed workout counts + last workout date
       const workoutCounts: Record<string, number> = {};
@@ -55,7 +92,11 @@ Deno.serve(async (req) => {
       });
 
       const lastActive: Record<string, string> = {};
-      (authUsers?.users || []).forEach(u => { if (u.last_sign_in_at) lastActive[u.id] = u.last_sign_in_at; });
+      const bannedUsers: Record<string, boolean> = {};
+      (authUsers?.users || []).forEach(u => {
+        if (u.last_sign_in_at) lastActive[u.id] = u.last_sign_in_at;
+        if (u.banned_until && new Date(u.banned_until) > now) bannedUsers[u.id] = true;
+      });
 
       // Last checkin date + streaks
       const userCheckins: Record<string, string[]> = {};
@@ -68,7 +109,7 @@ Deno.serve(async (req) => {
         }
       });
 
-      // Compliance from calendar workouts (scheduled program workouts)
+      // Compliance from calendar workouts
       const scheduledCount: Record<string, number> = {};
       const completedCount: Record<string, number> = {};
       (calendarWorkouts || []).forEach(cw => {
@@ -89,18 +130,32 @@ Deno.serve(async (req) => {
       };
 
       result = {
-        users: (profiles || []).map(p => ({
-          id: p.id,
-          displayName: p.display_name,
-          createdAt: p.created_at,
-          lastActive: lastActive[p.id] || null,
-          workoutsCount: workoutCounts[p.id] || 0,
-          checkinStreak: calcStreak(userCheckins[p.id] || []),
-          lastWorkoutDate: lastWorkoutDate[p.id] || null,
-          lastCheckinDate: lastCheckinDate[p.id] || null,
-          scheduledWorkouts: scheduledCount[p.id] || 0,
-          completedWorkouts: completedCount[p.id] || 0,
-        })),
+        users: (profiles || []).map(p => {
+          const isArchived = p.display_name?.startsWith("[Archived]");
+          const isBanned = bannedUsers[p.id] || false;
+          const avg = avgScores[p.id];
+          return {
+            id: p.id,
+            displayName: p.display_name,
+            createdAt: p.created_at,
+            lastActive: lastActive[p.id] || null,
+            workoutsCount: workoutCounts[p.id] || 0,
+            checkinStreak: calcStreak(userCheckins[p.id] || []),
+            lastWorkoutDate: lastWorkoutDate[p.id] || null,
+            lastCheckinDate: lastCheckinDate[p.id] || null,
+            scheduledWorkouts: scheduledCount[p.id] || 0,
+            completedWorkouts: completedCount[p.id] || 0,
+            hasNutrition: nutritionSet.has(p.id),
+            mealCount: mealCounts[p.id] || 0,
+            hasAudit: auditSet.has(p.id),
+            latestWeight: latestBody[p.id]?.weight || null,
+            latestBF: latestBody[p.id]?.bf || null,
+            avgEnergy: avg ? Math.round(avg.eSum / avg.count * 10) / 10 : null,
+            avgSleep: avg ? Math.round(avg.sSum / avg.count * 10) / 10 : null,
+            programEnrolled: enrolledSet.has(p.id),
+            status: isArchived ? "archived" : isBanned ? "suspended" : "active",
+          };
+        }),
       };
     } else if (section === "training") {
       const { data: workouts } = await admin.from("workouts").select("id, user_id, date, total_volume, workout_name").eq("is_completed", true).order("date", { ascending: false }).limit(500);
