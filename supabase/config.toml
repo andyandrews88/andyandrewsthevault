@@ -26,3 +26,6 @@ verify_jwt = false
 
 [functions.admin-intelligence]
 verify_jwt = false
+
+[functions.admin-client-report]
+verify_jwt = false

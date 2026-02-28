@@ -843,6 +843,7 @@ export type Database = {
           energy_score: number
           id: string
           notes: string | null
+          sleep_hours: number | null
           sleep_score: number
           stress_score: number
           user_id: string
@@ -854,6 +855,7 @@ export type Database = {
           energy_score: number
           id?: string
           notes?: string | null
+          sleep_hours?: number | null
           sleep_score: number
           stress_score: number
           user_id: string
@@ -865,6 +867,7 @@ export type Database = {
           energy_score?: number
           id?: string
           notes?: string | null
+          sleep_hours?: number | null
           sleep_score?: number
           stress_score?: number
           user_id?: string
