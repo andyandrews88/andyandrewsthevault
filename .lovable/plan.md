@@ -1,115 +1,183 @@
 
 
-# Plan: Equipment-Aware Coefficients, Supersets, Rest Timer, Load Last Session Fix, Warm-up Sets
+# Admin Coaching Command Center — MyStrengthBook + CoachRx Hybrid
 
-## 1. Equipment-Aware Difficulty Coefficients
+## What We're Building
 
-Currently `DIFFICULTY_COEFFICIENTS` is per-pattern only. A barbell front squat and a dumbbell goblet squat both get `0.95`. The fix: add per-exercise coefficient overrides in `movementPatterns.ts`.
+A professional coaching backend that combines the best features from MyStrengthBook (program builder with calendar edit mode, multi-week templates, auto-progressions, copy workouts between clients, % of 1RM programming, RPE/RIR protocols, performance reports) and CoachRx (unified program calendar, lifestyle coaching prescriptions, touchpoint tracking, consultation notes, assessment tools).
 
-**`src/lib/movementPatterns.ts`**:
-- Add `EQUIPMENT_MODIFIERS` map keyed by exercise name (lowercase), returning a multiplier applied on top of the pattern coefficient:
-  - Barbell exercises (Back Squat, Front Squat, Bench Press, etc.): `1.0` (baseline)
-  - Dumbbell exercises (Goblet Squat, DB Bench, DB Row, etc.): `0.80`
-  - Kettlebell exercises (KB Swing, Goblet Squat if KB): `0.70`
-  - Sandbag exercises (Sandbag Carry, Atlas Stone): `0.75`
-  - Machine exercises (Hack Squat, Leg Press, Smith): `0.85`
-  - Cable exercises: `0.65`
-- Update `normalizeVolume` to accept an optional exercise name, look up the equipment modifier, and apply: `NTU = rawVolume / (patternCoeff * equipmentModifier)`
-- Update `MovementBalanceChart` and `WorkoutLogger` volume calculations to pass exercise name through
+This is a large feature set. I recommend building it in two phases. **Phase 1** (this implementation) covers the core programming and client management features that will make the admin backend functional as a coaching platform. Phase 2 can add lifestyle prescriptions, automated check-ins, and advanced reporting.
 
-## 2. Superset Feature
+---
 
-Allow users to group 2+ exercises into a superset visually and logically.
+## Phase 1 Scope
 
-**`src/types/workout.ts`**:
-- Add optional `superset_group: string | null` to `WorkoutExercise` interface
+### 1. Program Template Library (Coach-Level)
 
-**Database migration**:
-- `ALTER TABLE workout_exercises ADD COLUMN superset_group text DEFAULT NULL;`
+**New table: `coach_program_templates`**
+Reusable multi-week program templates that coaches can create once and assign to any client. Different from the existing `programs` / `program_workouts` tables which are public training tracks — these are private coach templates.
 
-**`src/stores/workoutStore.ts`**:
-- Add `toggleSuperset(exerciseIds: string[])` — assigns a shared UUID as `superset_group` to selected exercises, or clears it
-- Add `linkSuperset(exerciseId: string, targetExerciseId: string)` — links two exercises into a superset group
+```text
+coach_program_templates
+├── id (uuid)
+├── coach_id (uuid)         -- who created it
+├── name (text)             -- "Upper/Lower 4-Day Split"
+├── description (text)
+├── duration_weeks (int)
+├── days_per_week (int)
+├── category (text)         -- strength, hypertrophy, powerlifting, etc.
+├── created_at, updated_at
+└── is_archived (bool)
 
-**`src/components/workout/WorkoutLogger.tsx`**:
-- Group exercises by `superset_group` when rendering
-- Superset groups get a colored left border and a "Superset" label badge
-- Long-press or dropdown menu option "Link as Superset" on exercise cards
+coach_template_workouts
+├── id (uuid)
+├── template_id → coach_program_templates
+├── week_number (int)
+├── day_number (int)
+├── workout_name (text)
+├── notes (text)
+├── exercises (jsonb)       -- same structure as program_workouts.exercises
+│   [{ name, sets, reps, rpe, rir, percentage, tempo, rest_seconds, notes, video_url, set_type }]
+└── created_at
+```
 
-**`src/components/workout/ExerciseCard.tsx`**:
-- Add dropdown menu item "Link to Superset" that opens a picker of other exercises in the session
-- Visual indicator: colored left border + "SS" badge when part of a superset
+### 2. Copy Workout Between Clients
 
-## 3. Rest Timer
+**New edge function action: `copy_workout_to_user`** in `admin-workout-builder`
+- Input: `sourceWorkoutId`, `targetUserId`, `targetDate`
+- Creates a new workout for the target user, cloning all exercises and sets
+- Admin user profile page gets a "Copy to Another Client" button on each workout row
+- Opens a picker showing all clients, lets coach select target + date
 
-**New component: `src/components/workout/RestTimer.tsx`**:
-- Floating timer that appears after completing a set
-- Preset buttons: 30s, 60s, 90s, 120s, 180s, custom
-- Countdown display with circular progress
-- Audio notification (browser `Notification` API or a beep tone via `AudioContext`)
-- Auto-starts configurable default rest time after set completion
-- Can be dismissed or adjusted mid-countdown
-- Minimized state: small floating pill at bottom of screen showing remaining time
+### 3. Assign Template to Client
 
-**`src/components/workout/WorkoutLogger.tsx`**:
-- Render `RestTimer` component
-- Pass a callback from `completeSet` to trigger the timer
+**New edge function action: `assign_template`** in `admin-workout-builder`
+- Input: `templateId`, `targetUserId`, `startDate`, `trainingDays[]`
+- Uses the same look-ahead scheduling algorithm as the existing program enrollment system
+- Creates workouts on the client's calendar with exercises pre-populated
+- Creates a `coach_client_assignments` row to track the relationship
 
-**`src/components/workout/SetRow.tsx`**:
-- After `handleComplete(true)`, call the rest timer trigger callback (passed via props or context)
+**New table: `coach_client_assignments`**
+```text
+coach_client_assignments
+├── id (uuid)
+├── coach_id (uuid)
+├── client_user_id (uuid)
+├── template_id → coach_program_templates (nullable)
+├── start_date (date)
+├── status (text)           -- active, completed, cancelled
+├── notes (text)
+├── created_at
+```
 
-## 4. Fix Load Last Session
+### 4. Calendar Edit Mode
 
-The bug is in `getLastSessionSets` (line 877-906 of workoutStore.ts). It queries with `.ilike('exercise_name', normalizedName)` but `normalizedName` is lowercased while the DB stores mixed case. The `.ilike` should work case-insensitively, but the real issue is `.limit(1)` returns the most recent exercise entry, which could be from the **current** active workout (not yet completed). Also, the filter `workout.is_completed` check on line 900 rejects the current session but returns `[]` instead of looking further back.
+**New page: `/admin/user/:userId/calendar`**
+- Full calendar view of a client's workouts (month view)
+- Click any date to create or edit a workout directly
+- Drag workouts to reschedule (date change)
+- Color-coded: completed (green), in-progress (amber), future (blue), missed (red)
+- Quick-add: click empty date → workout name → exercises inline
 
-**Fix in `src/stores/workoutStore.ts` `getLastSessionSets`**:
-- Change the query to filter out the current active workout: add `.neq('workout_id', activeWorkout?.id)` or use the inner join to filter `workouts.is_completed = true`
-- Use `.eq('workouts.is_completed', true)` in the inner join filter so only completed workouts are considered
-- Increase `.limit(5)` and find the first one that belongs to the current user and is completed, since the current limit(1) may hit the active session
+### 5. Program Builder with Auto-Progressions
 
-**Also fix in `ExerciseCard.tsx`**:
-- The `loadLastSession` function works correctly once `getLastSessionSets` returns proper data — no changes needed there
+**New page: `/admin/templates`** — Template management dashboard
+- List all coach templates with create/edit/archive/duplicate
+- Template editor with week-by-week view
+- "Duplicate Week" with auto-progression options:
+  - Increase weight by X% or X lbs/kg
+  - Increase reps by N
+  - Decrease RIR by 1
+  - Custom formula
+- Percentage-based loads: exercises can specify `percentage: 85` meaning "85% of client's 1RM for this lift"
+- RPE/RIR targets per set
+- Tempo notation support (already exists in program system)
 
-## 5. Warm-up Sets vs Working Sets
+### 6. Enhanced Set Prescriptions
 
-**Database migration**:
-- `ALTER TABLE exercise_sets ADD COLUMN set_type text NOT NULL DEFAULT 'working';`
-- Valid values: `'warmup'`, `'working'`
+Update the exercises JSONB structure to support:
+```json
+{
+  "name": "Back Squat (High Bar)",
+  "sets": 4,
+  "reps": "5",
+  "rpe": 8,
+  "rir": 2,
+  "percentage": 82.5,
+  "tempo": "30X1",
+  "rest_seconds": 180,
+  "notes": "Pause at bottom",
+  "video_url": "...",
+  "set_type": "working",
+  "superset_with": "Face Pull"
+}
+```
 
-**`src/types/workout.ts`**:
-- Add `set_type: 'warmup' | 'working'` to `ExerciseSet` interface
+### 7. Client Overview Dashboard Enhancement
 
-**`src/components/workout/SetRow.tsx`**:
-- Add a small toggle/badge in the set number column: tap set number to toggle between "W" (warmup, muted style) and the set number (working)
-- Warmup sets get a muted/dimmed visual treatment (lower opacity, different background)
-- Warmup sets show "W" instead of the set number
+Update `/admin/user/:userId` with:
+- "Assign Program" button (opens template picker + scheduling wizard)
+- "Copy Workout to Client" action on each workout row
+- Training calendar mini-view showing the month
+- Active program assignment badge
+- Touchpoint log: quick notes about coaching interactions (new `coach_touchpoints` table)
 
-**`src/components/workout/ExerciseCard.tsx`**:
-- Update header row to show "Type" or integrate into set number column
-- "Add Set" button gets a small dropdown: "Add Working Set" / "Add Warm-up Set"
-- Completed set count only shows working sets: `exercise.sets?.filter(s => s.is_completed && s.set_type === 'working').length`
+**New table: `coach_touchpoints`**
+```text
+coach_touchpoints
+├── id (uuid)
+├── coach_id (uuid)
+├── client_user_id (uuid)
+├── touchpoint_type (text)  -- note, check-in, call, email
+├── content (text)
+├── created_at
+```
 
-**Volume calculation** (all locations):
-- `WorkoutLogger.tsx` totalVolume calculation: filter to `set_type === 'working'` only
-- `workoutStore.ts` `completeSet`: only check PR on working sets
-- `movementPatterns.ts` calculations: only count working sets
-- `finishWorkout`: calculate `total_volume` from working sets only
+### 8. Coach Dashboard Enhancement
 
-**`src/stores/workoutStore.ts`**:
-- `addSet` accepts optional `setType: 'warmup' | 'working'` parameter, defaults to `'working'`
-- Update set insert to include `set_type`
+Update `/admin` with:
+- "My Templates" quick link
+- "Clients needing attention" — clients who haven't logged in 3+ days
+- Quick-assign workflow: select template → select clients → schedule
+
+---
 
 ## File Changes Summary
 
 | File | Change |
 |------|--------|
-| `src/lib/movementPatterns.ts` | Add `EQUIPMENT_MODIFIERS`, update `normalizeVolume` |
-| `src/types/workout.ts` | Add `set_type` to `ExerciseSet`, `superset_group` to `WorkoutExercise` |
-| Migration | Add `set_type` to `exercise_sets`, `superset_group` to `workout_exercises` |
-| `src/stores/workoutStore.ts` | Fix `getLastSessionSets`, add superset actions, update `addSet` for set type, filter warmups from volume |
-| `src/components/workout/SetRow.tsx` | Warmup/working toggle, rest timer trigger |
-| `src/components/workout/ExerciseCard.tsx` | Warmup set support, superset linking, split "Add Set" button |
-| `src/components/workout/WorkoutLogger.tsx` | Superset grouping, rest timer integration, filter warmups from volume |
-| `src/components/workout/RestTimer.tsx` | New floating rest timer component |
-| `src/components/workout/MovementBalanceChart.tsx` | Pass exercise name for equipment-aware normalization |
+| **New migration** | Create `coach_program_templates`, `coach_template_workouts`, `coach_client_assignments`, `coach_touchpoints` tables with RLS |
+| **`supabase/functions/admin-workout-builder/index.ts`** | Add actions: `copy_workout_to_user`, `assign_template`, `create_template`, `update_template`, `list_templates`, `get_template_detail`, `duplicate_template_week`, `add_touchpoint`, `get_touchpoints` |
+| **New: `src/pages/AdminTemplates.tsx`** | Template management page with list + editor |
+| **New: `src/pages/AdminClientCalendar.tsx`** | Full calendar view for a client's workouts |
+| **New: `src/components/admin/TemplateEditor.tsx`** | Week-by-week template editor with exercise builder, auto-progression, % of 1RM |
+| **New: `src/components/admin/CopyWorkoutDialog.tsx`** | Client picker + date selector for copying workouts |
+| **New: `src/components/admin/AssignTemplateWizard.tsx`** | Template selector → client → start date → training days |
+| **New: `src/components/admin/TouchpointLog.tsx`** | Quick coaching notes log per client |
+| **New: `src/components/admin/ClientCalendarView.tsx`** | Month calendar component for admin client view |
+| **`src/pages/AdminUserProfile.tsx`** | Add calendar mini-view, assign program button, copy workout actions, touchpoint log |
+| **`src/pages/AdminDashboard.tsx`** | Add "My Templates" link, "Clients needing attention" section |
+| **`src/App.tsx`** | Add routes: `/admin/templates`, `/admin/user/:userId/calendar` |
+
+---
+
+## Technical Details
+
+**RLS for new tables**: All coach tables use `has_role(auth.uid(), 'admin')` for full CRUD. No client access needed — clients see results through existing `workouts` table.
+
+**Copy workout flow**:
+1. Admin clicks "Copy" on a workout row in client profile
+2. Dialog shows list of all users (fetched via service role in edge function)
+3. Admin selects target user + date
+4. Edge function creates workout + exercises + sets for target user
+
+**Auto-progression algorithm**:
+- "Duplicate Week N → Week N+1" action in template editor
+- Each exercise gets progression rules: `{ type: 'weight_increase', value: 2.5, unit: 'kg' }` or `{ type: 'rpe_increase', value: 0.5 }` or `{ type: 'rir_decrease', value: 1 }`
+- Applied to all exercises in the duplicated week
+
+**% of 1RM resolution**:
+- When assigning a template to a client, the system looks up the client's PRs from `personal_records`
+- If `percentage: 85` and client's 1RM for "Back Squat" is 140kg, prescribed weight = 119kg (rounded to nearest 2.5)
+- If no PR exists, the field shows "85% of 1RM" as a text hint instead of a number
 
