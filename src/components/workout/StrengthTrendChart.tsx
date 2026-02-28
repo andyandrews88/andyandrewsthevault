@@ -1,20 +1,21 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { TrendingUp } from "lucide-react";
 import { useWorkoutStore } from "@/stores/workoutStore";
 import { ALL_EXERCISES, ExerciseHistory } from "@/types/workout";
-import { format } from "date-fns";
+import { format, isAfter, isBefore, parseISO } from "date-fns";
 import { convertWeight } from "@/lib/weightConversion";
+import { DateRangeSelector, computeRange } from "@/components/ui/DateRangeSelector";
 
 export function StrengthTrendChart() {
   const { fetchExerciseHistory, personalRecords, preferredUnit } = useWorkoutStore();
   const [selectedExercise, setSelectedExercise] = useState("back squat (high bar)");
   const [history, setHistory] = useState<ExerciseHistory[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [dateRange, setDateRange] = useState(() => computeRange("3M"));
 
-  // Get list of exercises the user has PRs for
   const userExercises = personalRecords.map(pr => pr.exercise_name);
   const exerciseOptions = [...new Set([
     ...userExercises,
@@ -31,7 +32,16 @@ export function StrengthTrendChart() {
     loadHistory();
   }, [selectedExercise, fetchExerciseHistory]);
 
-  const chartData = history.map(h => ({
+  const handleRangeChange = useCallback((from: Date, to: Date) => {
+    setDateRange({ from, to });
+  }, []);
+
+  const filteredHistory = history.filter(h => {
+    const d = parseISO(h.date);
+    return !isBefore(d, dateRange.from) && !isAfter(d, dateRange.to);
+  });
+
+  const chartData = filteredHistory.map(h => ({
     date: format(new Date(h.date), 'MMM d'),
     weight: preferredUnit === 'kg' ? convertWeight(h.max_weight, 'lbs', 'kg') : h.max_weight,
   }));
@@ -51,27 +61,30 @@ export function StrengthTrendChart() {
   return (
     <Card variant="elevated">
       <CardHeader>
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-primary" />
-              Strength Progress
-            </CardTitle>
-            <CardDescription>Track your max weight over time</CardDescription>
+        <div className="space-y-2">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-primary" />
+                Strength Progress
+              </CardTitle>
+              <CardDescription>Track your max weight over time</CardDescription>
+            </div>
+            
+            <Select value={selectedExercise} onValueChange={setSelectedExercise}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Select exercise" />
+              </SelectTrigger>
+              <SelectContent>
+                {exerciseOptions.map(exercise => (
+                  <SelectItem key={exercise} value={exercise}>
+                    {exercise.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-          
-          <Select value={selectedExercise} onValueChange={setSelectedExercise}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Select exercise" />
-            </SelectTrigger>
-            <SelectContent>
-              {exerciseOptions.map(exercise => (
-                <SelectItem key={exercise} value={exercise}>
-                  {exercise.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <DateRangeSelector defaultPreset="3M" onRangeChange={handleRangeChange} />
         </div>
       </CardHeader>
       
@@ -80,7 +93,7 @@ export function StrengthTrendChart() {
           <div className="h-64 flex items-center justify-center text-muted-foreground">
             Loading...
           </div>
-        ) : history.length === 0 ? (
+        ) : filteredHistory.length === 0 ? (
           <div className="h-64 flex flex-col items-center justify-center text-muted-foreground">
             <TrendingUp className="h-12 w-12 mb-4 opacity-50" />
             <p>No data for this exercise yet</p>

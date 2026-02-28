@@ -1,31 +1,36 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Flame } from "lucide-react";
 import { useWorkoutStore } from "@/stores/workoutStore";
 import { WorkoutDay } from "@/types/workout";
 import { format, subDays, startOfWeek, addDays, differenceInDays, isToday, isSameDay } from "date-fns";
+import { DateRangeSelector, computeRange } from "@/components/ui/DateRangeSelector";
 
 export function ActivityHeatmap() {
   const { fetchWorkoutDays } = useWorkoutStore();
   const [workoutDays, setWorkoutDays] = useState<WorkoutDay[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [weeksToShow, setWeeksToShow] = useState(12);
 
-  const WEEKS_TO_SHOW = 12;
   const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-  useEffect(() => {
-    const loadData = async () => {
-      setIsLoading(true);
-      const data = await fetchWorkoutDays(WEEKS_TO_SHOW);
-      setWorkoutDays(data);
-      setIsLoading(false);
-    };
-    loadData();
+  const loadData = useCallback(async (from: Date, to: Date) => {
+    setIsLoading(true);
+    const weeks = Math.max(1, Math.ceil(differenceInDays(to, from) / 7));
+    setWeeksToShow(weeks);
+    const data = await fetchWorkoutDays(weeks);
+    setWorkoutDays(data);
+    setIsLoading(false);
   }, [fetchWorkoutDays]);
+
+  useEffect(() => {
+    const { from, to } = computeRange("3M");
+    loadData(from, to);
+  }, [loadData]);
 
   // Create the calendar grid
   const today = new Date();
-  const startDate = startOfWeek(subDays(today, WEEKS_TO_SHOW * 7), { weekStartsOn: 1 });
+  const startDate = startOfWeek(subDays(today, weeksToShow * 7), { weekStartsOn: 1 });
   
   const workoutDaySet = new Set(workoutDays.map(d => d.date));
   
@@ -46,7 +51,7 @@ export function ActivityHeatmap() {
   const weeks: Date[][] = [];
   let currentWeekStart = startDate;
   
-  for (let w = 0; w < WEEKS_TO_SHOW; w++) {
+  for (let w = 0; w < weeksToShow; w++) {
     const week: Date[] = [];
     for (let d = 0; d < 7; d++) {
       week.push(addDays(currentWeekStart, d));
@@ -68,20 +73,23 @@ export function ActivityHeatmap() {
   return (
     <Card variant="elevated">
       <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <Flame className="h-5 w-5 text-primary" />
-              Training Consistency
-            </CardTitle>
-            <CardDescription>Last {WEEKS_TO_SHOW} weeks of activity</CardDescription>
-          </div>
-          {currentStreak > 0 && (
-            <div className="text-right">
-              <p className="text-2xl font-bold text-primary">{currentStreak}</p>
-              <p className="text-xs text-muted-foreground">day streak</p>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Flame className="h-5 w-5 text-primary" />
+                Training Consistency
+              </CardTitle>
+              <CardDescription>Last {weeksToShow} weeks of activity</CardDescription>
             </div>
-          )}
+            {currentStreak > 0 && (
+              <div className="text-right">
+                <p className="text-2xl font-bold text-primary">{currentStreak}</p>
+                <p className="text-xs text-muted-foreground">day streak</p>
+              </div>
+            )}
+          </div>
+          <DateRangeSelector defaultPreset="3M" onRangeChange={loadData} />
         </div>
       </CardHeader>
       
@@ -140,7 +148,7 @@ export function ActivityHeatmap() {
               <div className="text-right">
                 <p className="text-sm text-muted-foreground">Avg per Week</p>
                 <p className="text-xl font-bold">
-                  {(workoutDays.length / WEEKS_TO_SHOW).toFixed(1)}
+                  {(workoutDays.length / weeksToShow).toFixed(1)}
                 </p>
               </div>
             </div>

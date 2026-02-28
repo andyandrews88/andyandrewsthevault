@@ -1,25 +1,30 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { TrendingUp } from "lucide-react";
 import { useWorkoutStore } from "@/stores/workoutStore";
 import { WeeklyVolume } from "@/types/workout";
 import { convertWeight } from "@/lib/weightConversion";
+import { DateRangeSelector, computeRange } from "@/components/ui/DateRangeSelector";
+import { differenceInDays } from "date-fns";
 
 export function VolumeTrendChart() {
   const { fetchWeeklyVolume, preferredUnit } = useWorkoutStore();
   const [data, setData] = useState<WeeklyVolume[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    const loadData = async () => {
-      setIsLoading(true);
-      const volumeData = await fetchWeeklyVolume(4);
-      setData(volumeData);
-      setIsLoading(false);
-    };
-    loadData();
+  const loadData = useCallback(async (from: Date, to: Date) => {
+    setIsLoading(true);
+    const weeks = Math.max(1, Math.ceil(differenceInDays(to, from) / 7));
+    const volumeData = await fetchWeeklyVolume(weeks);
+    setData(volumeData);
+    setIsLoading(false);
   }, [fetchWeeklyVolume]);
+
+  useEffect(() => {
+    const { from, to } = computeRange("1M");
+    loadData(from, to);
+  }, [loadData]);
 
   const chartData = data.map(d => ({
     week: d.week_label.replace('Week of ', ''),
@@ -45,11 +50,16 @@ export function VolumeTrendChart() {
   return (
     <Card variant="elevated">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <TrendingUp className="h-5 w-5 text-primary" />
-          Weekly Training Volume
-        </CardTitle>
-        <CardDescription>Total weight × reps for completed sets</CardDescription>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-primary" />
+              Weekly Training Volume
+            </CardTitle>
+            <CardDescription>Total weight × reps for completed sets</CardDescription>
+          </div>
+          <DateRangeSelector defaultPreset="1M" onRangeChange={loadData} />
+        </div>
       </CardHeader>
       
       <CardContent>
