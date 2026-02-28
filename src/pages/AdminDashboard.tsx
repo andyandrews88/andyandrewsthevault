@@ -18,6 +18,7 @@ import {
 import { AdminWeeklyReport } from "@/components/admin/AdminWeeklyReport";
 import { AnnouncementManager } from "@/components/admin/AnnouncementManager";
 import { AdminDetailDrawer } from "@/components/admin/AdminDetailDrawer";
+import { QuickAssignDialog } from "@/components/admin/QuickAssignDialog";
 
 interface Analytics {
   users: { total: number; newThisMonth: number; newThisWeek: number; recentSignups: { id: string; displayName: string; createdAt: string }[] };
@@ -56,6 +57,7 @@ export default function AdminDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [drawerSection, setDrawerSection] = useState<Section | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [quickAssignOpen, setQuickAssignOpen] = useState(false);
 
   const openDrawer = (s: Section) => {
     setDrawerSection(s);
@@ -122,10 +124,16 @@ export default function AdminDashboard() {
               <p className="text-sm text-muted-foreground">Platform analytics overview</p>
             </div>
           </div>
-          <Button variant="hero" onClick={() => navigate("/admin/templates")} className="gap-2">
-            <Dumbbell className="h-4 w-4" />
-            My Templates
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setQuickAssignOpen(true)} className="gap-2">
+              <Users className="h-4 w-4" />
+              Quick Assign
+            </Button>
+            <Button variant="hero" onClick={() => navigate("/admin/templates")} className="gap-2">
+              <Dumbbell className="h-4 w-4" />
+              My Templates
+            </Button>
+          </div>
         </div>
 
         {/* Users Overview */}
@@ -246,6 +254,8 @@ export default function AdminDashboard() {
         open={drawerOpen}
         onClose={() => { setDrawerOpen(false); setDrawerSection(null); }}
       />
+
+      <QuickAssignDialog open={quickAssignOpen} onOpenChange={setQuickAssignOpen} />
     </div>
   );
 }
