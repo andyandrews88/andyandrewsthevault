@@ -63,6 +63,7 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
     startWorkout, 
     addExercise,
     removeExercise,
+    moveExercise,
     finishWorkout,
     cancelWorkout,
     fetchActiveWorkout,
@@ -321,14 +322,19 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
   const renderExercises = () => {
     const rendered = new Set<string>();
     const elements: JSX.Element[] = [];
+    const sorted = [...exercises].sort((a, b) => a.order_index - b.order_index);
 
-    exercises.forEach((exercise) => {
+    sorted.forEach((exercise, globalIdx) => {
       if (rendered.has(exercise.id)) return;
       rendered.add(exercise.id);
 
+      const canUp = globalIdx > 0;
+      const canDown = globalIdx < sorted.length - 1;
+      const moveUp = () => moveExercise(exercise.id, 'up');
+      const moveDown = () => moveExercise(exercise.id, 'down');
+
       if (exercise.superset_group) {
-        // Find all exercises in this superset group
-        const group = exercises.filter(e => e.superset_group === exercise.superset_group);
+        const group = sorted.filter(e => e.superset_group === exercise.superset_group);
         const groupIds = group.map(e => e.id);
         groupIds.forEach(id => rendered.add(id));
 
@@ -337,12 +343,17 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
             <div className="text-xs font-medium text-primary uppercase tracking-wider px-1 mb-1">
               ⚡ Superset
             </div>
-            {group.map(ex => (
-              ex.exercise_type === 'conditioning' ? (
+            {group.map((ex, i) => {
+              const gIdx = sorted.indexOf(ex);
+              return ex.exercise_type === 'conditioning' ? (
                 <ConditioningCard
                   key={ex.id}
                   exercise={ex}
                   onRemove={() => removeExercise(ex.id)}
+                  onMoveUp={() => moveExercise(ex.id, 'up')}
+                  onMoveDown={() => moveExercise(ex.id, 'down')}
+                  canMoveUp={gIdx > 0}
+                  canMoveDown={gIdx < sorted.length - 1}
                 />
               ) : (
                 <ExerciseCard
@@ -350,9 +361,13 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
                   exercise={ex}
                   onRemove={() => removeExercise(ex.id)}
                   allExercises={exercises}
+                  onMoveUp={() => moveExercise(ex.id, 'up')}
+                  onMoveDown={() => moveExercise(ex.id, 'down')}
+                  canMoveUp={gIdx > 0}
+                  canMoveDown={gIdx < sorted.length - 1}
                 />
-              )
-            ))}
+              );
+            })}
           </div>
         );
       } else {
@@ -362,6 +377,10 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
               key={exercise.id}
               exercise={exercise}
               onRemove={() => removeExercise(exercise.id)}
+              onMoveUp={moveUp}
+              onMoveDown={moveDown}
+              canMoveUp={canUp}
+              canMoveDown={canDown}
             />
           ) : (
             <ExerciseCard
@@ -369,6 +388,10 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
               exercise={exercise}
               onRemove={() => removeExercise(exercise.id)}
               allExercises={exercises}
+              onMoveUp={moveUp}
+              onMoveDown={moveDown}
+              canMoveUp={canUp}
+              canMoveDown={canDown}
             />
           )
         );

@@ -13,9 +13,10 @@ import {
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
-import { Plus, MoreVertical, History, Trash2, Percent, Play, ChevronUp, ChevronDown, Link, Unlink } from "lucide-react";
+import { Plus, MoreVertical, History, Trash2, Percent, Play, ChevronUp, ChevronDown, Link, Unlink, ArrowUp, ArrowDown, RefreshCw } from "lucide-react";
 import { WorkoutExercise } from "@/types/workout";
 import { SetRow } from "./SetRow";
+import { ExerciseSearch } from "./ExerciseSearch";
 import { useWorkoutStore } from "@/stores/workoutStore";
 import { supabase } from "@/integrations/supabase/client";
 import { toEmbedUrl } from "@/lib/vaultService";
@@ -25,6 +26,10 @@ interface ExerciseCardProps {
   exercise: WorkoutExercise;
   onRemove: () => void;
   allExercises?: WorkoutExercise[];
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+  canMoveUp?: boolean;
+  canMoveDown?: boolean;
 }
 
 function parsePercentageHint(notes: string | null | undefined): string | null {
@@ -33,13 +38,14 @@ function parsePercentageHint(notes: string | null | undefined): string | null {
   return match ? match[1] : null;
 }
 
-export function ExerciseCard({ exercise, onRemove, allExercises = [] }: ExerciseCardProps) {
-  const { addSet, removeSet, updateSet, completeSet, loadLastSession, getLastSessionSets, preferredUnit, linkSuperset, unlinkSuperset } = useWorkoutStore();
+export function ExerciseCard({ exercise, onRemove, allExercises = [], onMoveUp, onMoveDown, canMoveUp = false, canMoveDown = false }: ExerciseCardProps) {
+  const { addSet, removeSet, updateSet, completeSet, loadLastSession, getLastSessionSets, preferredUnit, linkSuperset, unlinkSuperset, replaceExercise } = useWorkoutStore();
   const [previousSets, setPreviousSets] = useState<{ weight: number; reps: number }[]>([]);
   const [isLoadingPrevious, setIsLoadingPrevious] = useState(false);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [showVideo, setShowVideo] = useState(false);
   const [showAddMenu, setShowAddMenu] = useState(false);
+  const [showReplaceSearch, setShowReplaceSearch] = useState(false);
 
   const percentageHint = parsePercentageHint(exercise.notes);
   const isSupersetted = !!exercise.superset_group;
@@ -120,7 +126,17 @@ export function ExerciseCard({ exercise, onRemove, allExercises = [] }: Exercise
             </div>
           </div>
 
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-0.5">
+            {canMoveUp && (
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onMoveUp}>
+                <ArrowUp className="h-3.5 w-3.5" />
+              </Button>
+            )}
+            {canMoveDown && (
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onMoveDown}>
+                <ArrowDown className="h-3.5 w-3.5" />
+              </Button>
+            )}
             {videoUrl && (
               <Button
                 variant="ghost"
@@ -170,6 +186,10 @@ export function ExerciseCard({ exercise, onRemove, allExercises = [] }: Exercise
                 </DropdownMenuItem>
               )}
               
+              <DropdownMenuItem onClick={() => setShowReplaceSearch(true)}>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Replace Exercise
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={onRemove} className="text-destructive">
                 <Trash2 className="h-4 w-4 mr-2" />
@@ -286,6 +306,14 @@ export function ExerciseCard({ exercise, onRemove, allExercises = [] }: Exercise
           </div>
         )}
       </CardContent>
+
+      {/* Replace Exercise Search */}
+      <ExerciseSearch
+        open={showReplaceSearch}
+        onOpenChange={setShowReplaceSearch}
+        onSelectExercise={(name) => replaceExercise(exercise.id, name)}
+        mode="replace"
+      />
     </Card>
   );
 }

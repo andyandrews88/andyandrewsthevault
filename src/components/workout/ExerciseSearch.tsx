@@ -5,11 +5,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Plus, Dumbbell, Timer } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Dumbbell, Timer, Plus } from "lucide-react";
+import {
+  Command,
+  CommandInput,
+  CommandList,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+} from "@/components/ui/command";
 import { 
   EXERCISE_CATEGORIES, 
   STRENGTH_EXERCISES, 
@@ -22,6 +29,8 @@ interface ExerciseSearchProps {
   onOpenChange: (open: boolean) => void;
   onSelectExercise: (name: string) => void;
   recentExercises?: string[];
+  mode?: 'add' | 'replace';
+  title?: string;
 }
 
 type CategoryKey = keyof typeof EXERCISE_CATEGORIES;
@@ -30,16 +39,16 @@ export function ExerciseSearch({
   open, 
   onOpenChange, 
   onSelectExercise,
-  recentExercises = []
+  recentExercises = [],
+  mode = 'add',
+  title,
 }: ExerciseSearchProps) {
   const [search, setSearch] = useState("");
   const [exerciseType, setExerciseType] = useState<'strength' | 'conditioning'>('strength');
   const [selectedCategory, setSelectedCategory] = useState<CategoryKey | 'all'>('all');
 
   const categories: (CategoryKey | 'all')[] = useMemo(() => {
-    if (exerciseType === 'conditioning') {
-      return ['all', 'conditioning'];
-    }
+    if (exerciseType === 'conditioning') return ['all', 'conditioning'];
     return ['all', 'chest', 'back', 'shoulders', 'quadriceps', 'hamstrings_glutes', 'calves', 'biceps', 'triceps', 'core', 'olympic', 'functional'];
   }, [exerciseType]);
 
@@ -48,20 +57,12 @@ export function ExerciseSearch({
       ? [...CONDITIONING_EXERCISES] 
       : [...STRENGTH_EXERCISES];
     
-    // Filter by category
     if (selectedCategory !== 'all' && selectedCategory in EXERCISE_CATEGORIES) {
       exercises = [...EXERCISE_CATEGORIES[selectedCategory as CategoryKey]];
     }
     
-    // Filter by search
-    if (search.length > 0) {
-      exercises = exercises.filter(e => 
-        e.toLowerCase().includes(search.toLowerCase())
-      );
-    }
-    
     return exercises;
-  }, [search, exerciseType, selectedCategory]);
+  }, [exerciseType, selectedCategory]);
 
   const handleSelect = (name: string) => {
     onSelectExercise(name);
@@ -69,23 +70,19 @@ export function ExerciseSearch({
     onOpenChange(false);
   };
 
-  const handleCustomExercise = () => {
-    if (search.trim()) {
-      handleSelect(search.trim());
-    }
-  };
+  const dialogTitle = title || (mode === 'replace' ? 'Replace Exercise' : 'Add Exercise');
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md max-h-[85vh] flex flex-col">
-        <DialogHeader>
+    <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) setSearch(""); }}>
+      <DialogContent className="max-w-md max-h-[85vh] flex flex-col p-0">
+        <DialogHeader className="px-4 pt-4 pb-2">
           <DialogTitle className="flex items-center gap-2">
             <Dumbbell className="h-5 w-5 text-primary" />
-            Add Exercise
+            {dialogTitle}
           </DialogTitle>
         </DialogHeader>
         
-        <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
+        <div className="px-4 pb-2">
           {/* Type Toggle */}
           <Tabs value={exerciseType} onValueChange={(v) => {
             setExerciseType(v as 'strength' | 'conditioning');
@@ -102,93 +99,80 @@ export function ExerciseSearch({
               </TabsTrigger>
             </TabsList>
           </Tabs>
-          
-          {/* Search Input */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search or type custom exercise..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9"
-              autoFocus
-            />
-          </div>
-          
-          {/* Category Pills */}
-          {exerciseType === 'strength' && !search && (
-            <ScrollArea className="w-full whitespace-nowrap">
-              <div className="flex gap-2 pb-2">
-                {categories.map(cat => (
-                  <Button
-                    key={cat}
-                    variant={selectedCategory === cat ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setSelectedCategory(cat)}
-                    className="shrink-0"
-                  >
-                    {cat === 'all' ? 'All' : CATEGORY_LABELS[cat as CategoryKey]}
-                  </Button>
-                ))}
-              </div>
-            </ScrollArea>
-          )}
-          
-          {/* Recent Exercises */}
-          {recentExercises.length > 0 && !search && selectedCategory === 'all' && (
-            <div>
-              <h4 className="text-sm font-medium text-muted-foreground mb-2">Recent</h4>
-              <div className="flex flex-wrap gap-2">
-                {recentExercises.slice(0, 5).map(name => (
-                  <Button
-                    key={name}
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleSelect(name)}
-                  >
-                    {name}
-                  </Button>
-                ))}
-              </div>
+        </div>
+
+        {/* Category Pills */}
+        {exerciseType === 'strength' && (
+          <ScrollArea className="w-full px-4 pb-2">
+            <div className="flex gap-2 pb-1">
+              {categories.map(cat => (
+                <Button
+                  key={cat}
+                  variant={selectedCategory === cat ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setSelectedCategory(cat)}
+                  className="shrink-0 text-xs"
+                >
+                  {cat === 'all' ? 'All' : CATEGORY_LABELS[cat as CategoryKey]}
+                </Button>
+              ))}
             </div>
-          )}
-          
-          {/* Exercise List */}
-          <ScrollArea className="flex-1 min-h-0">
-            <div className="space-y-1 pr-4">
-              {/* Custom exercise option when searching */}
-              {search && !filteredExercises.some(e => 
-                e.toLowerCase() === search.toLowerCase()
-              ) && (
+          </ScrollArea>
+        )}
+
+        {/* Command-based search + list */}
+        <Command shouldFilter={true} className="border-t border-border">
+          <CommandInput 
+            placeholder="Search or type custom exercise..." 
+            value={search}
+            onValueChange={setSearch}
+          />
+          <CommandList className="max-h-[300px]">
+            <CommandEmpty className="py-4">
+              {search.trim() ? (
                 <Button
                   variant="ghost"
                   className="w-full justify-start text-primary"
-                  onClick={handleCustomExercise}
+                  onClick={() => handleSelect(search.trim())}
                 >
                   <Plus className="h-4 w-4 mr-2" />
-                  Add "{search}"
+                  {mode === 'replace' ? 'Replace with' : 'Add'} "{search.trim()}"
                 </Button>
+              ) : (
+                <span className="text-muted-foreground text-sm">No exercises found</span>
               )}
-              
+            </CommandEmpty>
+
+            {/* Recent exercises */}
+            {recentExercises.length > 0 && !search && selectedCategory === 'all' && (
+              <CommandGroup heading="Recent">
+                {recentExercises.slice(0, 5).map(name => (
+                  <CommandItem key={`recent-${name}`} value={name} onSelect={() => handleSelect(name)}>
+                    {name}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            )}
+
+            <CommandGroup heading={exerciseType === 'conditioning' ? 'Conditioning' : (selectedCategory === 'all' ? 'All Exercises' : CATEGORY_LABELS[selectedCategory as CategoryKey])}>
               {filteredExercises.map(name => (
-                <Button
-                  key={name}
-                  variant="ghost"
-                  className="w-full justify-start"
-                  onClick={() => handleSelect(name)}
-                >
+                <CommandItem key={name} value={name} onSelect={() => handleSelect(name)}>
                   {name}
-                </Button>
+                </CommandItem>
               ))}
-              
-              {filteredExercises.length === 0 && !search && (
-                <p className="text-center text-muted-foreground py-4">
-                  No exercises found
-                </p>
-              )}
-            </div>
-          </ScrollArea>
-        </div>
+            </CommandGroup>
+
+            {/* Custom exercise option at the bottom when typing */}
+            {search.trim() && !filteredExercises.some(e => e.toLowerCase() === search.toLowerCase()) && (
+              <CommandGroup>
+                <CommandItem value={`custom-${search.trim()}`} onSelect={() => handleSelect(search.trim())}>
+                  <Plus className="h-4 w-4 mr-2 text-primary" />
+                  <span className="text-primary">{mode === 'replace' ? 'Replace with' : 'Add'} "{search.trim()}"</span>
+                </CommandItem>
+              </CommandGroup>
+            )}
+          </CommandList>
+        </Command>
       </DialogContent>
     </Dialog>
   );
