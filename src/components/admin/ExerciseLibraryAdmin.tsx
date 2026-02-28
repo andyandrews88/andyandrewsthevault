@@ -180,10 +180,10 @@ export function ExerciseLibraryAdmin() {
   const loadExercises = async () => {
     setIsLoading(true);
     const { data, error } = await supabase
-      .from('exercise_library' as any)
+      .from('exercise_library')
       .select('*')
       .order('name');
-    if (!error && data) setExercises(data as unknown as ExerciseLibraryEntry[]);
+    if (!error && data) setExercises(data as ExerciseLibraryEntry[]);
     setIsLoading(false);
   };
 
@@ -200,11 +200,11 @@ export function ExerciseLibraryAdmin() {
       equipment_type: form.equipment_type.trim() || null,
     };
     if (editingExercise) {
-      const { error } = await supabase.from('exercise_library' as any).update(row).eq('id', editingExercise.id);
+      const { error } = await supabase.from('exercise_library').update(row).eq('id', editingExercise.id);
       if (error) { toast.error(error.message); throw error; }
       toast.success("Exercise updated");
     } else {
-      const { error } = await supabase.from('exercise_library' as any).insert(row);
+      const { error } = await supabase.from('exercise_library').insert(row);
       if (error) { toast.error(error.message); throw error; }
       toast.success("Exercise added to library");
     }
@@ -215,7 +215,7 @@ export function ExerciseLibraryAdmin() {
 
   const handleDelete = async () => {
     if (!deletingId) return;
-    const { error } = await supabase.from('exercise_library' as any).delete().eq('id', deletingId);
+    const { error } = await supabase.from('exercise_library').delete().eq('id', deletingId);
     if (error) { toast.error(error.message); return; }
     toast.success("Exercise deleted");
     setDeletingId(null);

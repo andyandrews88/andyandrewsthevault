@@ -98,14 +98,15 @@ export function MovementBalanceChart() {
 
     const { data: sets } = await supabase
       .from('exercise_sets')
-      .select('exercise_id, weight, reps, is_completed')
+      .select('exercise_id, weight, reps, is_completed, set_type')
       .in('exercise_id', exerciseIds)
-      .eq('is_completed', true);
+      .eq('is_completed', true)
+      .eq('set_type', 'working');
 
     // Fetch exercise_library entries for DB-stored patterns/equipment
     const uniqueNames = [...new Set(exercises.map(e => e.exercise_name))];
     const { data: libEntries } = await supabase
-      .from('exercise_library' as any)
+      .from('exercise_library')
       .select('name, movement_pattern, equipment_type')
       .in('name', uniqueNames);
 
