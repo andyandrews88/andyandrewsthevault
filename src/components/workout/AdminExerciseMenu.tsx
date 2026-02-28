@@ -15,7 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Dumbbell, Wrench, Video } from "lucide-react";
+import { Dumbbell, Wrench, Video, Timer } from "lucide-react";
 import { MOVEMENT_PATTERN_LABELS, type MovementPattern, EQUIPMENT_MODIFIER_VALUES, type EquipmentType } from "@/lib/movementPatterns";
 import { upsertExerciseLibraryField } from "@/lib/exerciseLibraryUpsert";
 import { useAdminCheck } from "@/hooks/useAdminCheck";
@@ -48,6 +48,10 @@ export function AdminExerciseMenu({ exerciseName }: AdminExerciseMenuProps) {
     await upsertExerciseLibraryField(exerciseName, { video_url: videoUrlInput.trim() || null });
     setShowVideoDialog(false);
     setVideoUrlInput("");
+  };
+
+  const handleToggleTimed = async (isTimed: boolean) => {
+    await upsertExerciseLibraryField(exerciseName, { is_timed: isTimed });
   };
 
   return (
@@ -86,6 +90,21 @@ export function AdminExerciseMenu({ exerciseName }: AdminExerciseMenuProps) {
               {label}
             </DropdownMenuItem>
           ))}
+        </DropdownMenuSubContent>
+      </DropdownMenuSub>
+
+      <DropdownMenuSub>
+        <DropdownMenuSubTrigger>
+          <Timer className="h-4 w-4 mr-2" />
+          Time-Based
+        </DropdownMenuSubTrigger>
+        <DropdownMenuSubContent>
+          <DropdownMenuItem onClick={() => handleToggleTimed(true)}>
+            ✓ Yes (duration in seconds)
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => handleToggleTimed(false)}>
+            ✗ No (reps)
+          </DropdownMenuItem>
         </DropdownMenuSubContent>
       </DropdownMenuSub>
 

@@ -411,6 +411,7 @@ export type Database = {
           created_at: string
           equipment_type: string | null
           id: string
+          is_timed: boolean
           movement_pattern: string | null
           muscle_group: string | null
           name: string
@@ -423,6 +424,7 @@ export type Database = {
           created_at?: string
           equipment_type?: string | null
           id?: string
+          is_timed?: boolean
           movement_pattern?: string | null
           muscle_group?: string | null
           name: string
@@ -435,6 +437,7 @@ export type Database = {
           created_at?: string
           equipment_type?: string | null
           id?: string
+          is_timed?: boolean
           movement_pattern?: string | null
           muscle_group?: string | null
           name?: string
@@ -447,6 +450,7 @@ export type Database = {
       exercise_sets: {
         Row: {
           created_at: string
+          duration_seconds: number | null
           exercise_id: string
           id: string
           is_completed: boolean | null
@@ -459,6 +463,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          duration_seconds?: number | null
           exercise_id: string
           id?: string
           is_completed?: boolean | null
@@ -471,6 +476,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          duration_seconds?: number | null
           exercise_id?: string
           id?: string
           is_completed?: boolean | null

@@ -16,7 +16,7 @@ import { WeightUnit, getStoredUnit, setStoredUnit } from '@/lib/weightConversion
 
 // Helper to cast Supabase set rows to ExerciseSet (set_type comes as string)
 function castSet(s: any): ExerciseSet {
-  return { ...s, set_type: (s.set_type as 'warmup' | 'working') || 'working' };
+  return { ...s, set_type: (s.set_type as 'warmup' | 'working') || 'working', duration_seconds: s.duration_seconds ?? null };
 }
 function castSets(sets: any[]): ExerciseSet[] {
   return (sets || []).map(castSet);
@@ -370,7 +370,9 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
         )
       }))
     });
-    supabase.from('exercise_sets').update(data).eq('id', setId).then(() => {});
+    // Build the DB update payload — include duration_seconds if present
+    const dbData: any = { ...data };
+    supabase.from('exercise_sets').update(dbData).eq('id', setId).then(() => {});
   },
   
   completeSet: async (setId: string, exerciseName: string, weight: number, reps: number, rir?: number | null) => {

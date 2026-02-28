@@ -389,6 +389,28 @@ export function classifyExercise(name: string): MovementPattern {
   return 'isolation';
 }
 
+// ─── Time-Based Exercises ─────────────────────────────────────────────
+// Exercises where duration (seconds) replaces reps as the primary metric.
+// 30 seconds ≈ 1 "rep equivalent" based on isometric metabolic-stress research.
+const TIME_NORMALIZATION_FACTOR = 30;
+
+export const TIME_BASED_EXERCISES = new Set([
+  'plank', 'side plank', 'plank (weighted)',
+  'hollow body hold', 'dead bug', 'bird dog',
+  'wall sit',
+  "farmer's walk", 'suitcase carry', 'overhead carry',
+  'sandbag carry', "farmer's walk (cardio)",
+]);
+
+/**
+ * Check if an exercise should use time-based input.
+ * Checks DB flag first, then falls back to hardcoded set.
+ */
+export function isTimedExercise(name: string, dbIsTimed?: boolean | null): boolean {
+  if (dbIsTimed != null) return dbIsTimed;
+  return TIME_BASED_EXERCISES.has(name.toLowerCase().trim());
+}
+
 // ─── Volume Calculation ───────────────────────────────────────────────
 const DEFAULT_BODYWEIGHT_KG = 77;
 
@@ -396,12 +418,45 @@ export function isBodyweightExercise(name: string): boolean {
   return name.toLowerCase().trim() in BODYWEIGHT_EXERCISES;
 }
 
+/**
+ * Calculate volume for a timed (isometric/carry) set.
+ * Formula: effectiveWeight × (seconds / 30)
+ */
+export function calculateTimedSetVolume(
+  exerciseName: string,
+  weight: number | null,
+  durationSeconds: number,
+  bodyWeightKg: number | null,
+): number {
+  if (!durationSeconds || durationSeconds <= 0) return 0;
+  const repEquivalent = durationSeconds / TIME_NORMALIZATION_FACTOR;
+  const key = exerciseName.toLowerCase().trim();
+  const bwEntry = BODYWEIGHT_EXERCISES[key];
+  const bw = bodyWeightKg ?? DEFAULT_BODYWEIGHT_KG;
+
+  if (bwEntry) {
+    const effectiveWeight = weight && weight > 0
+      ? bw * bwEntry.multiplier + weight
+      : bw * bwEntry.multiplier;
+    return effectiveWeight * repEquivalent;
+  }
+
+  if (!weight || weight <= 0) return 0;
+  return weight * repEquivalent;
+}
+
 export function calculateSetVolume(
   exerciseName: string,
   weight: number | null,
   reps: number | null,
   bodyWeightKg: number | null,
+  durationSeconds?: number | null,
 ): number {
+  // If duration is provided and exercise is timed, use timed calc
+  if (durationSeconds && durationSeconds > 0 && isTimedExercise(exerciseName)) {
+    return calculateTimedSetVolume(exerciseName, weight, durationSeconds, bodyWeightKg);
+  }
+
   if (!reps || reps <= 0) return 0;
   
   const key = exerciseName.toLowerCase().trim();

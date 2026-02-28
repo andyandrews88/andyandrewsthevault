@@ -22,6 +22,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toEmbedUrl } from "@/lib/vaultService";
 import { cn } from "@/lib/utils";
 import { AdminExerciseMenu } from "./AdminExerciseMenu";
+import { isTimedExercise } from "@/lib/movementPatterns";
 
 interface ExerciseCardProps {
   exercise: WorkoutExercise;
@@ -44,6 +45,7 @@ export function ExerciseCard({ exercise, onRemove, allExercises = [], onMoveUp, 
   const [previousSets, setPreviousSets] = useState<{ weight: number; reps: number }[]>([]);
   const [isLoadingPrevious, setIsLoadingPrevious] = useState(false);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [isTimed, setIsTimed] = useState(false);
   const [showVideo, setShowVideo] = useState(false);
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [showReplaceSearch, setShowReplaceSearch] = useState(false);
@@ -53,17 +55,18 @@ export function ExerciseCard({ exercise, onRemove, allExercises = [], onMoveUp, 
 
   useEffect(() => {
     let cancelled = false;
-    const fetchVideo = async () => {
+    const fetchLibrary = async () => {
       const { data } = await supabase
         .from('exercise_library')
-        .select('video_url')
+        .select('video_url, is_timed')
         .ilike('name', exercise.exercise_name)
         .maybeSingle();
-      if (!cancelled && data?.video_url) {
-        setVideoUrl(data.video_url);
+      if (!cancelled) {
+        if (data?.video_url) setVideoUrl(data.video_url);
+        setIsTimed(isTimedExercise(exercise.exercise_name, (data as any)?.is_timed));
       }
     };
-    fetchVideo();
+    fetchLibrary();
     return () => { cancelled = true; };
   }, [exercise.exercise_name]);
 
@@ -224,7 +227,7 @@ export function ExerciseCard({ exercise, onRemove, allExercises = [], onMoveUp, 
           <span className="text-center">Set</span>
           <span className="text-center">Prev</span>
           <span className="text-center">{preferredUnit === 'kg' ? 'Kg' : 'Lbs'}</span>
-          <span className="text-center">Reps</span>
+          <span className="text-center">{isTimed ? 'Sec' : 'Reps'}</span>
           <span className="text-center">RIR</span>
           <span className="text-center">✓</span>
           <span></span>
@@ -240,6 +243,7 @@ export function ExerciseCard({ exercise, onRemove, allExercises = [], onMoveUp, 
               onUpdate={(data) => updateSet(set.id, data)}
               onComplete={(weight, reps, rir) => { handleCompleteSet(set.id, weight, reps, rir); }}
               onRemove={() => removeSet(set.id)}
+              isTimed={isTimed}
             />
           ))}
         </div>

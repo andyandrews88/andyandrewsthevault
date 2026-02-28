@@ -7,7 +7,7 @@ import { toast } from "sonner";
  */
 export async function upsertExerciseLibraryField(
   exerciseName: string,
-  field: Partial<{ movement_pattern: string | null; equipment_type: string | null; video_url: string | null }>
+  field: Partial<{ movement_pattern: string | null; equipment_type: string | null; video_url: string | null; is_timed: boolean }>
 ) {
   const name = exerciseName.trim();
   if (!name) return;
@@ -37,6 +37,7 @@ export async function upsertExerciseLibraryField(
     movement_pattern: 'Movement pattern',
     equipment_type: 'Equipment type',
     video_url: 'Video URL',
+    is_timed: 'Time-based mode',
   };
   toast.success(`${labels[fieldName] || fieldName} saved for ${name}`);
 }

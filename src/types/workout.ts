@@ -33,6 +33,7 @@ export interface ExerciseSet {
   reps: number | null;
   rpe: number | null;
   rir: number | null;
+  duration_seconds: number | null;
   set_type: 'warmup' | 'working';
   is_completed: boolean;
   created_at: string;
