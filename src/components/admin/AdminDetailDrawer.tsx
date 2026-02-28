@@ -43,8 +43,8 @@ function DateBadge({ date }: { date: string | null }) {
 }
 
 function ComplianceText({ scheduled, completed }: { scheduled: number; completed: number }) {
-  if (scheduled === 0) return <span className="text-xs text-muted-foreground">—</span>;
-  const pct = Math.round((completed / scheduled) * 100);
+  if (!scheduled || scheduled === 0) return <span className="text-xs text-muted-foreground">—</span>;
+  const pct = Math.round(((completed || 0) / scheduled) * 100);
   const color = pct >= 80 ? "text-green-500" : pct >= 50 ? "text-yellow-500" : "text-red-500";
   return <span className={`text-xs font-semibold ${color}`}>{pct}%</span>;
 }
