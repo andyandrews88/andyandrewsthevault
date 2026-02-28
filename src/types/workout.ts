@@ -19,6 +19,7 @@ export interface WorkoutExercise {
   order_index: number;
   notes: string | null;
   exercise_type: 'strength' | 'conditioning';
+  superset_group: string | null;
   created_at: string;
   sets?: ExerciseSet[];
   conditioning_sets?: ConditioningSet[];
@@ -32,6 +33,7 @@ export interface ExerciseSet {
   reps: number | null;
   rpe: number | null;
   rir: number | null;
+  set_type: 'warmup' | 'working';
   is_completed: boolean;
   created_at: string;
 }

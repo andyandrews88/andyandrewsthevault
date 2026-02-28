@@ -38,6 +38,7 @@ import { WeekStrip } from "./WeekStrip";
 import { WorkoutCalendar } from "./WorkoutCalendar";
 import { WorkoutHistoryView } from "./WorkoutHistoryView";
 import { DailyProgramWorkout } from "@/components/tracks/DailyProgramWorkout";
+import { RestTimer } from "./RestTimer";
 import { supabase } from "@/integrations/supabase/client";
 import { UserCalendarWorkout } from "@/stores/programStore";
 import { format } from "date-fns";
@@ -74,7 +75,8 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
     fetchWorkoutByDate,
     preferredUnit,
     isEditing,
-    updateWorkoutNotes
+    updateWorkoutNotes,
+    restTimerTrigger
   } = useWorkoutStore();
   
   const [isExerciseSearchOpen, setIsExerciseSearchOpen] = useState(false);
@@ -102,14 +104,12 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
     setProgramWorkoutsForDate((data as unknown as UserCalendarWorkout[]) || []);
   };
 
-  // Initial load — runs once
   useEffect(() => {
     fetchActiveWorkout();
     fetchPersonalRecords();
     fetchWorkoutDays(12);
   }, [fetchActiveWorkout, fetchPersonalRecords, fetchWorkoutDays]);
 
-  // Date-dependent fetches
   useEffect(() => {
     fetchWorkoutByDate(selectedDate);
     fetchProgramWorkoutsForDate(selectedDate);
@@ -127,7 +127,6 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
     const wasEditing = isEditing;
     await finishWorkout();
     
-    // Only mark program calendar workouts and call onBack for NEW workouts, not edits
     if (!wasEditing) {
       const dateStr = format(selectedDate, 'yyyy-MM-dd');
       if (programWorkoutsForDate.length > 0) {
@@ -156,10 +155,10 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
     await addExercise(name);
   };
 
-  // Calculate total volume
+  // Calculate total volume (working sets only)
   const totalVolume = exercises.reduce((sum, ex) => {
     const exVolume = ex.sets?.reduce((setSum, set) => {
-      if (set.is_completed && set.weight && set.reps) {
+      if (set.is_completed && set.weight && set.reps && set.set_type !== 'warmup') {
         return setSum + (set.weight * set.reps);
       }
       return setSum;
@@ -171,7 +170,6 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
     ? convertWeight(totalVolume, 'lbs', 'kg') 
     : totalVolume;
 
-  // Calculate elapsed time
   const elapsedMinutes = Math.floor((new Date().getTime() - startTime.getTime()) / 60000);
 
   if (isLoading) {
@@ -182,28 +180,21 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
     );
   }
 
-  // Check if viewing a past workout
   const isViewingPast = viewingWorkout && format(selectedDate, 'yyyy-MM-dd') !== format(new Date(), 'yyyy-MM-dd');
 
-  // If viewing past workout
   if (isViewingPast && viewingWorkout) {
     return (
       <div className="space-y-4">
-        {/* Week Strip Navigation */}
         <WeekStrip
           selectedDate={selectedDate}
           onDateSelect={setSelectedDate}
           workoutDays={workoutDays}
           onMonthClick={() => setShowCalendar(true)}
         />
-        
-        {/* Past Workout View */}
         <WorkoutHistoryView 
           workout={viewingWorkout} 
           exercises={viewingExercises} 
         />
-        
-        {/* Calendar Dialog */}
         <WorkoutCalendar
           open={showCalendar}
           onOpenChange={setShowCalendar}
@@ -215,11 +206,9 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
     );
   }
 
-  // No active workout - show start screen
   if (!activeWorkout) {
     return (
       <div className="space-y-4">
-        {/* Week Strip Navigation */}
         <WeekStrip
           selectedDate={selectedDate}
           onDateSelect={setSelectedDate}
@@ -227,7 +216,6 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
           onMonthClick={() => setShowCalendar(true)}
         />
         
-        {/* Program workouts for selected date — only show when no active workout */}
         {!activeWorkout && programWorkoutsForDate.map(cw => (
           <DailyProgramWorkout
             key={cw.id}
@@ -244,7 +232,6 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
           />
         ))}
 
-        {/* Past free-log workout for selected date */}
         {viewingWorkout && (
           <WorkoutHistoryView 
             workout={viewingWorkout} 
@@ -252,7 +239,6 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
           />
         )}
         
-        {/* Start workout prompt */}
         {!viewingWorkout && (
           <Card variant="elevated" className="text-center py-8">
             <CardContent>
@@ -318,7 +304,6 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
           </Card>
         )}
         
-        {/* Calendar Dialog */}
         <WorkoutCalendar
           open={showCalendar}
           onOpenChange={setShowCalendar}
@@ -329,6 +314,67 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
       </div>
     );
   }
+
+  // Group exercises by superset
+  const renderExercises = () => {
+    const rendered = new Set<string>();
+    const elements: JSX.Element[] = [];
+
+    exercises.forEach((exercise) => {
+      if (rendered.has(exercise.id)) return;
+      rendered.add(exercise.id);
+
+      if (exercise.superset_group) {
+        // Find all exercises in this superset group
+        const group = exercises.filter(e => e.superset_group === exercise.superset_group);
+        const groupIds = group.map(e => e.id);
+        groupIds.forEach(id => rendered.add(id));
+
+        elements.push(
+          <div key={`ss-${exercise.superset_group}`} className="space-y-0">
+            <div className="text-xs font-medium text-primary uppercase tracking-wider px-1 mb-1">
+              ⚡ Superset
+            </div>
+            {group.map(ex => (
+              ex.exercise_type === 'conditioning' ? (
+                <ConditioningCard
+                  key={ex.id}
+                  exercise={ex}
+                  onRemove={() => removeExercise(ex.id)}
+                />
+              ) : (
+                <ExerciseCard
+                  key={ex.id}
+                  exercise={ex}
+                  onRemove={() => removeExercise(ex.id)}
+                  allExercises={exercises}
+                />
+              )
+            ))}
+          </div>
+        );
+      } else {
+        elements.push(
+          exercise.exercise_type === 'conditioning' ? (
+            <ConditioningCard
+              key={exercise.id}
+              exercise={exercise}
+              onRemove={() => removeExercise(exercise.id)}
+            />
+          ) : (
+            <ExerciseCard
+              key={exercise.id}
+              exercise={exercise}
+              onRemove={() => removeExercise(exercise.id)}
+              allExercises={exercises}
+            />
+          )
+        );
+      }
+    });
+
+    return elements;
+  };
 
   return (
     <div className="space-y-4">
@@ -368,21 +414,7 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
       
       {/* Exercise Cards */}
       <div className="space-y-4">
-        {exercises.map(exercise => (
-          exercise.exercise_type === 'conditioning' ? (
-            <ConditioningCard
-              key={exercise.id}
-              exercise={exercise}
-              onRemove={() => removeExercise(exercise.id)}
-            />
-          ) : (
-            <ExerciseCard
-              key={exercise.id}
-              exercise={exercise}
-              onRemove={() => removeExercise(exercise.id)}
-            />
-          )
-        ))}
+        {renderExercises()}
       </div>
       
       {/* Bodyweight Banner */}
@@ -462,6 +494,9 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
           })()}
         </CardContent>
       </Card>
+
+      {/* Rest Timer */}
+      <RestTimer trigger={restTimerTrigger} />
       
       {/* Exercise Search Dialog */}
       <ExerciseSearch
