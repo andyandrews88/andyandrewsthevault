@@ -23,6 +23,7 @@ import { toEmbedUrl } from "@/lib/vaultService";
 import { cn } from "@/lib/utils";
 import { AdminExerciseMenu } from "./AdminExerciseMenu";
 import { isTimedExercise, isBodyweightExercise } from "@/lib/movementPatterns";
+import { useAdminCheck } from "@/hooks/useAdminCheck";
 
 interface ExerciseCardProps {
   exercise: WorkoutExercise;
@@ -42,6 +43,7 @@ function parsePercentageHint(notes: string | null | undefined): string | null {
 
 export function ExerciseCard({ exercise, onRemove, allExercises = [], onMoveUp, onMoveDown, canMoveUp = false, canMoveDown = false }: ExerciseCardProps) {
   const { addSet, removeSet, updateSet, completeSet, loadLastSession, getLastSessionSets, preferredUnit, linkSuperset, unlinkSuperset, replaceExercise } = useWorkoutStore();
+  const { isAdmin } = useAdminCheck();
   const [previousSets, setPreviousSets] = useState<{ weight: number; reps: number }[]>([]);
   const [isLoadingPrevious, setIsLoadingPrevious] = useState(false);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
@@ -195,7 +197,7 @@ export function ExerciseCard({ exercise, onRemove, allExercises = [], onMoveUp, 
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Replace Exercise
               </DropdownMenuItem>
-              <AdminExerciseMenu exerciseName={exercise.exercise_name} />
+              <AdminExerciseMenu exerciseName={exercise.exercise_name} isAdmin={isAdmin} />
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={onRemove} className="text-destructive">
                 <Trash2 className="h-4 w-4 mr-2" />
