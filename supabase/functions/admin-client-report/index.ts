@@ -128,7 +128,7 @@ Volume trends, frequency, PRs, consistency patterns. Be specific with numbers.
 ---
 
 ## 3. Readiness & Recovery
-Sleep hours analysis (per Matthew Walker: 7-9h optimal), energy/stress/drive patterns, burnout risk.
+Sleep hours analysis (7-9h optimal for recovery and hormonal regulation), energy/stress/drive patterns, burnout risk.
 
 ---
 
@@ -168,7 +168,7 @@ Assign ONE overall status:
 
 Provide a clear explanation for the rating.
 
-Be specific with names, numbers, dates. No generic advice.`;
+Be specific with names, numbers, dates. No generic advice. Never reference specific experts, authors, or coaching organizations by name. Deliver all advice as direct coaching guidance.`;
 
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",

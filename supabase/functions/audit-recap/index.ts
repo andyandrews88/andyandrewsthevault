@@ -97,7 +97,7 @@ serve(async (req) => {
     ];
     const hasAnyPnHabit = pnHabits.some(h => (d as any)[h.key]);
     if (hasAnyPnHabit) {
-      lines.push(`\n## Nutrition Habits (Precision Nutrition)`);
+      lines.push(`\n## Nutrition Habits`);
       for (const h of pnHabits) {
         const val = (d as any)[h.key];
         if (val) lines.push(`- ${h.label}: ${val}`);
@@ -111,7 +111,7 @@ serve(async (req) => {
 
     const hasMovementData = movementLines.length > 0;
 
-    const userPrompt = `Here is the full audit data for this athlete:\n\n${lines.join("\n")}\n\nWrite a personalized analysis with these ${hasMovementData ? '4' : '3'} sections:\n1. **Overall Assessment** — 2-3 sentences summarizing where this athlete stands\n2. **Key Findings** — Interpret each leak and skipped area. Explain WHY it matters for their goals.${hasMovementData ? ' If movement screen data is provided, analyze mobility patterns (toe touch + heel sit + deep squat + overhead reach), power output (broad jump), grip/core stability (dead hang + L-sit), muscular endurance (pull-ups + push-ups), and single-leg symmetry (pistol squats). Flag asymmetries.' : ''} If Precision Nutrition habit data is provided, analyze their eating behaviors and connect them to performance outcomes.\n${hasMovementData ? '3. **Movement Quality Assessment** — Analyze movement screen results using FMS (Functional Movement Screen) principles and Gray Cook\'s movement hierarchy. Identify mobility restrictions vs stability deficits. Note if the athlete has strength but lacks movement quality (or vice versa). Reference specific test results. For pull-ups and push-ups, evaluate strength-to-bodyweight ratios. For pistol squats, assess single-leg stability and flag any left/right asymmetries.\n4. **Action Plan** — 3-5 prioritized recommendations incorporating movement corrections alongside strength/conditioning work.\n' : '3. **Action Plan** — 3-5 prioritized, specific recommendations. If nutrition habits are weak, include a Precision Nutrition anchor habit recommendation (pick ONE habit to focus on for 2 weeks).\n'}\nUse markdown formatting. Be direct and coaching-oriented. Reference their specific numbers.`;
+    const userPrompt = `Here is the full audit data for this athlete:\n\n${lines.join("\n")}\n\nWrite a personalized analysis with these ${hasMovementData ? '4' : '3'} sections:\n1. **Overall Assessment** — 2-3 sentences summarizing where this athlete stands\n2. **Key Findings** — Interpret each leak and skipped area. Explain WHY it matters for their goals.${hasMovementData ? ' If movement screen data is provided, analyze mobility patterns (toe touch + heel sit + deep squat + overhead reach), power output (broad jump), grip/core stability (dead hang + L-sit), muscular endurance (pull-ups + push-ups), and single-leg symmetry (pistol squats). Flag asymmetries.' : ''} If nutrition habit data is provided, analyze their eating behaviors and connect them to performance outcomes.\n${hasMovementData ? '3. **Movement Quality Assessment** — Analyze movement screen results using functional movement screening principles and the movement hierarchy (mobility before stability before strength). Identify mobility restrictions vs stability deficits. Note if the athlete has strength but lacks movement quality (or vice versa). Reference specific test results. For pull-ups and push-ups, evaluate strength-to-bodyweight ratios. For pistol squats, assess single-leg stability and flag any left/right asymmetries.\n4. **Action Plan** — 3-5 prioritized recommendations incorporating movement corrections alongside strength/conditioning work.\n' : '3. **Action Plan** — 3-5 prioritized, specific recommendations. If nutrition habits are weak, pick ONE simple nutrition habit to focus on for 2 weeks (e.g., protein at every meal, eating slowly, planning meals in advance).\n'}\nUse markdown formatting. Be direct and coaching-oriented. Reference their specific numbers. Never cite or name-drop any experts, books, or certifications.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -124,7 +124,29 @@ serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: "You are a performance coach and movement specialist writing a personalized audit recap for an athlete. You understand FMS (Functional Movement Screen) principles, Gray Cook's movement hierarchy, and strength-to-bodyweight ratios. When movement screen data is provided, analyze it with expertise: toe touch and heel sit reveal hip and ankle mobility; deep squat tests multi-joint mobility and motor control; overhead reach indicates shoulder and thoracic mobility; dead hang and L-sit measure grip endurance and core compression strength; pull-ups and push-ups reveal relative bodyweight strength; pistol squats expose single-leg stability and asymmetry. Be direct, knowledgeable, and actionable. Use their specific data points. Write in second person (\"you\"). Format with markdown headers and bullet points. Keep it under 700 words total.",
+            content: `You are a performance coach and movement specialist writing a personalized audit recap for an athlete. You understand functional movement screening principles, the movement hierarchy (mobility before stability before strength), and strength-to-bodyweight ratios. When movement screen data is provided, analyze it with expertise: toe touch and heel sit reveal hip and ankle mobility; deep squat tests multi-joint mobility and motor control; overhead reach indicates shoulder and thoracic mobility; dead hang and L-sit measure grip endurance and core compression strength; pull-ups and push-ups reveal relative bodyweight strength; pistol squats expose single-leg stability and asymmetry. Be direct, knowledgeable, and actionable. Use their specific data points. Write in second person ("you"). Format with markdown headers and bullet points. Keep it under 700 words total.
+
+COACHING KNOWLEDGE BASE — Use to inform recommendations. Never cite sources or name-drop experts.
+
+SLEEP & RECOVERY:
+- 7-9 hours is non-negotiable. Consistency of sleep/wake times (±1 hour) matters more than total hours.
+- Morning sunlight within 30-60 min of waking sets circadian rhythm.
+- Delay caffeine 90-120 min after waking. No caffeine after 4pm.
+- Cool bedroom (65-68°F), warm shower before bed to initiate sleep.
+
+TRAINING & AUTOREGULATION:
+- Life stress is a training variable. High life stress = reduce volume/intensity.
+- Aerobic base work (nasal-breathing pace) should be 70-80% of conditioning volume.
+- Fitness-fatigue model: deload when accumulated fatigue exceeds fitness gains.
+- The body adapts during recovery, not during the session.
+
+NUTRITION & HABITS:
+- One habit at a time. 80%+ adherence with one change; <5% success with 3+ simultaneously.
+- Hand-portion method: 1 palm protein, 1 fist veg, 1 cupped hand carbs, 1 thumb fats per meal.
+- 80% consistency beats 100% perfection.
+- Protein 0.7-1.2g/lb bodyweight. Stress-eating is a symptom — address sleep and stress first.
+
+IMPORTANT: Never reference specific experts, authors, books, or coaching organizations by name. Deliver all advice as direct coaching guidance.`,
           },
           { role: "user", content: userPrompt },
         ],
