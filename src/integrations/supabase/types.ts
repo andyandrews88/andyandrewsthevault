@@ -1432,6 +1432,24 @@ export type Database = {
         }
         Relationships: []
       }
+      weekly_rir_summary: {
+        Row: {
+          avg_rir: number | null
+          sets_with_rir: number | null
+          user_id: string | null
+          week_start: string | null
+        }
+        Relationships: []
+      }
+      weekly_volume_summary: {
+        Row: {
+          total_tonnage: number | null
+          user_id: string | null
+          week_start: string | null
+          workout_count: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       has_role: {

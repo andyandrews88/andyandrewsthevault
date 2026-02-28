@@ -22,6 +22,7 @@ import { CopyWorkoutDialog } from "@/components/admin/CopyWorkoutDialog";
 import { AssignTemplateWizard } from "@/components/admin/AssignTemplateWizard";
 import { TouchpointLog } from "@/components/admin/TouchpointLog";
 import { ClientPerformanceReport } from "@/components/admin/ClientPerformanceReport";
+import { CoachingAnalyticsDashboard } from "@/components/admin/CoachingAnalyticsDashboard";
 
 export default function AdminUserProfile() {
   const { userId } = useParams<{ userId: string }>();
@@ -439,6 +440,9 @@ export default function AdminUserProfile() {
             </CardContent>
           </Card>
         </section>
+
+        {/* Coaching Analytics Dashboard */}
+        <CoachingAnalyticsDashboard userId={userId!} displayName={p?.display_name} />
 
         {/* Performance Report */}
         <section className="space-y-3">
