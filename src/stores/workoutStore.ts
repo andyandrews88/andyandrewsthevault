@@ -214,6 +214,12 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
       console.error('Error adding exercise:', error);
       return;
     }
+
+    // Auto-register in exercise_library (insert if not exists)
+    const { data: existingLib } = await supabase.from('exercise_library').select('id').ilike('name', name).maybeSingle();
+    if (!existingLib) {
+      await supabase.from('exercise_library').insert({ name, category: exerciseType === 'conditioning' ? 'conditioning' : 'strength' as const });
+    }
     
     if (exerciseType === 'conditioning') {
       const { data: firstSet } = await supabase
