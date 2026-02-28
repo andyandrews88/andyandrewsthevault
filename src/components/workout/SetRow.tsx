@@ -16,6 +16,7 @@ interface SetRowProps {
   onRemove: () => void;
   disabled?: boolean;
   isTimed?: boolean;
+  isBodyweight?: boolean;
 }
 
 export function SetRow({ 
@@ -26,6 +27,7 @@ export function SetRow({
   onRemove,
   disabled,
   isTimed = false,
+  isBodyweight = false,
 }: SetRowProps) {
   const { preferredUnit } = useWorkoutStore();
   const [weight, setWeight] = useState(set.weight?.toString() || '');
@@ -97,11 +99,14 @@ export function SetRow({
 
   const handleComplete = (checked: boolean) => {
     const hasValue = isTimed ? !!duration : !!reps;
-    if (checked && weight && hasValue) {
-      const displayWeight = parseFloat(weight);
-      const storedWeight = preferredUnit === 'kg' 
-        ? convertWeight(displayWeight, 'kg', 'lbs') 
-        : displayWeight;
+    const hasWeight = isBodyweight ? true : !!weight;
+    if (checked && hasWeight && hasValue) {
+      const displayWeight = weight ? parseFloat(weight) : 0;
+      const storedWeight = isBodyweight && !weight
+        ? 0
+        : preferredUnit === 'kg' 
+          ? convertWeight(displayWeight, 'kg', 'lbs') 
+          : displayWeight;
       const rirVal = rir ? parseInt(rir) : null;
       const repsVal = isTimed ? (parseInt(duration) || 0) : parseInt(reps);
       onComplete(storedWeight, repsVal, rirVal);
@@ -164,7 +169,7 @@ export function SetRow({
           disabled={set.is_completed || disabled}
           className="h-9 text-center text-sm font-normal"
         >
-          {weight ? `${weight}` : preferredUnit}
+          {weight ? `${weight}` : isBodyweight ? 'BW' : preferredUnit}
         </Button>
         
         {/* Reps / Duration Input */}
@@ -208,7 +213,7 @@ export function SetRow({
           <Checkbox
             checked={set.is_completed}
             onCheckedChange={handleComplete}
-            disabled={(!weight || !(isTimed ? duration : reps)) || disabled}
+            disabled={((!isBodyweight && !weight) || !(isTimed ? duration : reps)) || disabled}
             className="h-6 w-6"
           />
         </div>
@@ -233,6 +238,7 @@ export function SetRow({
         previousWeight={previousData?.weight}
         onLog={handleWeightLog}
         onAutofill={handleAutofill}
+        isBodyweight={isBodyweight}
       />
     </>
   );
