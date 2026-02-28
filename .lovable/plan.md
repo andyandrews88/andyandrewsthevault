@@ -1,88 +1,46 @@
 
 
-# Add Time-Based Tracking for Strength Exercises
+# Fix Weight Input for Bodyweight & Isometric Exercises
 
 ## Problem
-Exercises like Plank, Side Plank, Hollow Body Hold, Sandbag Hold, Wall Sit, and carries are isometric/time-based but currently only offer weight + reps inputs. Users need a way to log duration (seconds) instead of reps for these movements.
+When logging timed bodyweight exercises (Plank, Side Plank, etc.), the UI shows "Kg" / "Lbs" as the weight column header and requires a weight value to complete a set. For a bodyweight plank, the user shouldn't need to enter anything — the system should auto-use their bodyweight via the existing multiplier system. If they add extra load (weighted plank), they enter ONLY the additional weight.
 
-## Research: Volume Calculation for Time-Based Strength Work
+## How It Already Works (Backend)
+`calculateSetVolume` and `calculateTimedSetVolume` in `movementPatterns.ts` already handle this correctly:
+- If exercise is in `BODYWEIGHT_EXERCISES` and weight=0: uses `BW × multiplier`
+- If exercise is in `BODYWEIGHT_EXERCISES` and weight>0: uses `BW × multiplier + weight`
 
-For isometric/time-under-tension exercises, sport science literature uses **Time Under Tension (TUT)** as the volume metric:
+The problem is purely UI — the input demands a weight and won't let you complete without one.
 
-- **Unloaded isometrics** (Plank, Side Plank, Hollow Body Hold): Volume = bodyweight × multiplier × (seconds / 30). The `/30` normalizes so that 30 seconds ≈ 1 "rep equivalent," aligning with research showing ~30s isometric holds produce similar metabolic stress to ~10 reps.
-- **Loaded isometrics** (Weighted Plank, Sandbag Hold, Farmer's Walk): Volume = (load + BW×multiplier) × (seconds / 30).
-- **Carries** (already classified as `carry` pattern): Same formula — weight × (seconds / 30).
+## Changes
 
-The difficulty coefficient for the pattern still applies normally (core = 0.35, carry = 0.50, etc.), so NTU calculation remains: `rawVolume / (patternCoeff × equipmentMod)`.
+### 1. `ExerciseCard.tsx` — Detect bodyweight exercises
+- Import `isBodyweightExercise` from `movementPatterns.ts`
+- Compute `isBW = isBodyweightExercise(exercise.exercise_name)`
+- Pass `isBodyweight` prop to `SetRow`
+- Change column header from "Kg"/"Lbs" to "+Load" when `isBW` is true
 
-## Database Changes
+### 2. `SetRow.tsx` — Allow completion without weight for BW exercises
+- Accept `isBodyweight` prop
+- When `isBodyweight` is true:
+  - Weight button shows "BW" instead of unit when empty (no additional load)
+  - Allow completing a set with weight=0 (checkbox enabled when only reps/duration filled)
+  - If user taps weight button and enters a value, treat it as additional load
+- Update `handleComplete`: when `isBodyweight` and no weight entered, pass `0` as weight (the volume calc handles the rest)
 
-Add a `duration_seconds` column to `exercise_sets`:
+### 3. `WeightInputPopup.tsx` — Context for bodyweight exercises
+- Accept optional `isBodyweight` prop
+- When true, show helper text: "Additional load on top of bodyweight" above the keypad
+- Add a "Bodyweight Only" quick button that logs 0
 
-```sql
-ALTER TABLE exercise_sets ADD COLUMN duration_seconds integer;
-```
-
-This lets any strength set optionally store time instead of (or alongside) reps.
-
-## Exercise Library: `is_timed` Flag
-
-Add a boolean column to `exercise_library` so admins can mark exercises as time-based:
-
-```sql
-ALTER TABLE exercise_library ADD COLUMN is_timed boolean NOT NULL DEFAULT false;
-```
-
-Admins toggle this from the existing kebab menu on exercise cards. A hardcoded default list (Plank, Side Plank, Hollow Body Hold, Wall Sit, etc.) will auto-classify when no DB entry exists.
-
-## Code Changes
-
-### 1. `src/types/workout.ts` — ExerciseSet type
-- Add `duration_seconds: number | null` to `ExerciseSet` interface.
-
-### 2. `src/lib/movementPatterns.ts` — Time-based volume
-- Add `TIME_BASED_EXERCISES` set with defaults: Plank, Side Plank, Hollow Body Hold, Wall Sit, Dead Bug, Bird Dog, Farmer's Walk, Suitcase Carry, Overhead Carry, Sandbag Carry.
-- Add `isTimedExercise(name, dbIsTimed?)` helper.
-- Add `calculateTimedSetVolume(exerciseName, weight, durationSeconds, bodyWeightKg)` — uses `weight × (seconds / 30)` for loaded, `BW × multiplier × (seconds / 30)` for bodyweight.
-- Update `calculateSetVolume` to optionally accept `durationSeconds` and delegate to timed calc when appropriate.
-
-### 3. `src/components/workout/SetRow.tsx` — Time input mode
-- Accept `isTimed` prop.
-- When `isTimed` is true, replace the "Reps" input with a "Sec" input (duration in seconds).
-- Change header label from "Reps" to "Sec".
-- Adjust completion logic: allow completing with weight + duration (reps not required).
-- Store `duration_seconds` via `onUpdate`.
-
-### 4. `src/components/workout/ExerciseCard.tsx` — Detect timed mode
-- On mount, check `exercise_library` for `is_timed` flag (alongside existing `video_url` fetch).
-- Fall back to hardcoded `TIME_BASED_EXERCISES` list.
-- Pass `isTimed` prop to `SetRow`.
-- Change header row label from "Reps" to "Sec" when timed.
-
-### 5. `src/components/workout/AdminExerciseMenu.tsx` — Toggle timed
-- Add a "Time-Based" toggle menu item for admins to set `is_timed` on the exercise library entry.
-
-### 6. `src/stores/workoutStore.ts` — Persist duration
-- Update `updateSet` to handle `duration_seconds`.
-- Update `completeSet` to accept optional `durationSeconds` and save it.
-- Update `addSet` insert to include `duration_seconds: null` explicitly.
-
-### 7. `src/components/workout/MovementBalanceChart.tsx` — Include timed volume
-- When aggregating volume, check if a set has `duration_seconds` and use `calculateTimedSetVolume` instead of standard calc.
-
-### 8. `src/integrations/supabase/types.ts` — Will auto-update after migration.
+### 4. `movementPatterns.ts` — No changes needed
+The `calculateSetVolume` and `calculateTimedSetVolume` functions already handle weight=0 for bodyweight exercises correctly using the multiplier table.
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| DB migration | Add `duration_seconds` to `exercise_sets`, `is_timed` to `exercise_library` |
-| `src/types/workout.ts` | Add `duration_seconds` to `ExerciseSet` |
-| `src/lib/movementPatterns.ts` | Time-based volume calc, `isTimedExercise`, `TIME_BASED_EXERCISES` |
-| `src/components/workout/SetRow.tsx` | Conditional time input vs reps input |
-| `src/components/workout/ExerciseCard.tsx` | Detect timed mode, pass to SetRow, adjust headers |
-| `src/components/workout/AdminExerciseMenu.tsx` | Add "Time-Based" toggle |
-| `src/stores/workoutStore.ts` | Handle `duration_seconds` in set operations |
-| `src/components/workout/MovementBalanceChart.tsx` | Use timed volume in aggregation |
-| `src/lib/exerciseLibraryUpsert.ts` | Support `is_timed` field |
+| `src/components/workout/ExerciseCard.tsx` | Detect BW exercise, pass prop, change header label |
+| `src/components/workout/SetRow.tsx` | Accept `isBodyweight`, allow weight=0 completion, show "BW" label |
+| `src/components/workout/WeightInputPopup.tsx` | Add BW context hint and "Bodyweight Only" button |
 
