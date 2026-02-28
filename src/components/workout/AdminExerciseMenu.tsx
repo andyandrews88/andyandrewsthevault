@@ -18,7 +18,6 @@ import { Label } from "@/components/ui/label";
 import { Dumbbell, Wrench, Video, Timer } from "lucide-react";
 import { MOVEMENT_PATTERN_LABELS, type MovementPattern, EQUIPMENT_MODIFIER_VALUES, type EquipmentType } from "@/lib/movementPatterns";
 import { upsertExerciseLibraryField } from "@/lib/exerciseLibraryUpsert";
-import { useAdminCheck } from "@/hooks/useAdminCheck";
 
 const PATTERNS = Object.entries(MOVEMENT_PATTERN_LABELS) as [MovementPattern, string][];
 const EQUIPMENT_LABELS: Record<EquipmentType, string> = {
@@ -35,10 +34,10 @@ const EQUIPMENT = Object.entries(EQUIPMENT_LABELS) as [EquipmentType, string][];
 
 interface AdminExerciseMenuProps {
   exerciseName: string;
+  isAdmin: boolean;
 }
 
-export function AdminExerciseMenu({ exerciseName }: AdminExerciseMenuProps) {
-  const { isAdmin } = useAdminCheck();
+export function AdminExerciseMenu({ exerciseName, isAdmin }: AdminExerciseMenuProps) {
   const [showVideoDialog, setShowVideoDialog] = useState(false);
   const [videoUrlInput, setVideoUrlInput] = useState("");
 

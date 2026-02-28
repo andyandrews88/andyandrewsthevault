@@ -13,6 +13,7 @@ import { ConditioningSetRow } from "./ConditioningSetRow";
 import { ExerciseSearch } from "./ExerciseSearch";
 import { useWorkoutStore } from "@/stores/workoutStore";
 import { AdminExerciseMenu } from "./AdminExerciseMenu";
+import { useAdminCheck } from "@/hooks/useAdminCheck";
 
 interface ConditioningCardProps {
   exercise: WorkoutExercise;
@@ -24,6 +25,7 @@ interface ConditioningCardProps {
 }
 
 export function ConditioningCard({ exercise, onRemove, onMoveUp, onMoveDown, canMoveUp = false, canMoveDown = false }: ConditioningCardProps) {
+  const { isAdmin } = useAdminCheck();
   const { 
     addConditioningSet, 
     removeConditioningSet, 
@@ -79,7 +81,7 @@ export function ConditioningCard({ exercise, onRemove, onMoveUp, onMoveDown, can
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Replace Exercise
               </DropdownMenuItem>
-              <AdminExerciseMenu exerciseName={exercise.exercise_name} />
+              <AdminExerciseMenu exerciseName={exercise.exercise_name} isAdmin={isAdmin} />
               <DropdownMenuItem onClick={onRemove} className="text-destructive">
                 <Trash2 className="h-4 w-4 mr-2" />
                 Remove Exercise
