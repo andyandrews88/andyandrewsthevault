@@ -1,124 +1,124 @@
 
 
-# Admin Control Center + AI Intelligence Briefing
-
-## Overview
-Four major additions: user management controls, maximizable drawers, enriched client data with filters, and a comprehensive AI intelligence system.
+# Four-Part Enhancement: Client Dashboard, Sleep Hours, Per-Client AI, Briefing Cleanup
 
 ---
 
-## 1. User Management Controls
+## 1. Enrich Client Dashboard (AdminUserProfile)
 
-### New Edge Function: `supabase/functions/admin-manage-user/index.ts`
-Actions supported via service role:
-- **suspend** — `admin.auth.admin.updateUserById(targetUserId, { ban_duration: "876000h" })` to block login
-- **unsuspend** — reset ban_duration to "none"
-- **archive** — prefix display_name with "[Archived]" + suspend auth
-- **delete** — `admin.auth.admin.deleteUser(targetUserId)` (permanent)
-- **remove_role** — delete from user_roles table
-- **get_status** — return banned status, archived flag, roles, last sign-in
+The current `AdminUserProfile.tsx` shows training, check-ins, goals, nutrition (basic), community, and body entries but is missing:
+- **Food diary data** (daily logging history)
+- **Readiness trend visualization** (chart of readiness scores over time)
+- **Program enrollment info** (what program they're on, compliance %)
+- **Lifestyle summary cards** (avg sleep, energy, stress, drive as visual stat cards)
 
-Add to `supabase/config.toml`:
-```toml
-[functions.admin-manage-user]
-verify_jwt = false
+### Changes:
+
+**`supabase/functions/admin-user-profile/index.ts`**
+- Add parallel queries for `user_food_diary` (last 30 entries), `user_program_enrollments` + `programs` (name), `user_calendar_workouts` (compliance calc)
+- Return `foodDiary`, `programEnrollments`, `calendarCompliance` in the response
+
+**`src/pages/AdminUserProfile.tsx`**
+- Add a **Readiness** stat card row showing avg Sleep/Energy/Stress/Drive as colored cards (like the existing 5-stat row)
+- Add a **Readiness Trend** mini chart (last 30 check-ins, line chart with sleep_hours + readiness %)
+- Add a **Program Compliance** section showing enrolled programs + completion %
+- Add a **Food Diary** section showing recent diary entries count and a summary
+- Reorder sections: Header → Stats → Readiness → Training → Programs → Nutrition (enriched) → Lifestyle → Body → Community → Messages → Analytics → Notes
+
+---
+
+## 2. Add Sleep Hours to Daily Check-in + Matthew Walker Readiness Logic
+
+### Database Migration
+Add `sleep_hours` column to `user_daily_checkins`:
+```sql
+ALTER TABLE public.user_daily_checkins ADD COLUMN sleep_hours numeric NULL;
 ```
 
-### UI: Action menu in Client Directory (`AdminDetailDrawer.tsx`)
-- Add a `DropdownMenu` on each user row with: Suspend, Unsuspend, Archive, Delete, Remove Roles
-- Delete requires a confirmation `AlertDialog` with the user's name typed to confirm
-- Suspend/unsuspend toggles based on current status (fetched via `get_status` action on drawer open)
-- Color-code suspended/archived rows with a muted/strikethrough style
+### Matthew Walker Readiness Formula
+Based on Walker's research: adults need 7-9 hours. The formula weights sleep hours heavily:
+- Sleep Hours Score: <5h = 1, 5-6h = 2, 6-7h = 3, 7-8h = 4, 8+ = 5
+- **New Readiness** = (sleep_hours_score × 2 + sleep_quality + energy + drive + (6 - stress)) / 7 × 100
+- Sleep hours gets double weight per Walker's emphasis on sleep quantity as the foundation
+
+### Changes:
+
+**`src/components/lifestyle/DailyCheckin.tsx`**
+- Add a `sleep_hours` numeric input field (slider or stepper, 0-14 range, 0.5 increments) before the existing metrics
+- Update `CheckinData` interface to include `sleep_hours`
+- Update `readinessScore()` to use the Walker-weighted formula
+- Display the sleep hours in the submitted view
+
+**`supabase/functions/admin-user-profile/index.ts`** and **`supabase/functions/admin-intelligence/index.ts`**
+- Include `sleep_hours` in check-in queries for richer analysis
 
 ---
 
-## 2. Maximizable Drawer Panels
+## 3. Per-Client AI Report
 
-### Changes to `AdminDetailDrawer.tsx`
-- Add `isMaximized` state toggle
-- When maximized: `SheetContent` className changes from `w-full sm:max-w-2xl` to `w-full sm:max-w-[95vw] h-[95vh]`
-- Add a Maximize/Minimize button (Maximize2/Minimize2 icons) in the SheetHeader
-- Works on all section types (users, training, nutrition, lifestyle, community, content)
+### New Edge Function: `supabase/functions/admin-client-report/index.ts`
+- Takes `userId` as input
+- Fetches all data for that specific user (same data as `admin-user-profile` but formatted as an AI prompt)
+- Sends to Lovable AI (google/gemini-3-flash-preview) with a client-focused system prompt
+- Report structure:
+  1. Client Overview & Engagement Status
+  2. Training Analysis (volume trends, frequency, PRs, consistency)
+  3. Readiness & Recovery (sleep hours, energy, stress patterns, burnout risk)
+  4. Nutrition Compliance (calculator, diary, meals)
+  5. Goal Progress Assessment
+  6. Body Composition Trends
+  7. Community Engagement
+  8. Coaching Recommendations (5 specific actions)
+  9. Risk Assessment (🟢/🟡/🔴 rating with explanation)
 
----
+### New Component: `src/components/admin/ClientAIReport.tsx`
+- Similar to `AIIntelligenceBriefing` but for a single client
+- "Generate Client Report" button
+- Renders with ReactMarkdown
+- Collapsible sections for clean reading
 
-## 3. Enriched Client Directory with Filters
-
-### Update `admin-detail` edge function (users section)
-Add to the user data returned:
-- `hasNutrition` — whether user has entry in user_nutrition_data
-- `mealCount` — count from user_meals
-- `hasAudit` — whether user has entry in user_audit_data
-- `latestWeight` — most recent weight_kg from user_body_entries
-- `latestBF` — most recent body_fat_percent
-- `avgEnergy`, `avgSleep` — from user_daily_checkins (last 30 days)
-- `diaryEntriesThisWeek` — food diary count this week
-- `programEnrolled` — boolean from user_program_enrollments
-- `status` — active/suspended/archived (from auth ban status)
-
-### UI Changes to Client Directory
-- Add a filter bar above the table with toggles: "All", "Active", "Inactive 7d+", "Has Program", "No Nutrition", "Suspended"
-- Add optional columns (toggled via a column picker dropdown): Last Check-in, Avg Energy, Weight, Nutrition Status, Program Status
-- Default view shows: Name, Last Workout, Compliance, Workouts
-- Expanded view adds the lifestyle/nutrition columns
+### Integration into `AdminUserProfile.tsx`
+- Add `ClientAIReport` component after the stats summary, before the training section
+- Pass `userId` and `displayName` as props
 
 ---
 
-## 4. AI Intelligence Briefing System
+## 4. Clean Up AI Intelligence Briefing Formatting
 
-### New Edge Function: `supabase/functions/admin-intelligence/index.ts`
-- Collects ALL platform data in parallel (users, workouts, PRs, check-ins, goals, nutrition, food diary, body entries, community, programs, calendar workouts, assignments)
-- Builds per-user summaries with every metric
-- Constructs a comprehensive data prompt
-- Sends to Lovable AI (google/gemini-3-flash-preview) with a corporate-grade system prompt
+The current report renders as a wall of text (visible in the screenshot). Issues:
+- No visual separation between sections
+- Headers don't stand out
+- The Client Priority Matrix needs colored indicators
+- No spacing between sections
 
-The AI produces a structured report with these sections:
-1. Executive Summary
-2. User Acquisition & Retention
-3. Training Performance Analysis
-4. Readiness & Lifestyle Intelligence
-5. Nutrition & Body Composition
-6. Goal Tracking & Accountability
-7. Program Compliance & Coaching Effectiveness
-8. Community Health
-9. Strategic Recommendations (Top 5 priority actions)
-10. Client Priority Matrix (🟢 On Track / 🟡 Watch / 🔴 Intervention Needed)
+### Changes to `src/components/admin/AIIntelligenceBriefing.tsx`:
+- Replace single `ReactMarkdown` block with **section-based rendering**: parse the markdown by `## ` headers and render each section in its own collapsible `Card`
+- Add colored left-border accents per section type (e.g., blue for training, green for nutrition, purple for AI recommendations)
+- Style the Client Priority Matrix: parse 🟢/🟡/🔴 lines and render as colored Badge components
+- Add a table of contents / section nav at the top for quick jumping
+- Wrap the entire report in a `ScrollArea` with proper spacing
 
-Add to `supabase/config.toml`:
-```toml
-[functions.admin-intelligence]
-verify_jwt = false
-```
-
-### New Component: `src/components/admin/AIIntelligenceBriefing.tsx`
-- Full-width card on the Admin Dashboard
-- "Generate Intelligence Briefing" button
-- Loading state with skeleton
-- Renders the report with `react-markdown` for proper formatting of headers, bullets, and the priority matrix
-- Timestamp of when report was generated
-- "Regenerate" button after initial generation
-
-### Integration into `AdminDashboard.tsx`
-- Add the AIIntelligenceBriefing component prominently at the top of the dashboard, right after the header
-- Replace or supplement the existing `AdminWeeklyReport` (which is simpler and less comprehensive)
+### Changes to the system prompt in `admin-intelligence/index.ts`:
+- Add instruction to use `---` between sections for easier parsing
+- Ensure consistent formatting of the priority matrix as a table
 
 ---
 
 ## Files to Create
 | File | Purpose |
 |------|---------|
-| `supabase/functions/admin-manage-user/index.ts` | User suspend/archive/delete/status |
-| `supabase/functions/admin-intelligence/index.ts` | Comprehensive AI analytics |
-| `src/components/admin/AIIntelligenceBriefing.tsx` | AI briefing UI component |
+| `supabase/functions/admin-client-report/index.ts` | Per-client AI analysis |
 
 ## Files to Modify
 | File | Changes |
 |------|---------|
-| `supabase/config.toml` | Add admin-manage-user and admin-intelligence function configs |
-| `src/components/admin/AdminDetailDrawer.tsx` | Maximize toggle, user management actions, filter bar, enriched columns |
-| `supabase/functions/admin-detail/index.ts` | Add nutrition/lifestyle/body/program data to users section |
-| `src/pages/AdminDashboard.tsx` | Add AIIntelligenceBriefing component |
+| `src/components/lifestyle/DailyCheckin.tsx` | Add sleep_hours input + Walker readiness formula |
+| `supabase/functions/admin-user-profile/index.ts` | Add food diary, programs, sleep_hours to response |
+| `supabase/functions/admin-intelligence/index.ts` | Include sleep_hours, improve prompt formatting |
+| `src/pages/AdminUserProfile.tsx` | Add readiness cards, program compliance, food diary, ClientAIReport |
+| `src/components/admin/AIIntelligenceBriefing.tsx` | Section-based rendering with cards, colored indicators, TOC |
+| `src/components/admin/ClientAIReport.tsx` | New per-client AI report component |
 
-## Dependencies
-- `react-markdown` — needs to be installed for rendering the AI report with proper formatting
+## Database Migration
+- Add `sleep_hours` column to `user_daily_checkins`
 
