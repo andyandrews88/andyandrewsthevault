@@ -21,6 +21,7 @@ import { AdminWorkoutBuilder } from "@/components/admin/AdminWorkoutBuilder";
 import { CopyWorkoutDialog } from "@/components/admin/CopyWorkoutDialog";
 import { AssignTemplateWizard } from "@/components/admin/AssignTemplateWizard";
 import { TouchpointLog } from "@/components/admin/TouchpointLog";
+import { ClientPerformanceReport } from "@/components/admin/ClientPerformanceReport";
 
 export default function AdminUserProfile() {
   const { userId } = useParams<{ userId: string }>();
@@ -437,6 +438,11 @@ export default function AdminUserProfile() {
               )}
             </CardContent>
           </Card>
+        </section>
+
+        {/* Performance Report */}
+        <section className="space-y-3">
+          <ClientPerformanceReport userId={userId!} />
         </section>
 
         {/* Coaching Notes / Touchpoints */}

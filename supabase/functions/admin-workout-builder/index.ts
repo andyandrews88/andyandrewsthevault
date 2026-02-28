@@ -486,6 +486,166 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify(data), { headers: corsHeaders });
       }
 
+      // ==================== CLIENT PERFORMANCE REPORT ====================
+      case "get_client_report": {
+        const { userId, weeks } = body;
+        const numWeeks = weeks || 8;
+        const reportStart = new Date(Date.now() - numWeeks * 7 * 86400000).toISOString().split("T")[0];
+
+        // Fetch all data in parallel
+        const [workoutsRes, prsRes, checkinsRes, bodyRes] = await Promise.all([
+          serviceClient.from("workouts").select("id, date, total_volume, is_completed, workout_name").eq("user_id", userId).gte("date", reportStart).order("date"),
+          serviceClient.from("personal_records").select("exercise_name, max_weight, max_reps, achieved_at").eq("user_id", userId).order("achieved_at"),
+          serviceClient.from("user_daily_checkins").select("check_date, sleep_score, stress_score, energy_score, drive_score").eq("user_id", userId).gte("check_date", reportStart).order("check_date"),
+          serviceClient.from("user_body_entries").select("entry_date, weight_kg, body_fat_percent, uses_imperial").eq("user_id", userId).order("entry_date"),
+        ]);
+
+        // Weekly volume aggregation
+        const weeklyVolume: { week: string; volume: number; workouts: number }[] = [];
+        const volumeMap: Record<string, { volume: number; workouts: number }> = {};
+        for (const w of (workoutsRes.data || [])) {
+          if (!w.is_completed) continue;
+          const d = new Date(w.date + "T12:00:00");
+          const dayOfWeek = d.getDay() || 7;
+          const monday = new Date(d);
+          monday.setDate(d.getDate() - dayOfWeek + 1);
+          const weekKey = monday.toISOString().split("T")[0];
+          if (!volumeMap[weekKey]) volumeMap[weekKey] = { volume: 0, workouts: 0 };
+          volumeMap[weekKey].volume += Number(w.total_volume) || 0;
+          volumeMap[weekKey].workouts += 1;
+        }
+        for (const [week, data] of Object.entries(volumeMap).sort((a, b) => a[0].localeCompare(b[0]))) {
+          weeklyVolume.push({ week, volume: Math.round(data.volume), workouts: data.workouts });
+        }
+
+        // Weekly readiness aggregation
+        const weeklyReadiness: { week: string; sleep: number; energy: number; stress: number; drive: number }[] = [];
+        const readinessMap: Record<string, { sleep: number[]; energy: number[]; stress: number[]; drive: number[] }> = {};
+        for (const c of (checkinsRes.data || [])) {
+          const d = new Date(c.check_date + "T12:00:00");
+          const dayOfWeek = d.getDay() || 7;
+          const monday = new Date(d);
+          monday.setDate(d.getDate() - dayOfWeek + 1);
+          const weekKey = monday.toISOString().split("T")[0];
+          if (!readinessMap[weekKey]) readinessMap[weekKey] = { sleep: [], energy: [], stress: [], drive: [] };
+          readinessMap[weekKey].sleep.push(c.sleep_score);
+          readinessMap[weekKey].energy.push(c.energy_score);
+          readinessMap[weekKey].stress.push(c.stress_score);
+          readinessMap[weekKey].drive.push(c.drive_score);
+        }
+        for (const [week, data] of Object.entries(readinessMap).sort((a, b) => a[0].localeCompare(b[0]))) {
+          const avg = (arr: number[]) => arr.length ? Math.round(arr.reduce((s, v) => s + v, 0) / arr.length * 10) / 10 : 0;
+          weeklyReadiness.push({ week, sleep: avg(data.sleep), energy: avg(data.energy), stress: avg(data.stress), drive: avg(data.drive) });
+        }
+
+        // PR timeline
+        const prTimeline = (prsRes.data || []).map(pr => ({
+          exercise: pr.exercise_name,
+          weight: pr.max_weight,
+          reps: pr.max_reps,
+          date: pr.achieved_at,
+        }));
+
+        // Body composition
+        const bodyComposition = (bodyRes.data || []).map(e => ({
+          date: e.entry_date,
+          weight: e.weight_kg,
+          bodyFat: e.body_fat_percent,
+          usesImperial: e.uses_imperial,
+        }));
+
+        // Compliance: completed vs total workouts in period
+        const totalWorkouts = (workoutsRes.data || []).length;
+        const completedWorkouts = (workoutsRes.data || []).filter(w => w.is_completed).length;
+        const compliance = totalWorkouts > 0 ? Math.round(completedWorkouts / totalWorkouts * 100) : 0;
+
+        return new Response(JSON.stringify({
+          weeklyVolume,
+          weeklyReadiness,
+          prTimeline,
+          bodyComposition,
+          compliance,
+          totalWorkouts,
+          completedWorkouts,
+        }), { headers: corsHeaders });
+      }
+
+      // ==================== BATCH ASSIGN TEMPLATE ====================
+      case "batch_assign_template": {
+        const { templateId, targetUserIds, startDate, trainingDays } = body;
+        const results: { userId: string; success: boolean; error?: string }[] = [];
+
+        const { data: template } = await serviceClient.from("coach_program_templates").select("*").eq("id", templateId).single();
+        if (!template) throw new Error("Template not found");
+        const { data: templateWorkouts } = await serviceClient.from("coach_template_workouts").select("*").eq("template_id", templateId).order("week_number").order("day_number");
+        if (!templateWorkouts?.length) throw new Error("Template has no workouts");
+
+        for (const targetUserId of targetUserIds) {
+          try {
+            // Get client PRs
+            const { data: clientPRs } = await serviceClient.from("personal_records").select("exercise_name, max_weight").eq("user_id", targetUserId);
+            const prMap: Record<string, number> = {};
+            for (const pr of (clientPRs || [])) {
+              const key = pr.exercise_name.toLowerCase();
+              if (!prMap[key] || pr.max_weight > prMap[key]) prMap[key] = pr.max_weight;
+            }
+
+            await serviceClient.from("coach_client_assignments").insert({
+              coach_id: adminUserId, client_user_id: targetUserId, template_id: templateId, start_date: startDate, status: "active",
+            });
+
+            const days = trainingDays || [1, 3, 5];
+            const currentDate = new Date(startDate + "T12:00:00");
+            const weekMap: Record<number, any[]> = {};
+            for (const tw of templateWorkouts) {
+              if (!weekMap[tw.week_number]) weekMap[tw.week_number] = [];
+              weekMap[tw.week_number].push(tw);
+            }
+
+            for (let week = 1; week <= template.duration_weeks; week++) {
+              const weekWorkouts = weekMap[week] || [];
+              for (const tw of weekWorkouts) {
+                while (currentDate.getDay() === 0 || !days.includes(currentDate.getDay())) {
+                  currentDate.setDate(currentDate.getDate() + 1);
+                }
+                const resolvedExercises = (tw.exercises as any[]).map((ex: any) => {
+                  if (ex.percentage && ex.name) {
+                    const pr = prMap[ex.name.toLowerCase()];
+                    if (pr) return { ...ex, resolvedWeight: Math.round((pr * ex.percentage / 100) / 2.5) * 2.5 };
+                  }
+                  return ex;
+                });
+                const dateStr = currentDate.toISOString().split("T")[0];
+                const { data: newWorkout } = await serviceClient.from("workouts").insert({
+                  user_id: targetUserId, workout_name: tw.workout_name, date: dateStr, is_completed: false, notes: tw.notes || "",
+                }).select().single();
+                if (newWorkout) {
+                  for (let i = 0; i < resolvedExercises.length; i++) {
+                    const ex = resolvedExercises[i];
+                    const { data: newEx } = await serviceClient.from("workout_exercises").insert({
+                      workout_id: newWorkout.id, exercise_name: ex.name, order_index: i, exercise_type: ex.exercise_type || "strength", notes: ex.notes || "",
+                    }).select().single();
+                    if (newEx) {
+                      for (let s = 1; s <= (ex.sets || 3); s++) {
+                        await serviceClient.from("exercise_sets").insert({
+                          exercise_id: newEx.id, set_number: s, weight: ex.resolvedWeight || null,
+                          reps: ex.reps ? parseInt(ex.reps) || null : null, rpe: ex.rpe || null, rir: ex.rir ?? null, set_type: ex.set_type || "working",
+                        });
+                      }
+                    }
+                  }
+                }
+                currentDate.setDate(currentDate.getDate() + 1);
+              }
+            }
+            results.push({ userId: targetUserId, success: true });
+          } catch (e) {
+            results.push({ userId: targetUserId, success: false, error: e.message });
+          }
+        }
+        return new Response(JSON.stringify({ results }), { headers: corsHeaders });
+      }
+
       default:
         return new Response(
           JSON.stringify({ error: `Unknown action: ${action}` }),
