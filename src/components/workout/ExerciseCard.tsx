@@ -22,7 +22,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toEmbedUrl } from "@/lib/vaultService";
 import { cn } from "@/lib/utils";
 import { AdminExerciseMenu } from "./AdminExerciseMenu";
-import { isTimedExercise } from "@/lib/movementPatterns";
+import { isTimedExercise, isBodyweightExercise } from "@/lib/movementPatterns";
 
 interface ExerciseCardProps {
   exercise: WorkoutExercise;
@@ -46,6 +46,7 @@ export function ExerciseCard({ exercise, onRemove, allExercises = [], onMoveUp, 
   const [isLoadingPrevious, setIsLoadingPrevious] = useState(false);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [isTimed, setIsTimed] = useState(false);
+  const isBW = isBodyweightExercise(exercise.exercise_name);
   const [showVideo, setShowVideo] = useState(false);
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [showReplaceSearch, setShowReplaceSearch] = useState(false);
@@ -226,7 +227,7 @@ export function ExerciseCard({ exercise, onRemove, allExercises = [], onMoveUp, 
         <div className="grid grid-cols-[28px_1fr_1fr_1fr_44px_36px_24px] gap-1 sm:gap-1.5 items-center py-2 px-4 border-b border-border bg-muted/30 text-xs font-medium text-muted-foreground">
           <span className="text-center">Set</span>
           <span className="text-center">Prev</span>
-          <span className="text-center">{preferredUnit === 'kg' ? 'Kg' : 'Lbs'}</span>
+          <span className="text-center">{isBW ? '+Load' : (preferredUnit === 'kg' ? 'Kg' : 'Lbs')}</span>
           <span className="text-center">{isTimed ? 'Sec' : 'Reps'}</span>
           <span className="text-center">RIR</span>
           <span className="text-center">✓</span>
@@ -244,6 +245,7 @@ export function ExerciseCard({ exercise, onRemove, allExercises = [], onMoveUp, 
               onComplete={(weight, reps, rir) => { handleCompleteSet(set.id, weight, reps, rir); }}
               onRemove={() => removeSet(set.id)}
               isTimed={isTimed}
+              isBodyweight={isBW}
             />
           ))}
         </div>

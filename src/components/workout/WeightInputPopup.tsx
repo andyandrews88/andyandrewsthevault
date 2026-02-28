@@ -17,6 +17,7 @@ interface WeightInputPopupProps {
   previousWeight?: number | null;
   onLog: (weight: number) => void;
   onAutofill: () => void;
+  isBodyweight?: boolean;
 }
 
 export function WeightInputPopup({
@@ -26,6 +27,7 @@ export function WeightInputPopup({
   previousWeight,
   onLog,
   onAutofill,
+  isBodyweight = false,
 }: WeightInputPopupProps) {
   const { preferredUnit, setPreferredUnit } = useWorkoutStore();
   const [displayValue, setDisplayValue] = useState(currentWeight || "");
@@ -52,12 +54,17 @@ export function WeightInputPopup({
 
   const handleLog = () => {
     const value = parseFloat(displayValue);
-    if (!isNaN(value) && value > 0) {
+    if (!isNaN(value) && value >= 0) {
       // Convert to lbs for storage if user entered in kg
       const storedValue = inputUnit === 'kg' ? convertWeight(value, 'kg', 'lbs') : value;
       onLog(storedValue);
       onOpenChange(false);
     }
+  };
+
+  const handleBodyweightOnly = () => {
+    onLog(0);
+    onOpenChange(false);
   };
 
   const handleAutofill = () => {
@@ -97,6 +104,13 @@ export function WeightInputPopup({
           <div className="flex justify-center mb-4">
             <ChevronDown className="h-6 w-6 text-muted-foreground" />
           </div>
+          
+          {/* Bodyweight hint */}
+          {isBodyweight && (
+            <p className="text-sm text-muted-foreground mb-3 px-2">
+              Additional load on top of bodyweight
+            </p>
+          )}
           
           {/* Weight Display */}
           <div className="flex items-center justify-between mb-6 px-2">
@@ -152,11 +166,22 @@ export function WeightInputPopup({
                 variant="hero"
                 size="lg"
                 onClick={handleLog}
-                disabled={!displayValue || parseFloat(displayValue) <= 0}
+                disabled={!displayValue || parseFloat(displayValue) < 0}
                 className="h-14 font-semibold"
               >
                 Log
               </Button>
+              
+              {isBodyweight && (
+                <Button
+                  variant="secondary"
+                  size="lg"
+                  onClick={handleBodyweightOnly}
+                  className="h-14 font-semibold text-xs"
+                >
+                  BW Only
+                </Button>
+              )}
               
               <Button
                 variant="secondary"
