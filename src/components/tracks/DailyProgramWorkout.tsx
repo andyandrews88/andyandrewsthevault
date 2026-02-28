@@ -4,8 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { useProgramStore, UserCalendarWorkout, ProgramExercise } from "@/stores/programStore";
 import { useWorkoutStore } from "@/stores/workoutStore";
 import { WendlerPercentageCalc } from "./WendlerPercentageCalc";
@@ -181,33 +181,36 @@ export function DailyProgramWorkout({
           <div className="flex items-center gap-1 shrink-0">
             {/* Reschedule button */}
             {!calendarWorkout.is_completed && (
-              <Popover open={rescheduleOpen} onOpenChange={setRescheduleOpen}>
-                <PopoverTrigger asChild>
+              <ResponsiveSheet
+                open={rescheduleOpen}
+                onOpenChange={setRescheduleOpen}
+                title="Move to a different day"
+                trigger={
                   <Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="Move to another day">
                     <CalendarDays className="w-3.5 h-3.5 text-muted-foreground" />
                   </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 pointer-events-auto" align="end">
-                  <div className="p-3 space-y-2">
-                    <p className="text-xs font-medium">Move to a different day</p>
-                    <Calendar
-                      mode="single"
-                      selected={rescheduleDate}
-                      onSelect={setRescheduleDate}
-                      className={cn("p-0 pointer-events-auto")}
-                      initialFocus
-                    />
-                    <Button
-                      size="sm"
-                      className="w-full"
-                      disabled={!rescheduleDate || isRescheduling}
-                      onClick={handleReschedule}
-                    >
-                      {isRescheduling ? "Moving…" : "Confirm Move"}
-                    </Button>
-                  </div>
-                </PopoverContent>
-              </Popover>
+                }
+                popoverAlign="end"
+                popoverClassName="w-auto p-0 pointer-events-auto"
+              >
+                <div className="p-3 space-y-2">
+                  <Calendar
+                    mode="single"
+                    selected={rescheduleDate}
+                    onSelect={setRescheduleDate}
+                    className={cn("p-0 pointer-events-auto")}
+                    initialFocus
+                  />
+                  <Button
+                    size="sm"
+                    className="w-full"
+                    disabled={!rescheduleDate || isRescheduling}
+                    onClick={handleReschedule}
+                  >
+                    {isRescheduling ? "Moving…" : "Confirm Move"}
+                  </Button>
+                </div>
+              </ResponsiveSheet>
             )}
             {calendarWorkout.is_completed ? (
               <Badge variant="secondary" className="flex items-center gap-1 text-xs">

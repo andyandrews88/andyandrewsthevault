@@ -1,9 +1,10 @@
+import { useState } from 'react';
 import { format, addDays, subDays, isToday, isFuture, isPast } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { ResponsiveSheet } from '@/components/ui/responsive-sheet';
 
 interface DateNavigatorProps {
   selectedDate: Date;
@@ -11,6 +12,7 @@ interface DateNavigatorProps {
 }
 
 export function DateNavigator({ selectedDate, onDateChange }: DateNavigatorProps) {
+  const [open, setOpen] = useState(false);
   const handlePrevDay = () => onDateChange(subDays(selectedDate, 1));
   const handleNextDay = () => onDateChange(addDays(selectedDate, 1));
   const handleToday = () => onDateChange(new Date());
@@ -23,18 +25,16 @@ export function DateNavigator({ selectedDate, onDateChange }: DateNavigatorProps
 
   return (
     <div className="flex items-center justify-between gap-2 p-3 rounded-lg border bg-card">
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={handlePrevDay}
-        className="h-8 w-8"
-      >
+      <Button variant="ghost" size="icon" onClick={handlePrevDay} className="h-8 w-8">
         <ChevronLeft className="h-4 w-4" />
       </Button>
 
       <div className="flex items-center gap-2 flex-1 justify-center">
-        <Popover>
-          <PopoverTrigger asChild>
+        <ResponsiveSheet
+          open={open}
+          onOpenChange={setOpen}
+          title="Select Date"
+          trigger={
             <Button
               variant="ghost"
               className={cn(
@@ -46,35 +46,25 @@ export function DateNavigator({ selectedDate, onDateChange }: DateNavigatorProps
               <CalendarIcon className="h-4 w-4" />
               {dateLabel}
             </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="center">
-            <Calendar
-              mode="single"
-              selected={selectedDate}
-              onSelect={(date) => date && onDateChange(date)}
-              initialFocus
-            />
-          </PopoverContent>
-        </Popover>
+          }
+          popoverClassName="w-auto p-0"
+        >
+          <Calendar
+            mode="single"
+            selected={selectedDate}
+            onSelect={(date) => { if (date) { onDateChange(date); setOpen(false); } }}
+            initialFocus
+          />
+        </ResponsiveSheet>
 
         {!isToday(selectedDate) && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleToday}
-            className="text-xs h-7"
-          >
+          <Button variant="outline" size="sm" onClick={handleToday} className="text-xs h-7">
             Today
           </Button>
         )}
       </div>
 
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={handleNextDay}
-        className="h-8 w-8"
-      >
+      <Button variant="ghost" size="icon" onClick={handleNextDay} className="h-8 w-8">
         <ChevronRight className="h-4 w-4" />
       </Button>
     </div>

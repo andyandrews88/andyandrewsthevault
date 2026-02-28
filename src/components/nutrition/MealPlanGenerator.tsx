@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { ResponsiveSheet } from '@/components/ui/responsive-sheet';
 import { 
   Utensils, 
   Clock, 
@@ -46,6 +46,44 @@ const SLOT_OPTIONS: { value: MealSlotType; label: string; icon: React.ElementTyp
   { value: 'dinner', label: 'Dinner', icon: Moon },
   { value: 'snacks', label: 'Snacks', icon: Cookie },
 ];
+
+function QuickLogButton({ recipe, onLogRecipe }: { recipe: Recipe; onLogRecipe: (recipe: Recipe, slot: MealSlotType) => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <ResponsiveSheet
+      open={open}
+      onOpenChange={setOpen}
+      title="Log to meal"
+      trigger={
+        <Button
+          variant="outline"
+          size="icon"
+          className="shrink-0 h-8 w-8"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Plus className="w-4 h-4" />
+        </Button>
+      }
+      popoverAlign="end"
+      popoverClassName="w-auto p-2"
+    >
+      <div className="grid grid-cols-2 gap-1">
+        {SLOT_OPTIONS.map(({ value, label, icon: Icon }) => (
+          <Button
+            key={value}
+            variant="ghost"
+            size="sm"
+            className="justify-start gap-2 text-xs"
+            onClick={() => { onLogRecipe(recipe, value); setOpen(false); }}
+          >
+            <Icon className="w-3 h-3" />
+            {label}
+          </Button>
+        ))}
+      </div>
+    </ResponsiveSheet>
+  );
+}
 
 export function MealPlanGenerator({ targetCalories, targetMacros, mealBreakdown, onLogRecipe }: MealPlanGeneratorProps) {
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
@@ -183,34 +221,7 @@ export function MealPlanGenerator({ targetCalories, targetMacros, mealBreakdown,
 
                         {/* Quick-log button */}
                         {onLogRecipe && (
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <Button
-                                variant="outline"
-                                size="icon"
-                                className="shrink-0 h-8 w-8"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <Plus className="w-4 h-4" />
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-2" align="end">
-                              <div className="grid grid-cols-2 gap-1">
-                                {SLOT_OPTIONS.map(({ value, label, icon: Icon }) => (
-                                  <Button
-                                    key={value}
-                                    variant="ghost"
-                                    size="sm"
-                                    className="justify-start gap-2 text-xs"
-                                    onClick={() => onLogRecipe(recipe, value)}
-                                  >
-                                    <Icon className="w-3 h-3" />
-                                    {label}
-                                  </Button>
-                                ))}
-                              </div>
-                            </PopoverContent>
-                          </Popover>
+                          <QuickLogButton recipe={recipe} onLogRecipe={onLogRecipe} />
                         )}
                       </div>
                     </CardContent>
