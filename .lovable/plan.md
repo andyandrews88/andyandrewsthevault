@@ -1,30 +1,36 @@
 
 
-# Add Admin Exercise Menu to Backend Builder + Auto-Register Exercises Globally
+# Fix Admin Workout Builder: Time-Based & Unilateral Not Reflecting in UI
 
 ## Problem
-1. The admin workout builder page (`AdminWorkoutBuilderPage.tsx`) only has Video and Remove buttons per exercise. It's missing the full admin menu from the front-end: Movement Pattern, Equipment Type, Time-Based, Unilateral L/R, Set Video URL, Load Last Session, Replace Exercise.
-2. When a new/custom exercise is entered anywhere (admin builder, client logger, template editor), it is NOT automatically registered in the `exercise_library` table. This means metadata set in one place doesn't carry over, and exercises added from coaching don't appear with their details on the client side.
+When selecting "Time-Based → Yes" or "Unilateral (L/R) → Yes" from the admin menu, the `exercise_library` DB is updated but the card UI doesn't react — column headers stay "KG / Reps", no L/R rows appear.
 
-## Plan
+## Root Cause
+- `LocalExercise` interface has no `isTimed` or `isUnilateral` fields
+- `AdminExerciseMenu` calls `upsertExerciseLibraryField` directly with no callback to parent
+- The set grid header and input labels are hardcoded ("Kg", "Reps")
 
-### 1. Add Admin Exercise Menu to `AdminWorkoutBuilderPage.tsx`
-- Import `AdminExerciseMenu` (already exists) and add a `DropdownMenu` with `MoreVertical` trigger to each exercise card header (replacing the simple Video + Trash buttons)
-- Include in the dropdown: Load Last Session (via edge function), Replace Exercise (opens `ExerciseSearch`), and the full `AdminExerciseMenu` sub-menus (Movement Pattern, Equipment Type, Time-Based, Unilateral, Set Video URL), plus Remove Exercise at the bottom
-- Add replace exercise handler that swaps the exercise name in state and calls the edge function to update the `workout_exercises` row
+## Changes
 
-### 2. Auto-Register Exercises in `exercise_library` on Creation
-- **Edge function (`admin-workout-builder/index.ts`)**: In the `add_exercise` action, after inserting into `workout_exercises`, do an upsert to `exercise_library` — if the exercise name doesn't already exist, insert it with `category: 'strength'` (or `'conditioning'`). This ensures every exercise entered from the admin builder is globally registered.
-- **Client-side (`workoutStore.ts`)**: In the `addExercise` action (or wherever exercises are created on the front-end), add a similar upsert call to `exercise_library` via the client SDK so exercises entered by the user also get registered.
-- This is an **insert-if-not-exists** pattern — existing library entries won't be overwritten.
+### 1. `LocalExercise` interface — add state fields
+Add `isTimed: boolean` and `isUnilateral: boolean` to the interface. Fetch from `exercise_library` when loading/adding exercises (query `is_timed, is_unilateral` alongside `video_url`).
 
-### 3. Add `replace_exercise` action to edge function
-- New action in `admin-workout-builder/index.ts` that updates `workout_exercises.exercise_name` for a given exercise ID, so the admin can swap exercises in the builder.
+### 2. `AdminExerciseMenu` — add `onMetadataChange` callback
+Add optional prop `onMetadataChange?: (field: string, value: any) => void` that fires after successful upsert. The parent uses this to update local state immediately.
+
+### 3. `AdminWorkoutBuilderPage` — reactive UI
+- **Column headers**: Change "Reps" → "Sec" when `isTimed` is true. Change "Kg" → "+Load" when exercise is bodyweight.
+- **Unilateral sets**: When toggled on, duplicate existing sets into L/R pairs with side badges. When toggled off, collapse back.
+- **Set grid**: Show L/R badge next to set number when unilateral.
+- Wire `onMetadataChange` from `AdminExerciseMenu` to update `exercises` state.
+
+### 4. Edge function — fetch `is_timed`/`is_unilateral` with exercise video
+Update the `get_exercise_video` action (or add to existing library query) to also return `is_timed` and `is_unilateral` so the builder page has this data on load.
 
 ## Files to Modify
 | File | Changes |
 |------|---------|
-| `src/pages/AdminWorkoutBuilderPage.tsx` | Add DropdownMenu with AdminExerciseMenu, replace exercise handler |
-| `supabase/functions/admin-workout-builder/index.ts` | Auto-register exercises in `exercise_library` on `add_exercise`, add `replace_exercise` action |
-| `src/stores/workoutStore.ts` | Auto-register exercises in `exercise_library` when adding exercises from front-end |
+| `src/components/workout/AdminExerciseMenu.tsx` | Add `onMetadataChange` callback prop |
+| `src/pages/AdminWorkoutBuilderPage.tsx` | Add `isTimed`/`isUnilateral` to state, reactive headers, L/R sets, wire callback |
+| `supabase/functions/admin-workout-builder/index.ts` | Return `is_timed`/`is_unilateral` from exercise library queries |
 
