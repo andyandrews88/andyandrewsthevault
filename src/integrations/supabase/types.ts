@@ -73,6 +73,154 @@ export type Database = {
         }
         Relationships: []
       }
+      coach_client_assignments: {
+        Row: {
+          client_user_id: string
+          coach_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          start_date: string
+          status: string
+          template_id: string | null
+        }
+        Insert: {
+          client_user_id: string
+          coach_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          start_date?: string
+          status?: string
+          template_id?: string | null
+        }
+        Update: {
+          client_user_id?: string
+          coach_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          start_date?: string
+          status?: string
+          template_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coach_client_assignments_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "coach_program_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      coach_program_templates: {
+        Row: {
+          category: string
+          coach_id: string
+          created_at: string
+          days_per_week: number
+          description: string | null
+          duration_weeks: number
+          id: string
+          is_archived: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          coach_id: string
+          created_at?: string
+          days_per_week?: number
+          description?: string | null
+          duration_weeks?: number
+          id?: string
+          is_archived?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          coach_id?: string
+          created_at?: string
+          days_per_week?: number
+          description?: string | null
+          duration_weeks?: number
+          id?: string
+          is_archived?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      coach_template_workouts: {
+        Row: {
+          created_at: string
+          day_number: number
+          exercises: Json
+          id: string
+          notes: string | null
+          template_id: string
+          week_number: number
+          workout_name: string
+        }
+        Insert: {
+          created_at?: string
+          day_number?: number
+          exercises?: Json
+          id?: string
+          notes?: string | null
+          template_id: string
+          week_number?: number
+          workout_name?: string
+        }
+        Update: {
+          created_at?: string
+          day_number?: number
+          exercises?: Json
+          id?: string
+          notes?: string | null
+          template_id?: string
+          week_number?: number
+          workout_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coach_template_workouts_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "coach_program_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      coach_touchpoints: {
+        Row: {
+          client_user_id: string
+          coach_id: string
+          content: string
+          created_at: string
+          id: string
+          touchpoint_type: string
+        }
+        Insert: {
+          client_user_id: string
+          coach_id: string
+          content?: string
+          created_at?: string
+          id?: string
+          touchpoint_type?: string
+        }
+        Update: {
+          client_user_id?: string
+          coach_id?: string
+          content?: string
+          created_at?: string
+          id?: string
+          touchpoint_type?: string
+        }
+        Relationships: []
+      }
       community_channels: {
         Row: {
           category: string

@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
-  ChevronLeft, User, Dumbbell, Award, Heart, Target, MessageSquare, Scale, Mail, Calendar, Send,
+  ChevronLeft, User, Dumbbell, Award, Heart, Target, MessageSquare, Scale, Mail, Calendar, Send, Copy, ClipboardList,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { useAuthStore } from "@/stores/authStore";
@@ -18,6 +18,9 @@ import { useCommunityStore } from "@/stores/communityStore";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "@/hooks/use-toast";
 import { AdminWorkoutBuilder } from "@/components/admin/AdminWorkoutBuilder";
+import { CopyWorkoutDialog } from "@/components/admin/CopyWorkoutDialog";
+import { AssignTemplateWizard } from "@/components/admin/AssignTemplateWizard";
+import { TouchpointLog } from "@/components/admin/TouchpointLog";
 
 export default function AdminUserProfile() {
   const { userId } = useParams<{ userId: string }>();
@@ -30,6 +33,9 @@ export default function AdminUserProfile() {
   const [error, setError] = useState<string | null>(null);
   const [dmContent, setDmContent] = useState('');
   const [dmSending, setDmSending] = useState(false);
+  const [copyDialogOpen, setCopyDialogOpen] = useState(false);
+  const [copyWorkout, setCopyWorkout] = useState<{ id: string; name: string } | null>(null);
+  const [assignOpen, setAssignOpen] = useState(false);
 
   // DMs sent to this specific user
   const dmHistory = directMessages.filter(
@@ -173,13 +179,20 @@ export default function AdminUserProfile() {
         <section className="space-y-3">
           <div className="flex items-center justify-between">
             <Badge variant="outline" className="text-xs">TRAINING</Badge>
-            <AdminWorkoutBuilder userId={userId!} displayName={p?.display_name || "User"} onWorkoutSaved={async () => {
-              // Re-fetch profile data after workout saved
-              try {
-                const { data: result } = await supabase.functions.invoke("admin-user-profile", { body: { userId } });
-                if (result) setData(result);
-              } catch {}
-            }} />
+            <div className="flex gap-2 flex-wrap">
+              <Button variant="outline" size="sm" className="gap-1" onClick={() => navigate(`/admin/user/${userId}/calendar?client=${encodeURIComponent(p?.display_name || 'User')}`)}>
+                <Calendar className="h-3.5 w-3.5" />Calendar
+              </Button>
+              <Button variant="outline" size="sm" className="gap-1" onClick={() => setAssignOpen(true)}>
+                <ClipboardList className="h-3.5 w-3.5" />Assign Program
+              </Button>
+              <AdminWorkoutBuilder userId={userId!} displayName={p?.display_name || "User"} onWorkoutSaved={async () => {
+                try {
+                  const { data: result } = await supabase.functions.invoke("admin-user-profile", { body: { userId } });
+                  if (result) setData(result);
+                } catch {}
+              }} />
+            </div>
           </div>
           {data.training.workouts.length > 0 && (
             <Card className="glass border-border/50">
@@ -194,6 +207,7 @@ export default function AdminUserProfile() {
                        <TableHead>Date</TableHead>
                        <TableHead>Status</TableHead>
                        <TableHead className="text-right">Volume</TableHead>
+                       <TableHead className="w-10"></TableHead>
                      </TableRow>
                    </TableHeader>
                    <TableBody>
@@ -210,8 +224,13 @@ export default function AdminUserProfile() {
                              {w.is_completed ? "Completed" : "In Progress"}
                            </Badge>
                          </TableCell>
-                         <TableCell className="text-right text-sm">{Number(w.total_volume || 0).toLocaleString()}</TableCell>
-                       </TableRow>
+                          <TableCell className="text-right text-sm">{Number(w.total_volume || 0).toLocaleString()}</TableCell>
+                          <TableCell>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); setCopyWorkout({ id: w.id, name: w.workout_name }); setCopyDialogOpen(true); }}>
+                              <Copy className="h-3.5 w-3.5" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
                      ))}
                   </TableBody>
                 </Table>
@@ -419,7 +438,32 @@ export default function AdminUserProfile() {
             </CardContent>
           </Card>
         </section>
+
+        {/* Coaching Notes / Touchpoints */}
+        <section className="space-y-3">
+          <Badge variant="outline" className="text-xs">COACHING NOTES</Badge>
+          <TouchpointLog clientUserId={userId!} />
+        </section>
       </main>
+
+      {/* Copy Workout Dialog */}
+      {copyWorkout && (
+        <CopyWorkoutDialog
+          open={copyDialogOpen}
+          onOpenChange={(open) => { setCopyDialogOpen(open); if (!open) setCopyWorkout(null); }}
+          sourceWorkoutId={copyWorkout.id}
+          sourceWorkoutName={copyWorkout.name}
+          excludeUserId={userId}
+        />
+      )}
+
+      {/* Assign Template Wizard */}
+      <AssignTemplateWizard
+        open={assignOpen}
+        onOpenChange={setAssignOpen}
+        targetUserId={userId!}
+        targetDisplayName={p?.display_name || "User"}
+      />
     </div>
   );
 }
