@@ -7,28 +7,28 @@ import { toast } from "sonner";
  */
 export async function upsertExerciseLibraryField(
   exerciseName: string,
-  field: Record<string, string | null>
+  field: Partial<{ movement_pattern: string | null; equipment_type: string | null; video_url: string | null }>
 ) {
   const name = exerciseName.trim();
   if (!name) return;
 
   // Check if exists
   const { data: existing } = await supabase
-    .from('exercise_library' as any)
+    .from('exercise_library')
     .select('id')
     .ilike('name', name)
     .maybeSingle();
 
   if (existing) {
     const { error } = await supabase
-      .from('exercise_library' as any)
+      .from('exercise_library')
       .update(field)
-      .eq('id', (existing as any).id);
+      .eq('id', existing.id);
     if (error) { toast.error(error.message); return; }
   } else {
     const { error } = await supabase
-      .from('exercise_library' as any)
-      .insert({ name, category: 'strength', ...field });
+      .from('exercise_library')
+      .insert({ name, category: 'strength' as const, ...field });
     if (error) { toast.error(error.message); return; }
   }
 
