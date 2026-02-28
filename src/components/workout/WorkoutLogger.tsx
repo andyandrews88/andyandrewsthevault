@@ -403,26 +403,15 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
           </p>
         </div>
         
-        <div className="flex items-center gap-2">
-          <Button 
-            variant="outline" 
-            size="icon"
-            className="h-9 w-9"
-            onClick={() => setShowRestTimer(true)}
-            title="Rest Timer"
-          >
-            <Timer className="h-4 w-4" />
-          </Button>
-          <Button 
-            variant="hero" 
-            size="sm" 
-            onClick={handleFinish}
-            disabled={isSaving || exercises.length === 0}
-          >
-            <Save className="h-4 w-4 mr-2" />
-            Finish
-          </Button>
-        </div>
+        <Button 
+          variant="hero" 
+          size="sm" 
+          onClick={handleFinish}
+          disabled={isSaving || exercises.length === 0}
+        >
+          <Save className="h-4 w-4 mr-2" />
+          Finish
+        </Button>
       </div>
       
       {/* Exercise Cards */}
@@ -507,6 +496,17 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
           })()}
         </CardContent>
       </Card>
+
+      {/* Rest Timer Button — prominent at bottom */}
+      <Button
+        variant="outline"
+        size="lg"
+        className="w-full border-primary/40 text-primary hover:bg-primary/10 gap-2 h-12 text-base font-semibold"
+        onClick={() => setShowRestTimer(true)}
+      >
+        <Timer className="h-5 w-5" />
+        Rest Timer
+      </Button>
 
       {/* Rest Timer */}
       <RestTimer 
