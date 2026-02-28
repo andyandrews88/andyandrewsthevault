@@ -11,6 +11,7 @@ import { Target, BarChart3, LayoutGrid } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { supabase } from "@/integrations/supabase/client";
 import { format, subDays, startOfWeek } from "date-fns";
+import { DateRangeSelector, computeRange } from "@/components/ui/DateRangeSelector";
 import {
   classifyExercise, classifyExerciseWithDb, calculateSetVolume, normalizeVolume,
   ALL_PATTERNS, MOVEMENT_PATTERN_LABELS, MOVEMENT_PATTERN_SHORT,
@@ -20,39 +21,33 @@ import {
 import { useWorkoutStore } from "@/stores/workoutStore";
 import { convertWeight } from "@/lib/weightConversion";
 
-type TimeRange = '1' | '4' | '12';
-
 type ExerciseBreakdown = { name: string; volume: number; sets: number };
 
 type ExtendedPatternData = PatternVolumeData & {
   exerciseBreakdown: ExerciseBreakdown[];
 };
 
-const TIME_LABELS: Record<TimeRange, string> = {
-  '1': 'This Week',
-  '4': '4 Weeks',
-  '12': '12 Weeks',
-};
-
 export function MovementBalanceChart() {
-  const [timeRange, setTimeRange] = useState<TimeRange>('4');
   const [view, setView] = useState<'radar' | 'bar' | 'cards'>('radar');
   const [patternData, setPatternData] = useState<Record<MovementPattern, ExtendedPatternData>>({} as any);
   const [weeklyData, setWeeklyData] = useState<WeeklyPatternVolume[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedPattern, setSelectedPattern] = useState<MovementPattern | null>(null);
+  const [rangeLabel, setRangeLabel] = useState("1M");
   const preferredUnit = useWorkoutStore(s => s.preferredUnit);
 
   useEffect(() => {
-    fetchData(parseInt(timeRange));
-  }, [timeRange]);
+    const { from, to } = computeRange("1M");
+    fetchDataByRange(from, to);
+  }, []);
 
-  const fetchData = async (weeks: number) => {
+  const fetchDataByRange = async (from: Date, to: Date) => {
     setIsLoading(true);
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.user) { setIsLoading(false); return; }
 
-    const fromDate = format(subDays(new Date(), weeks * 7), 'yyyy-MM-dd');
+    const fromDate = format(from, 'yyyy-MM-dd');
+    const toDate = format(to, 'yyyy-MM-dd');
 
     const { data: bodyEntry } = await supabase
       .from('user_body_entries')
@@ -70,7 +65,8 @@ export function MovementBalanceChart() {
       .select('id, date')
       .eq('user_id', session.user.id)
       .eq('is_completed', true)
-      .gte('date', fromDate);
+      .gte('date', fromDate)
+      .lte('date', toDate);
 
     if (!workouts?.length) {
       setPatternData({} as any);
@@ -256,22 +252,8 @@ export function MovementBalanceChart() {
         <CardHeader className="pb-2">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <CardTitle className="text-base">Movement Balance</CardTitle>
-            <div className="flex items-center gap-2">
-              <div className="flex rounded-md border border-border overflow-hidden">
-                {(['1', '4', '12'] as TimeRange[]).map(r => (
-                  <button
-                    key={r}
-                    onClick={() => setTimeRange(r)}
-                    className={`px-2.5 py-1 text-xs font-medium transition-colors ${
-                      timeRange === r
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    {TIME_LABELS[r]}
-                  </button>
-                ))}
-              </div>
+          <div className="flex items-center gap-2">
+              <DateRangeSelector defaultPreset="1M" onRangeChange={fetchDataByRange} />
               <div className="flex rounded-md border border-border overflow-hidden">
                 <button onClick={() => setView('radar')} className={`p-1.5 ${view === 'radar' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
                   <Target className="h-3.5 w-3.5" />
@@ -408,7 +390,7 @@ export function MovementBalanceChart() {
                   <SheetTitle className="text-lg">{MOVEMENT_PATTERN_LABELS[selectedPattern]}</SheetTitle>
                 </div>
                 <SheetDescription>
-                  {Math.round(convert(selectedData.rawVolume)).toLocaleString()} {preferredUnit} total · {selectedData.sets} sets · {TIME_LABELS[timeRange]}
+                  {Math.round(convert(selectedData.rawVolume)).toLocaleString()} {preferredUnit} total · {selectedData.sets} sets
                 </SheetDescription>
               </SheetHeader>
 

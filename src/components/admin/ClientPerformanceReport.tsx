@@ -1,9 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   ChartContainer, ChartTooltip, ChartTooltipContent,
 } from "@/components/ui/chart";
@@ -11,7 +10,8 @@ import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Area, AreaChart,
 } from "recharts";
 import { TrendingUp, Award, Heart, Scale } from "lucide-react";
-import { format } from "date-fns";
+import { format, differenceInDays } from "date-fns";
+import { DateRangeSelector, computeRange } from "@/components/ui/DateRangeSelector";
 
 interface ReportData {
   weeklyVolume: { week: string; volume: number; workouts: number }[];
@@ -26,22 +26,24 @@ interface ReportData {
 export function ClientPerformanceReport({ userId }: { userId: string }) {
   const [data, setData] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [weeks, setWeeks] = useState("8");
+
+  const fetchReport = useCallback(async (from: Date, to: Date) => {
+    setLoading(true);
+    try {
+      const weeks = Math.max(1, Math.ceil(differenceInDays(to, from) / 7));
+      const { data: result } = await supabase.functions.invoke("admin-workout-builder", {
+        body: { action: "get_client_report", userId, weeks },
+      });
+      if (result) setData(result);
+    } catch {} finally {
+      setLoading(false);
+    }
+  }, [userId]);
 
   useEffect(() => {
-    async function fetch() {
-      setLoading(true);
-      try {
-        const { data: result } = await supabase.functions.invoke("admin-workout-builder", {
-          body: { action: "get_client_report", userId, weeks: parseInt(weeks) },
-        });
-        if (result) setData(result);
-      } catch {} finally {
-        setLoading(false);
-      }
-    }
-    fetch();
-  }, [userId, weeks]);
+    const { from, to } = computeRange("1M");
+    fetchReport(from, to);
+  }, [fetchReport]);
 
   if (loading) return <div className="space-y-3">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-48" />)}</div>;
   if (!data) return <p className="text-sm text-muted-foreground">No report data available.</p>;
@@ -64,19 +66,9 @@ export function ClientPerformanceReport({ userId }: { userId: string }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <Badge variant="outline" className="text-xs">PERFORMANCE REPORT</Badge>
-        <Select value={weeks} onValueChange={setWeeks}>
-          <SelectTrigger className="w-32 h-8 text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="4">4 weeks</SelectItem>
-            <SelectItem value="8">8 weeks</SelectItem>
-            <SelectItem value="12">12 weeks</SelectItem>
-            <SelectItem value="24">24 weeks</SelectItem>
-          </SelectContent>
-        </Select>
+        <DateRangeSelector defaultPreset="1M" onRangeChange={fetchReport} />
       </div>
 
       {/* Compliance Summary */}

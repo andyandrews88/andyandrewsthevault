@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
-import { format, subDays } from "date-fns";
+import { format } from "date-fns";
+import { DateRangeSelector, computeRange } from "@/components/ui/DateRangeSelector";
 
 interface ChartPoint {
   date: string;
@@ -17,26 +17,23 @@ interface ChartPoint {
 
 export function ReadinessChart() {
   const [data, setData] = useState<ChartPoint[]>([]);
-  const [range, setRange] = useState<7 | 14 | 30>(7);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    fetchData();
-  }, [range]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async (from: Date, to: Date) => {
     setIsLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const startDate = format(subDays(new Date(), range), "yyyy-MM-dd");
+      const startDate = format(from, "yyyy-MM-dd");
+      const endDate = format(to, "yyyy-MM-dd");
 
       const { data: checkins } = await supabase
         .from("user_daily_checkins")
         .select("*")
         .eq("user_id", user.id)
         .gte("check_date", startDate)
+        .lte("check_date", endDate)
         .order("check_date", { ascending: true });
 
       const points: ChartPoint[] = (checkins || []).map(c => ({
@@ -55,7 +52,12 @@ export function ReadinessChart() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    const { from, to } = computeRange("1W");
+    fetchData(from, to);
+  }, [fetchData]);
 
   const avgReadiness = data.length > 0
     ? Math.round(data.reduce((s, d) => s + d.readiness, 0) / data.length)
@@ -63,27 +65,17 @@ export function ReadinessChart() {
 
   return (
     <Card variant="data">
-      <CardHeader className="flex flex-row items-center justify-between">
-        <div>
-          <CardTitle className="text-lg">Readiness Trend</CardTitle>
-          {data.length > 0 && (
-            <p className="text-sm text-muted-foreground mt-1">
-              Avg: <span className="font-mono text-primary">{avgReadiness}%</span> over {data.length} days
-            </p>
-          )}
-        </div>
-        <div className="flex gap-1">
-          {([7, 14, 30] as const).map(r => (
-            <Button
-              key={r}
-              variant={range === r ? "default" : "ghost"}
-              size="sm"
-              onClick={() => setRange(r)}
-              className="text-xs px-2"
-            >
-              {r}d
-            </Button>
-          ))}
+      <CardHeader>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <div>
+            <CardTitle className="text-lg">Readiness Trend</CardTitle>
+            {data.length > 0 && (
+              <p className="text-sm text-muted-foreground mt-1">
+                Avg: <span className="font-mono text-primary">{avgReadiness}%</span> over {data.length} days
+              </p>
+            )}
+          </div>
+          <DateRangeSelector defaultPreset="1W" onRangeChange={fetchData} presets={["1W", "2W", "1M", "3M"]} />
         </div>
       </CardHeader>
       <CardContent>

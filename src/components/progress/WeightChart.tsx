@@ -1,8 +1,9 @@
-import { useMemo } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { Line, LineChart, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { type BodyEntry, kgToLbs } from "@/types/progress";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, isAfter, isBefore } from "date-fns";
+import { DateRangeSelector, computeRange } from "@/components/ui/DateRangeSelector";
 
 interface WeightChartProps {
   entries: BodyEntry[];
@@ -10,10 +11,19 @@ interface WeightChartProps {
 }
 
 export function WeightChart({ entries, usesImperial }: WeightChartProps) {
+  const [dateRange, setDateRange] = useState(() => computeRange("3M"));
+
+  const handleRangeChange = useCallback((from: Date, to: Date) => {
+    setDateRange({ from, to });
+  }, []);
+
   const chartData = useMemo(() => {
-    // Filter entries with weight data and sort by date ascending
     const weightEntries = entries
-      .filter(e => e.weight_kg !== null)
+      .filter(e => {
+        if (e.weight_kg === null) return false;
+        const d = parseISO(e.entry_date);
+        return !isBefore(d, dateRange.from) && !isAfter(d, dateRange.to);
+      })
       .sort((a, b) => new Date(a.entry_date).getTime() - new Date(b.entry_date).getTime());
 
     return weightEntries.map(entry => ({
@@ -24,7 +34,7 @@ export function WeightChart({ entries, usesImperial }: WeightChartProps) {
         : entry.weight_kg,
       bmi: entry.bmi,
     }));
-  }, [entries, usesImperial]);
+  }, [entries, usesImperial, dateRange]);
 
   // Calculate average for reference line
   const avgWeight = useMemo(() => {
@@ -72,6 +82,7 @@ export function WeightChart({ entries, usesImperial }: WeightChartProps) {
 
   return (
     <div className="space-y-4">
+      <DateRangeSelector defaultPreset="3M" onRangeChange={handleRangeChange} />
       {/* Trend indicator */}
       {trendData && (
         <div className="flex items-center gap-2 text-sm">
