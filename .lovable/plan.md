@@ -1,90 +1,69 @@
 
 
-# Client Coaching Dashboard
+# Program Builder Redesign + Client List Upgrade
 
-## Analysis
+## Two major improvements inspired by CoachRx:
 
-**Existing schema supports this directly:**
-- `exercise_sets` has `weight`, `reps`, `rir`, `is_completed`, `set_type` columns
-- `workouts` has `date`, `user_id`, `is_completed`, `total_volume`
-- `ClientPerformanceReport` already exists but lacks RIR analysis and donut compliance
+---
 
-**No Tremor** — the app uses `recharts` throughout. I'll use recharts (`AreaChart`, `LineChart`, `PieChart`) to match the existing design system.
+## 1. Program Builder — Popup-Based Workout Editor (CoachRx Style)
 
-## Implementation Steps
+**Current state**: The workout editor in `ProgramAdmin.tsx` already uses a dialog popup (`WorkoutEditor` component at line 271). The `TemplateEditor.tsx` uses an inline card-based approach. Both work but feel cramped.
 
-### 1. Create SQL Views (Migration)
+**Changes**:
 
-Two database views for performant aggregation:
+### A. Make the workout editor dialog expandable/larger
+- **`ProgramAdmin.tsx` line 662**: Change `DialogContent` from `sm:max-w-lg` to `sm:max-w-2xl lg:max-w-4xl` — gives room for the exercise fields like CoachRx's layout
+- Add a maximize/expand button on the dialog that toggles to `max-w-[95vw] h-[90vh]` for full-screen editing on desktop
+- On mobile, the dialog already goes full-width via shadcn defaults
 
-**`weekly_volume_summary`** — Groups by user + ISO week, sums `weight × reps` for completed working sets:
-```sql
-CREATE VIEW weekly_volume_summary AS
-SELECT w.user_id,
-       date_trunc('week', w.date::timestamp) AS week_start,
-       SUM(COALESCE(s.weight,0) * COALESCE(s.reps,0)) AS total_tonnage,
-       COUNT(DISTINCT w.id) AS workout_count
-FROM workouts w
-JOIN workout_exercises we ON we.workout_id = w.id
-JOIN exercise_sets s ON s.exercise_id = we.id
-WHERE w.is_completed = true AND s.is_completed = true AND s.set_type = 'working'
-GROUP BY w.user_id, date_trunc('week', w.date::timestamp);
-```
+### B. Improve exercise row layout to match CoachRx reference
+- **`ExerciseRowEditor`** (line 166): Restructure the grid from current `grid-cols-3` + `grid-cols-2` to a single-row layout on desktop: Name | Sets | Reps | Tempo | Rest | %1RM | Notes — all in one line (like CoachRx image-8)
+- On mobile: stack into 2 rows (name + delete on row 1, fields in `grid-cols-3` on row 2)
+- Video URL stays collapsible below
 
-**`weekly_rir_summary`** — Average RIR per user per week (only sets with RIR recorded):
-```sql
-CREATE VIEW weekly_rir_summary AS
-SELECT w.user_id,
-       date_trunc('week', w.date::timestamp) AS week_start,
-       ROUND(AVG(s.rir)::numeric, 1) AS avg_rir,
-       COUNT(*) AS sets_with_rir
-FROM workouts w
-JOIN workout_exercises we ON we.workout_id = w.id
-JOIN exercise_sets s ON s.exercise_id = we.id
-WHERE w.is_completed = true AND s.is_completed = true
-  AND s.set_type = 'working' AND s.rir IS NOT NULL
-GROUP BY w.user_id, date_trunc('week', w.date::timestamp);
-```
+### C. Improve `TemplateEditor.tsx` to use the same dialog-based editing
+- Currently uses inline card editing which is inconsistent with `ProgramAdmin`
+- Refactor to use the same `WorkoutEditor` dialog pattern for consistency, or deprecate in favor of `ProgramAdmin`'s approach
 
-RLS: Views inherit RLS from underlying tables, so authenticated users can only see their own data. For admin access, the edge function uses the service role client.
+---
 
-### 2. Extend Edge Function (`admin-workout-builder`)
+## 2. Client List — CoachRx-Inspired Table View
 
-Add a new action `get_coaching_dashboard` that queries both views filtered by `userId` and date range, plus computes compliance (completed/total workouts ratio). Returns:
-- `weeklyVolume[]` — from the view
-- `weeklyRir[]` — from the view  
-- `compliance` — `{ completed, total, percentage }`
+**Current state**: The Admin Dashboard shows clients as a simple table with Name + Joined date. The "Users" drawer in `AdminDetailDrawer` shows Name, Joined, Workouts count, Streak — but it's bare.
 
-### 3. New Component: `CoachingAnalyticsDashboard`
+**Changes to `AdminDetailDrawer.tsx` (users section)**:
 
-**File:** `src/components/admin/CoachingAnalyticsDashboard.tsx`
+### A. Add a summary stats bar at top (like CoachRx image-9)
+Four stat cards above the table:
+- **Total Clients** — count
+- **Compliance** — average workout completion rate across all clients (completed workouts / total scheduled from programs)
+- **Active This Week** — users who logged a workout in last 7 days
+- **Avg Check-in Streak** — average streak across users
 
-Three charts in a responsive grid:
+### B. Enrich the client table rows
+Each row shows:
+- **Avatar** (initials) + **Name** + last active date (like "Last consult" in CoachRx)
+- **Last Workout** — date badge, color-coded: green if within 3 days, yellow if 4-7 days, red if >7 days (like CoachRx's Exercise Due)
+- **Last Check-in** — similar date badge
+- **Workout Compliance** — percentage (completed / total program workouts), displayed as colored text
+- **Tags** — if we add a tagging system later, placeholder for now
 
-1. **Volume Trend** — `recharts AreaChart` with gradient fill, plotting `total_tonnage` over weeks
-2. **Proximity to Failure** — `recharts LineChart` plotting `avg_rir` with inverted Y-axis (lower RIR = higher intensity, visually higher on chart via `reversed` domain)
-3. **Compliance** — `recharts PieChart` (donut) showing completed vs incomplete ratio
+### C. Update the `admin-detail` edge function
+- For the `users` section, add: last workout date, total scheduled program workouts, completed program workouts, last check-in date
+- This data already exists in the DB; just needs to be aggregated
 
-All wrapped with `DateRangeSelector` (4wk/12wk presets + custom).
+---
 
-### 4. Client-Side Access
-
-Also create a lightweight version for the **client's own analytics tab** (`WorkoutTab > Analytics`) that queries the views directly via the Supabase client (RLS handles auth). This avoids the edge function overhead for the user's own data.
-
-### 5. Integration Points
-
-- **Admin User Profile** (`AdminUserProfile.tsx`): Add `CoachingAnalyticsDashboard` below the existing training section, passing `userId`
-- **Client Analytics** (`WorkoutTab.tsx`): Add the client-facing version alongside existing `VolumeTrendChart` and `StrengthTrendChart`
-
-## Files to Create/Modify
+## Files to Modify
 
 | File | Change |
 |------|--------|
-| Migration SQL | Create `weekly_volume_summary` and `weekly_rir_summary` views |
-| `supabase/functions/admin-workout-builder/index.ts` | Add `get_coaching_dashboard` action |
-| `src/components/admin/CoachingAnalyticsDashboard.tsx` | **New** — Admin-facing dashboard with 3 charts |
-| `src/components/workout/IntensityTrendChart.tsx` | **New** — Client-facing RIR trend chart |
-| `src/components/workout/ComplianceDonut.tsx` | **New** — Client-facing compliance donut |
-| `src/components/workout/WorkoutTab.tsx` | Add IntensityTrendChart and ComplianceDonut to analytics tab |
-| `src/pages/AdminUserProfile.tsx` | Add CoachingAnalyticsDashboard to training section |
+| `src/components/admin/ProgramAdmin.tsx` | Expand dialog size, add maximize toggle, restructure `ExerciseRowEditor` to single-row desktop layout |
+| `src/components/admin/AdminDetailDrawer.tsx` | Redesign users section with stat bar + enriched table rows |
+| `supabase/functions/admin-detail/index.ts` | Add last_workout_date, compliance data, last_checkin_date to users response |
+
+## Mobile Considerations
+- Program builder dialog: full-screen on mobile (already default), exercise fields stack vertically in `grid-cols-3`
+- Client list: on mobile, hide lower-priority columns (compliance, tags) and show only Name + Last Workout + status badge. Use horizontal scroll or responsive hiding via `hidden md:table-cell`
 
