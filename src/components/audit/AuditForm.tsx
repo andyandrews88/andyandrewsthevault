@@ -9,14 +9,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuditStore, AuditData } from "@/stores/auditStore";
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, ArrowLeft, User, Dumbbell, Timer, CheckCircle, Heart, Calculator, Apple } from "lucide-react";
+import { ArrowRight, ArrowLeft, User, Dumbbell, Timer, CheckCircle, Heart, Calculator, Apple, Activity, Info } from "lucide-react";
 
 const steps = [
   { id: 'biometrics', title: 'Biometrics', icon: User, description: 'Basic measurements' },
   { id: 'strength', title: 'The Big 4', icon: Dumbbell, description: 'Strength ratios (optional)' },
   { id: 'engine', title: 'Engine Check', icon: Timer, description: 'Aerobic capacity (optional)' },
+  { id: 'movement', title: 'Movement Screen', icon: Activity, description: 'Movement quality (optional)' },
   { id: 'lifestyle', title: 'Lifestyle', icon: Heart, description: 'Recovery & habits' },
   { id: 'review', title: 'Review', icon: CheckCircle, description: 'Confirm data' },
 ];
@@ -44,6 +46,19 @@ const cardioTests = [
   { value: 'none', label: "I don't have a cardio benchmark" },
 ];
 
+const movementTooltips: Record<string, string> = {
+  broadJump: "Stand, jump as far as you can. Measure distance by counting your heel-to-toe steps or in feet.",
+  deadHang: "Hang from a bar with a full grip until you drop. Time in seconds.",
+  toeTouch: "Stand, feet together, legs straight. Reach down and see how far you can go.",
+  heelSit: "Kneel down and lay back as far as you can. Can you sit your hips to your heels?",
+  deepSquat: "Squat as deep as possible, heels flat, torso upright. Hold for 30 seconds.",
+  overheadReach: "Sit with back and butt against a wall. With thumbs up, raise arms overhead keeping wrists and elbows straight until you can get thumbs to the wall. Either you can or you can't.",
+  maxPullups: "Full range of motion pull-ups. Dead hang at bottom, chin over bar at top. Count total reps.",
+  maxPushups: "Chest to ground, full lockout at top. No resting. Count total reps until failure.",
+  lSit: "Hold an L-Sit on parallettes with legs straight and parallel to the ground. Time until failure.",
+  pistolSquat: "Barefoot, perform a full pistol squat on each leg. All the way down, all the way up, no assistance.",
+};
+
 interface LiftEstimation {
   weight: number;
   reps: number;
@@ -56,6 +71,7 @@ export function AuditForm() {
   const [skipLifts, setSkipLifts] = useState<Record<string, boolean>>({});
   const [estimateMode, setEstimateMode] = useState<Record<string, boolean>>({});
   const [estimations, setEstimations] = useState<Record<string, LiftEstimation>>({});
+  const [skipMovement, setSkipMovement] = useState<Record<string, boolean>>({});
 
   const progress = ((currentStep + 1) / steps.length) * 100;
 
@@ -82,6 +98,15 @@ export function AuditForm() {
     }
   };
 
+  const handleSkipMovement = (key: string, skip: boolean, clearKeys: string[]) => {
+    setSkipMovement(prev => ({ ...prev, [key]: skip }));
+    if (skip) {
+      const updates: Record<string, undefined> = {};
+      clearKeys.forEach(k => { updates[k] = undefined; });
+      updateData(updates);
+    }
+  };
+
   const handleSubstitution = (lift: string, sub: string) => {
     const defaultName = liftSubstitutions[lift][0];
     if (sub === defaultName) {
@@ -99,13 +124,12 @@ export function AuditForm() {
       if (!data.weight || (data.weight as number) <= 0) newErrors.weight = 'Required';
       if (!data.age || (data.age as number) <= 0) newErrors.age = 'Required';
       if (!data.height || (data.height as number) <= 0) newErrors.height = 'Required';
-    } else if (currentStep === 3) {
+    } else if (currentStep === 4) {
       if (!data.sleep) newErrors.sleep = 'Required';
       if (!data.protein) newErrors.protein = 'Required';
       if (!data.stress) newErrors.stress = 'Required';
       if (!data.experience) newErrors.experience = 'Required';
     }
-    // Steps 1 and 2 are fully optional now
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -164,7 +188,6 @@ export function AuditForm() {
 
         {!isSkipped && (
           <>
-            {/* Substitution dropdown */}
             {subs.length > 1 && (
               <Select
                 value={(data.substitutions as Record<string, string>)?.[liftKey] || subs[0]}
@@ -181,7 +204,6 @@ export function AuditForm() {
               </Select>
             )}
 
-            {/* Toggle: Direct 1RM vs Estimate */}
             <div className="flex items-center gap-2">
               <Switch checked={isEstimating} onCheckedChange={(v) => setEstimateMode(prev => ({ ...prev, [liftKey]: v }))} />
               <span className="text-xs text-muted-foreground flex items-center gap-1">
@@ -271,6 +293,42 @@ export function AuditForm() {
     if (!seconds) return '-';
     return `${Math.floor(seconds / 60)}:${(seconds % 60).toString().padStart(2, '0')}`;
   };
+
+  const renderMovementField = (
+    key: string,
+    label: string,
+    tooltipKey: string,
+    clearKeys: string[],
+    children: React.ReactNode
+  ) => {
+    const isSkipped = skipMovement[key];
+    return (
+      <div className="space-y-3 p-4 rounded-lg border border-border/50 bg-secondary/20">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Label className="text-sm font-medium">{label}</Label>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  <p className="text-xs">{movementTooltips[tooltipKey]}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">Skip</span>
+            <Switch checked={isSkipped} onCheckedChange={(v) => handleSkipMovement(key, v, clearKeys)} />
+          </div>
+        </div>
+        {!isSkipped && children}
+      </div>
+    );
+  };
+
+  const toeLabels = ['Can\'t reach toes', 'Touches toes', 'Palms flat'];
 
   return (
     <div className="min-h-screen pt-20 pb-8 md:pt-24 md:pb-12">
@@ -389,8 +447,192 @@ export function AuditForm() {
               </div>
             )}
 
-            {/* Step 3: Lifestyle Diagnostic (expanded) */}
+            {/* Step 3: Movement Screen (all optional, all skippable) */}
             {currentStep === 3 && (
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Test your movement quality. Skip any test you can't perform or don't have equipment for.
+                </p>
+
+                {/* Broad Jump */}
+                {renderMovementField('broadJump', 'Broad Jump', 'broadJump', ['broadJumpFeet', 'broadJumpMode'], (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <Label className="text-xs text-muted-foreground whitespace-nowrap">Measure in:</Label>
+                      <ToggleGroup
+                        type="single"
+                        value={data.broadJumpMode || 'heelToToe'}
+                        onValueChange={(v) => { if (v) updateData({ broadJumpMode: v as 'heelToToe' | 'feet' }); }}
+                        className="gap-1"
+                      >
+                        <ToggleGroupItem value="heelToToe" variant="outline" className={`text-xs px-3 py-1 ${data.broadJumpMode !== 'feet' ? 'bg-primary/20 border-primary text-primary' : ''}`}>
+                          Heel-to-Toe Count
+                        </ToggleGroupItem>
+                        <ToggleGroupItem value="feet" variant="outline" className={`text-xs px-3 py-1 ${data.broadJumpMode === 'feet' ? 'bg-primary/20 border-primary text-primary' : ''}`}>
+                          Feet
+                        </ToggleGroupItem>
+                      </ToggleGroup>
+                    </div>
+                    <div className="relative">
+                      <Input
+                        type="number"
+                        placeholder={data.broadJumpMode === 'feet' ? '8' : '3'}
+                        className="font-mono pr-20"
+                        value={data.broadJumpMode === 'feet' ? (data.broadJumpFeet || '') : (data.broadJumpFeet ? data.broadJumpFeet / 2.5 : '')}
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value) || undefined;
+                          if (val === undefined) { updateData({ broadJumpFeet: undefined }); return; }
+                          updateData({ broadJumpFeet: data.broadJumpMode === 'feet' ? val : val * 2.5 });
+                        }}
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                        {data.broadJumpMode === 'feet' ? 'feet' : 'steps (×2.5)'}
+                      </span>
+                    </div>
+                    {data.broadJumpFeet && data.broadJumpMode !== 'feet' && (
+                      <p className="text-xs text-primary font-mono">= {data.broadJumpFeet.toFixed(1)} feet</p>
+                    )}
+                  </div>
+                ))}
+
+                {/* Dead Hang */}
+                {renderMovementField('deadHang', 'Dead Hang', 'deadHang', ['deadHangSeconds'], (
+                  <div className="relative">
+                    <Input
+                      type="number" placeholder="45" className="font-mono pr-16"
+                      value={data.deadHangSeconds || ''}
+                      onChange={(e) => updateData({ deadHangSeconds: parseFloat(e.target.value) || undefined })}
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">seconds</span>
+                  </div>
+                ))}
+
+                {/* Toe Touch */}
+                {renderMovementField('toeTouch', 'Toe Touch', 'toeTouch', ['toeTouch'], (
+                  <ToggleGroup
+                    type="single"
+                    value={data.toeTouch !== undefined ? String(data.toeTouch) : ''}
+                    onValueChange={(v) => { if (v) updateData({ toeTouch: parseInt(v) as 0 | 1 | 2 }); }}
+                    className="justify-start flex-wrap gap-2"
+                  >
+                    {[0, 1, 2].map((v) => (
+                      <ToggleGroupItem key={v} value={String(v)} variant="outline"
+                        className={`font-mono px-3 py-2 text-sm ${data.toeTouch === v ? 'bg-primary/20 border-primary text-primary' : ''}`}>
+                        {toeLabels[v]}
+                      </ToggleGroupItem>
+                    ))}
+                  </ToggleGroup>
+                ))}
+
+                {/* Heel Sit */}
+                {renderMovementField('heelSit', 'Heel Sit', 'heelSit', ['heelSit'], (
+                  <ToggleGroup
+                    type="single"
+                    value={data.heelSit || ''}
+                    onValueChange={(v) => { if (v) updateData({ heelSit: v as 'pass' | 'fail' }); }}
+                    className="justify-start gap-2"
+                  >
+                    <ToggleGroupItem value="pass" variant="outline" className={`font-mono px-4 py-2 text-sm ${data.heelSit === 'pass' ? 'bg-success/20 border-success text-success' : ''}`}>Pass</ToggleGroupItem>
+                    <ToggleGroupItem value="fail" variant="outline" className={`font-mono px-4 py-2 text-sm ${data.heelSit === 'fail' ? 'bg-destructive/20 border-destructive text-destructive' : ''}`}>Fail</ToggleGroupItem>
+                  </ToggleGroup>
+                ))}
+
+                {/* Deep Squat */}
+                {renderMovementField('deepSquat', 'Deep Squat (30s hold)', 'deepSquat', ['deepSquat'], (
+                  <ToggleGroup
+                    type="single"
+                    value={data.deepSquat || ''}
+                    onValueChange={(v) => { if (v) updateData({ deepSquat: v as 'pass' | 'fail' }); }}
+                    className="justify-start gap-2"
+                  >
+                    <ToggleGroupItem value="pass" variant="outline" className={`font-mono px-4 py-2 text-sm ${data.deepSquat === 'pass' ? 'bg-success/20 border-success text-success' : ''}`}>Pass</ToggleGroupItem>
+                    <ToggleGroupItem value="fail" variant="outline" className={`font-mono px-4 py-2 text-sm ${data.deepSquat === 'fail' ? 'bg-destructive/20 border-destructive text-destructive' : ''}`}>Fail</ToggleGroupItem>
+                  </ToggleGroup>
+                ))}
+
+                {/* Overhead Reach */}
+                {renderMovementField('overheadReach', 'Overhead Reach (Wall Test)', 'overheadReach', ['overheadReach'], (
+                  <ToggleGroup
+                    type="single"
+                    value={data.overheadReach || ''}
+                    onValueChange={(v) => { if (v) updateData({ overheadReach: v as 'pass' | 'fail' }); }}
+                    className="justify-start gap-2"
+                  >
+                    <ToggleGroupItem value="pass" variant="outline" className={`font-mono px-4 py-2 text-sm ${data.overheadReach === 'pass' ? 'bg-success/20 border-success text-success' : ''}`}>Pass</ToggleGroupItem>
+                    <ToggleGroupItem value="fail" variant="outline" className={`font-mono px-4 py-2 text-sm ${data.overheadReach === 'fail' ? 'bg-destructive/20 border-destructive text-destructive' : ''}`}>Fail</ToggleGroupItem>
+                  </ToggleGroup>
+                ))}
+
+                {/* Max Pull-ups */}
+                {renderMovementField('maxPullups', 'Max Rep Pull-ups', 'maxPullups', ['maxPullups'], (
+                  <div className="relative">
+                    <Input
+                      type="number" placeholder="8" className="font-mono pr-12"
+                      value={data.maxPullups !== undefined ? data.maxPullups : ''}
+                      onChange={(e) => updateData({ maxPullups: e.target.value === '' ? undefined : parseInt(e.target.value) || 0 })}
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">reps</span>
+                  </div>
+                ))}
+
+                {/* Max Push-ups */}
+                {renderMovementField('maxPushups', 'Max Rep Push-ups', 'maxPushups', ['maxPushups'], (
+                  <div className="relative">
+                    <Input
+                      type="number" placeholder="25" className="font-mono pr-12"
+                      value={data.maxPushups !== undefined ? data.maxPushups : ''}
+                      onChange={(e) => updateData({ maxPushups: e.target.value === '' ? undefined : parseInt(e.target.value) || 0 })}
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">reps</span>
+                  </div>
+                ))}
+
+                {/* Parallette L-Sit */}
+                {renderMovementField('lSit', 'Parallette L-Sit', 'lSit', ['lSitSeconds'], (
+                  <div className="relative">
+                    <Input
+                      type="number" placeholder="20" className="font-mono pr-16"
+                      value={data.lSitSeconds || ''}
+                      onChange={(e) => updateData({ lSitSeconds: parseFloat(e.target.value) || undefined })}
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">seconds</span>
+                  </div>
+                ))}
+
+                {/* Pistol Squat */}
+                {renderMovementField('pistolSquat', 'Pistol Squat (Barefoot)', 'pistolSquat', ['pistolSquatLeft', 'pistolSquatRight'], (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">Left Leg</Label>
+                      <ToggleGroup
+                        type="single"
+                        value={data.pistolSquatLeft || ''}
+                        onValueChange={(v) => { if (v) updateData({ pistolSquatLeft: v as 'yes' | 'no' }); }}
+                        className="justify-start gap-2"
+                      >
+                        <ToggleGroupItem value="yes" variant="outline" className={`font-mono px-3 py-1.5 text-xs ${data.pistolSquatLeft === 'yes' ? 'bg-success/20 border-success text-success' : ''}`}>Yes</ToggleGroupItem>
+                        <ToggleGroupItem value="no" variant="outline" className={`font-mono px-3 py-1.5 text-xs ${data.pistolSquatLeft === 'no' ? 'bg-destructive/20 border-destructive text-destructive' : ''}`}>No</ToggleGroupItem>
+                      </ToggleGroup>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">Right Leg</Label>
+                      <ToggleGroup
+                        type="single"
+                        value={data.pistolSquatRight || ''}
+                        onValueChange={(v) => { if (v) updateData({ pistolSquatRight: v as 'yes' | 'no' }); }}
+                        className="justify-start gap-2"
+                      >
+                        <ToggleGroupItem value="yes" variant="outline" className={`font-mono px-3 py-1.5 text-xs ${data.pistolSquatRight === 'yes' ? 'bg-success/20 border-success text-success' : ''}`}>Yes</ToggleGroupItem>
+                        <ToggleGroupItem value="no" variant="outline" className={`font-mono px-3 py-1.5 text-xs ${data.pistolSquatRight === 'no' ? 'bg-destructive/20 border-destructive text-destructive' : ''}`}>No</ToggleGroupItem>
+                      </ToggleGroup>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Step 4: Lifestyle Diagnostic (expanded) */}
+            {currentStep === 4 && (
               <div className="space-y-6 md:space-y-8">
                 {/* Sleep */}
                 <div className="space-y-2">
@@ -561,8 +803,8 @@ export function AuditForm() {
               </div>
             )}
 
-            {/* Step 4: Review */}
-            {currentStep === 4 && (
+            {/* Step 5: Review */}
+            {currentStep === 5 && (
               <div className="space-y-4">
                 <div className="grid gap-3 md:gap-4 grid-cols-2">
                   <div className="p-3 md:p-4 rounded-lg bg-secondary/50">
@@ -616,6 +858,71 @@ export function AuditForm() {
                        data.cardioTime ? formatTimeDisplay(data.cardioTime as number) : '-'}
                     </p>
                   </div>
+
+                  {/* Movement Screen review items */}
+                  {data.broadJumpFeet && (
+                    <div className="p-3 md:p-4 rounded-lg bg-secondary/50">
+                      <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5">Broad Jump</p>
+                      <p className="font-mono text-base md:text-lg">{data.broadJumpFeet.toFixed(1)} ft</p>
+                    </div>
+                  )}
+                  {data.deadHangSeconds !== undefined && (
+                    <div className="p-3 md:p-4 rounded-lg bg-secondary/50">
+                      <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5">Dead Hang</p>
+                      <p className="font-mono text-base md:text-lg">{data.deadHangSeconds}s</p>
+                    </div>
+                  )}
+                  {data.toeTouch !== undefined && (
+                    <div className="p-3 md:p-4 rounded-lg bg-secondary/50">
+                      <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5">Toe Touch</p>
+                      <p className="font-mono text-base md:text-lg">{['None', 'Toes', 'Palms'][data.toeTouch]}</p>
+                    </div>
+                  )}
+                  {data.heelSit && (
+                    <div className="p-3 md:p-4 rounded-lg bg-secondary/50">
+                      <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5">Heel Sit</p>
+                      <p className={`font-mono text-base md:text-lg ${data.heelSit === 'pass' ? 'text-success' : 'text-destructive'}`}>{data.heelSit === 'pass' ? 'Pass' : 'Fail'}</p>
+                    </div>
+                  )}
+                  {data.deepSquat && (
+                    <div className="p-3 md:p-4 rounded-lg bg-secondary/50">
+                      <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5">Deep Squat</p>
+                      <p className={`font-mono text-base md:text-lg ${data.deepSquat === 'pass' ? 'text-success' : 'text-destructive'}`}>{data.deepSquat === 'pass' ? 'Pass' : 'Fail'}</p>
+                    </div>
+                  )}
+                  {data.overheadReach && (
+                    <div className="p-3 md:p-4 rounded-lg bg-secondary/50">
+                      <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5">Overhead Reach</p>
+                      <p className={`font-mono text-base md:text-lg ${data.overheadReach === 'pass' ? 'text-success' : 'text-destructive'}`}>{data.overheadReach === 'pass' ? 'Pass' : 'Fail'}</p>
+                    </div>
+                  )}
+                  {data.maxPullups !== undefined && (
+                    <div className="p-3 md:p-4 rounded-lg bg-secondary/50">
+                      <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5">Pull-ups</p>
+                      <p className="font-mono text-base md:text-lg">{data.maxPullups} reps</p>
+                    </div>
+                  )}
+                  {data.maxPushups !== undefined && (
+                    <div className="p-3 md:p-4 rounded-lg bg-secondary/50">
+                      <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5">Push-ups</p>
+                      <p className="font-mono text-base md:text-lg">{data.maxPushups} reps</p>
+                    </div>
+                  )}
+                  {data.lSitSeconds !== undefined && (
+                    <div className="p-3 md:p-4 rounded-lg bg-secondary/50">
+                      <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5">L-Sit</p>
+                      <p className="font-mono text-base md:text-lg">{data.lSitSeconds}s</p>
+                    </div>
+                  )}
+                  {(data.pistolSquatLeft || data.pistolSquatRight) && (
+                    <div className="p-3 md:p-4 rounded-lg bg-secondary/50 col-span-2">
+                      <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5">Pistol Squat</p>
+                      <p className="font-mono text-base md:text-lg">
+                        L: {data.pistolSquatLeft === 'yes' ? '✓' : '✗'} | R: {data.pistolSquatRight === 'yes' ? '✓' : '✗'}
+                      </p>
+                    </div>
+                  )}
+
                   <div className="p-3 md:p-4 rounded-lg bg-secondary/50">
                     <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5">Sleep</p>
                     <p className="font-mono text-base md:text-lg">{data.sleep ? sleepLabels[data.sleep] : '-'}</p>
