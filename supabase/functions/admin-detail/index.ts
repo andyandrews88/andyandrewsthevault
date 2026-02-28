@@ -35,23 +35,45 @@ Deno.serve(async (req) => {
     let result: any = {};
 
     if (section === "users") {
-      // Full user list with workout counts and checkin data
+      // Full user list with workout counts, checkin data, compliance, and last activity
       const { data: profiles } = await admin.from("user_profiles").select("id, display_name, created_at").order("created_at", { ascending: false });
-      const { data: workouts } = await admin.from("workouts").select("user_id").eq("is_completed", true);
+      const { data: workouts } = await admin.from("workouts").select("user_id, date, is_completed");
       const { data: checkins } = await admin.from("user_daily_checkins").select("user_id, check_date");
       const { data: authUsers } = await admin.auth.admin.listUsers({ perPage: 1000 });
+      const { data: calendarWorkouts } = await admin.from("user_calendar_workouts").select("user_id, is_completed");
 
+      // Completed workout counts + last workout date
       const workoutCounts: Record<string, number> = {};
-      (workouts || []).forEach(w => { workoutCounts[w.user_id] = (workoutCounts[w.user_id] || 0) + 1; });
+      const lastWorkoutDate: Record<string, string> = {};
+      (workouts || []).forEach(w => {
+        if (w.is_completed) {
+          workoutCounts[w.user_id] = (workoutCounts[w.user_id] || 0) + 1;
+          if (!lastWorkoutDate[w.user_id] || w.date > lastWorkoutDate[w.user_id]) {
+            lastWorkoutDate[w.user_id] = w.date;
+          }
+        }
+      });
 
       const lastActive: Record<string, string> = {};
       (authUsers?.users || []).forEach(u => { if (u.last_sign_in_at) lastActive[u.id] = u.last_sign_in_at; });
 
-      // Calculate streaks
+      // Last checkin date + streaks
       const userCheckins: Record<string, string[]> = {};
+      const lastCheckinDate: Record<string, string> = {};
       (checkins || []).forEach(c => {
         if (!userCheckins[c.user_id]) userCheckins[c.user_id] = [];
         userCheckins[c.user_id].push(c.check_date);
+        if (!lastCheckinDate[c.user_id] || c.check_date > lastCheckinDate[c.user_id]) {
+          lastCheckinDate[c.user_id] = c.check_date;
+        }
+      });
+
+      // Compliance from calendar workouts (scheduled program workouts)
+      const scheduledCount: Record<string, number> = {};
+      const completedCount: Record<string, number> = {};
+      (calendarWorkouts || []).forEach(cw => {
+        scheduledCount[cw.user_id] = (scheduledCount[cw.user_id] || 0) + 1;
+        if (cw.is_completed) completedCount[cw.user_id] = (completedCount[cw.user_id] || 0) + 1;
       });
 
       const calcStreak = (dates: string[]) => {
@@ -74,6 +96,10 @@ Deno.serve(async (req) => {
           lastActive: lastActive[p.id] || null,
           workoutsCount: workoutCounts[p.id] || 0,
           checkinStreak: calcStreak(userCheckins[p.id] || []),
+          lastWorkoutDate: lastWorkoutDate[p.id] || null,
+          lastCheckinDate: lastCheckinDate[p.id] || null,
+          scheduledWorkouts: scheduledCount[p.id] || 0,
+          completedWorkouts: completedCount[p.id] || 0,
         })),
       };
     } else if (section === "training") {

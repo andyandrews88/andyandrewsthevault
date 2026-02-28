@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Program, ProgramExercise, useProgramStore } from "@/stores/programStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,7 +32,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Plus, Pencil, Trash2, ChevronDown, ChevronUp, GripVertical, Dumbbell, Video, Link } from "lucide-react";
+import { Plus, Pencil, Trash2, ChevronDown, ChevronUp, GripVertical, Dumbbell, Video, Link, Maximize2, Minimize2 } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "sonner";
 import { ExerciseLibraryEntry } from "./ExerciseLibraryAdmin";
 
@@ -174,26 +176,27 @@ function ExerciseRowEditor({
   onRemove: () => void;
   library: ExerciseLibraryEntry[];
 }) {
+  const [videoOpen, setVideoOpen] = useState(false);
+
   return (
     <div className="border border-border rounded-md p-3 space-y-2 bg-muted/20">
-      <div className="flex items-center gap-2">
-        <GripVertical className="w-4 h-4 text-muted-foreground shrink-0" />
-        <ExerciseComboBox
-          value={exercise.name}
-          library={library}
-          onChange={(name, videoUrl) => onChange({
-            ...exercise,
-            name,
-            ...(videoUrl !== undefined ? { video_url: videoUrl } : {}),
-          })}
-        />
-        <Button variant="ghost" size="sm" onClick={onRemove} className="shrink-0 h-8 w-8 p-0">
-          <Trash2 className="w-3.5 h-3.5 text-destructive" />
-        </Button>
-      </div>
-      <div className="grid grid-cols-3 gap-2">
-        <div>
-          <Label className="text-xs text-muted-foreground">Sets</Label>
+      {/* Desktop: single-row layout like CoachRx */}
+      <div className="hidden lg:flex items-end gap-2">
+        <GripVertical className="w-4 h-4 text-muted-foreground shrink-0 mb-2" />
+        <div className="flex-[2] min-w-0">
+          <Label className="text-[10px] text-muted-foreground uppercase tracking-wide">Exercise</Label>
+          <ExerciseComboBox
+            value={exercise.name}
+            library={library}
+            onChange={(name, videoUrl) => onChange({
+              ...exercise,
+              name,
+              ...(videoUrl !== undefined ? { video_url: videoUrl } : {}),
+            })}
+          />
+        </div>
+        <div className="w-16">
+          <Label className="text-[10px] text-muted-foreground uppercase tracking-wide">Sets</Label>
           <Input
             type="number"
             placeholder="3"
@@ -202,8 +205,8 @@ function ExerciseRowEditor({
             className="h-8 text-sm"
           />
         </div>
-        <div>
-          <Label className="text-xs text-muted-foreground">Reps</Label>
+        <div className="w-16">
+          <Label className="text-[10px] text-muted-foreground uppercase tracking-wide">Reps</Label>
           <Input
             placeholder="5"
             value={exercise.reps}
@@ -211,8 +214,8 @@ function ExerciseRowEditor({
             className="h-8 text-sm"
           />
         </div>
-        <div>
-          <Label className="text-xs text-muted-foreground">Tempo</Label>
+        <div className="w-16">
+          <Label className="text-[10px] text-muted-foreground uppercase tracking-wide">Tempo</Label>
           <Input
             placeholder="30X1"
             value={exercise.tempo || ""}
@@ -220,10 +223,8 @@ function ExerciseRowEditor({
             className="h-8 text-sm"
           />
         </div>
-      </div>
-      <div className="grid grid-cols-2 gap-2">
-        <div>
-          <Label className="text-xs text-muted-foreground">Rest (sec)</Label>
+        <div className="w-16">
+          <Label className="text-[10px] text-muted-foreground uppercase tracking-wide">Rest</Label>
           <Input
             type="number"
             placeholder="90"
@@ -232,37 +233,94 @@ function ExerciseRowEditor({
             className="h-8 text-sm"
           />
         </div>
-        <div>
-          <Label className="text-xs text-muted-foreground">% 1RM</Label>
+        <div className="w-16">
+          <Label className="text-[10px] text-muted-foreground uppercase tracking-wide">%1RM</Label>
           <Input
-            placeholder="e.g. 75"
+            placeholder="75"
             value={exercise.percentage_of_1rm || ""}
             onChange={e => onChange({ ...exercise, percentage_of_1rm: e.target.value })}
             className="h-8 text-sm"
           />
         </div>
+        <div className="flex-1 min-w-[80px]">
+          <Label className="text-[10px] text-muted-foreground uppercase tracking-wide">Notes</Label>
+          <Input
+            placeholder="Coaching cues..."
+            value={exercise.notes || ""}
+            onChange={e => onChange({ ...exercise, notes: e.target.value })}
+            className="h-8 text-sm"
+          />
+        </div>
+        <Button variant="ghost" size="sm" onClick={onRemove} className="shrink-0 h-8 w-8 p-0 mb-0">
+          <Trash2 className="w-3.5 h-3.5 text-destructive" />
+        </Button>
       </div>
-      <div>
-        <Label className="text-xs text-muted-foreground">Notes</Label>
-        <Input
-          placeholder="Optional coaching notes"
-          value={exercise.notes || ""}
-          onChange={e => onChange({ ...exercise, notes: e.target.value })}
-          className="h-8 text-sm"
-        />
+
+      {/* Mobile: stacked layout */}
+      <div className="lg:hidden space-y-2">
+        <div className="flex items-center gap-2">
+          <GripVertical className="w-4 h-4 text-muted-foreground shrink-0" />
+          <ExerciseComboBox
+            value={exercise.name}
+            library={library}
+            onChange={(name, videoUrl) => onChange({
+              ...exercise,
+              name,
+              ...(videoUrl !== undefined ? { video_url: videoUrl } : {}),
+            })}
+          />
+          <Button variant="ghost" size="sm" onClick={onRemove} className="shrink-0 h-8 w-8 p-0">
+            <Trash2 className="w-3.5 h-3.5 text-destructive" />
+          </Button>
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          <div>
+            <Label className="text-xs text-muted-foreground">Sets</Label>
+            <Input type="number" placeholder="3" value={exercise.sets} onChange={e => onChange({ ...exercise, sets: parseInt(e.target.value) || 1 })} className="h-8 text-sm" />
+          </div>
+          <div>
+            <Label className="text-xs text-muted-foreground">Reps</Label>
+            <Input placeholder="5" value={exercise.reps} onChange={e => onChange({ ...exercise, reps: e.target.value })} className="h-8 text-sm" />
+          </div>
+          <div>
+            <Label className="text-xs text-muted-foreground">Tempo</Label>
+            <Input placeholder="30X1" value={exercise.tempo || ""} onChange={e => onChange({ ...exercise, tempo: e.target.value })} className="h-8 text-sm" />
+          </div>
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          <div>
+            <Label className="text-xs text-muted-foreground">Rest (sec)</Label>
+            <Input type="number" placeholder="90" value={exercise.rest_seconds || ""} onChange={e => onChange({ ...exercise, rest_seconds: parseInt(e.target.value) || 0 })} className="h-8 text-sm" />
+          </div>
+          <div>
+            <Label className="text-xs text-muted-foreground">% 1RM</Label>
+            <Input placeholder="75" value={exercise.percentage_of_1rm || ""} onChange={e => onChange({ ...exercise, percentage_of_1rm: e.target.value })} className="h-8 text-sm" />
+          </div>
+          <div>
+            <Label className="text-xs text-muted-foreground">Notes</Label>
+            <Input placeholder="Cues..." value={exercise.notes || ""} onChange={e => onChange({ ...exercise, notes: e.target.value })} className="h-8 text-sm" />
+          </div>
+        </div>
       </div>
-      {/* Video URL — pre-filled from library, overrideable */}
-      <div>
-        <Label className="text-xs text-muted-foreground flex items-center gap-1">
-          <Video className="w-3 h-3" /> Exercise Video URL
-        </Label>
-        <Input
-          placeholder="https://youtube.com/... (auto-filled from library)"
-          value={exercise.video_url || ""}
-          onChange={e => onChange({ ...exercise, video_url: e.target.value })}
-          className="h-8 text-sm"
-        />
-      </div>
+
+      {/* Collapsible video URL */}
+      <Collapsible open={videoOpen} onOpenChange={setVideoOpen}>
+        <CollapsibleTrigger asChild>
+          <button type="button" className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
+            <Video className="w-3 h-3" />
+            {exercise.video_url ? "Video linked" : "Add video"}
+            <ChevronDown className={`w-3 h-3 transition-transform ${videoOpen ? "rotate-180" : ""}`} />
+          </button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="pt-1">
+          <Input
+            placeholder="https://youtube.com/... (auto-filled from library)"
+            value={exercise.video_url || ""}
+            onChange={e => onChange({ ...exercise, video_url: e.target.value })}
+            className="h-8 text-sm"
+          />
+        </CollapsibleContent>
+      </Collapsible>
     </div>
   );
 }
@@ -272,10 +330,12 @@ function WorkoutEditor({
   workout,
   onSave,
   onCancel,
+  isMaximized,
 }: {
   workout: Partial<ProgramWorkoutRow> & { program_id: string };
   onSave: () => void;
   onCancel: () => void;
+  isMaximized?: boolean;
 }) {
   const library = useExerciseLibrary();
   const [name, setName] = useState(workout.workout_name || "");
@@ -528,6 +588,8 @@ function ProgramRow({
   const [editingWorkout, setEditingWorkout] = useState<ProgramWorkoutRow | null>(null);
   const [addingWorkout, setAddingWorkout] = useState(false);
   const [deletingWorkoutId, setDeletingWorkoutId] = useState<string | null>(null);
+  const [isMaximized, setIsMaximized] = useState(false);
+  const isMobile = useIsMobile();
 
   const loadWorkouts = async () => {
     if (workouts.length > 0) return;
@@ -658,15 +720,30 @@ function ProgramRow({
           ))}
 
           {/* Add/Edit workout dialog */}
-          <Dialog open={addingWorkout || !!editingWorkout} onOpenChange={open => { if (!open) { setAddingWorkout(false); setEditingWorkout(null); } }}>
-            <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
+          <Dialog open={addingWorkout || !!editingWorkout} onOpenChange={open => { if (!open) { setAddingWorkout(false); setEditingWorkout(null); setIsMaximized(false); } }}>
+            <DialogContent className={`max-h-[90vh] overflow-y-auto transition-all duration-200 ${
+              isMaximized && !isMobile
+                ? "max-w-[95vw] h-[90vh]"
+                : "sm:max-w-2xl lg:max-w-4xl"
+            }`}>
+              <DialogHeader className="flex flex-row items-center justify-between pr-8">
                 <DialogTitle>{editingWorkout ? "Edit Workout" : "Add Workout Session"}</DialogTitle>
+                {!isMobile && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 w-7 p-0"
+                    onClick={() => setIsMaximized(!isMaximized)}
+                  >
+                    {isMaximized ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                  </Button>
+                )}
               </DialogHeader>
               <WorkoutEditor
                 workout={editingWorkout ? { ...editingWorkout, program_id: program.id } : { program_id: program.id }}
                 onSave={refreshWorkouts}
-                onCancel={() => { setEditingWorkout(null); setAddingWorkout(false); }}
+                onCancel={() => { setEditingWorkout(null); setAddingWorkout(false); setIsMaximized(false); }}
+                isMaximized={isMaximized}
               />
             </DialogContent>
           </Dialog>
