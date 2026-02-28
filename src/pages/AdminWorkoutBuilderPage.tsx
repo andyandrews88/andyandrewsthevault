@@ -44,6 +44,8 @@ interface LocalExercise {
   videoExpanded: boolean;
   videoInput: string;
   videoSaving: boolean;
+  isTimed: boolean;
+  isUnilateral: boolean;
 }
 
 async function invokeBuilder(body: Record<string, unknown>) {
@@ -106,13 +108,17 @@ export default function AdminWorkoutBuilderPage() {
           setNotes(detail.workout?.notes || "");
           setIsCompleted(detail.workout?.is_completed || false);
 
-          // Load video URLs for each exercise
+          // Load video URLs and metadata for each exercise
           const loadedExercises: LocalExercise[] = [];
           for (const ex of (detail.exercises || [])) {
             let videoUrl: string | null = null;
+            let isTimed = false;
+            let isUnilateral = false;
             try {
               const vData = await invokeBuilder({ action: "get_exercise_video", exerciseName: ex.exercise_name });
               videoUrl = vData.video_url || null;
+              isTimed = vData.is_timed || false;
+              isUnilateral = vData.is_unilateral || false;
             } catch {}
             loadedExercises.push({
               id: ex.id,
@@ -126,6 +132,8 @@ export default function AdminWorkoutBuilderPage() {
               videoExpanded: false,
               videoInput: videoUrl || "",
               videoSaving: false,
+              isTimed,
+              isUnilateral,
             });
           }
           setExercises(loadedExercises);
@@ -179,6 +187,7 @@ export default function AdminWorkoutBuilderPage() {
                   id: exData.id, exercise_name: exData.exercise_name,
                   exercise_type: exData.exercise_type || "strength", notes: srcEx.notes || "",
                   sets: newSets, videoUrl: null, videoExpanded: false, videoInput: "", videoSaving: false,
+                  isTimed: false, isUnilateral: false,
                 }]);
               }
               toast({ title: "Workout cloned", description: `${sourceExercises.length} exercises loaded` });
@@ -217,11 +226,14 @@ export default function AdminWorkoutBuilderPage() {
         action: "add_exercise", workoutId, exerciseName: name,
         orderIndex: exercises.length, exerciseType: type,
       });
-      // Fetch video URL
       let videoUrl: string | null = null;
+      let isTimed = false;
+      let isUnilateral = false;
       try {
         const vData = await invokeBuilder({ action: "get_exercise_video", exerciseName: name });
         videoUrl = vData.video_url || null;
+        isTimed = vData.is_timed || false;
+        isUnilateral = vData.is_unilateral || false;
       } catch {}
       setExercises(prev => [...prev, {
         id: data.id, exercise_name: data.exercise_name,
@@ -230,6 +242,7 @@ export default function AdminWorkoutBuilderPage() {
           id: s.id, set_number: s.set_number, weight: s.weight, reps: s.reps, rir: s.rir || null, is_completed: s.is_completed || false,
         })),
         videoUrl, videoExpanded: false, videoInput: videoUrl || "", videoSaving: false,
+        isTimed, isUnilateral,
       }]);
     } catch (e: any) {
       toast({ title: "Error", description: e.message, variant: "destructive" });
@@ -432,14 +445,19 @@ export default function AdminWorkoutBuilderPage() {
     }
   };
 
+  const handleMetadataChange = (exerciseId: string, field: string, value: any) => {
+    setExercises(prev => prev.map(e => e.id === exerciseId ? { ...e, [field]: value } : e));
+  };
+
   const handleReplaceExercise = async (newName: string) => {
     if (!replacingExerciseId) return;
     try {
       await invokeBuilder({ action: "replace_exercise", exerciseId: replacingExerciseId, newExerciseName: newName });
-      // Fetch new video
       let videoUrl: string | null = null;
-      try { const v = await invokeBuilder({ action: "get_exercise_video", exerciseName: newName }); videoUrl = v.video_url || null; } catch {}
-      setExercises(prev => prev.map(e => e.id === replacingExerciseId ? { ...e, exercise_name: newName, videoUrl, videoInput: videoUrl || "" } : e));
+      let isTimed = false;
+      let isUnilateral = false;
+      try { const v = await invokeBuilder({ action: "get_exercise_video", exerciseName: newName }); videoUrl = v.video_url || null; isTimed = v.is_timed || false; isUnilateral = v.is_unilateral || false; } catch {}
+      setExercises(prev => prev.map(e => e.id === replacingExerciseId ? { ...e, exercise_name: newName, videoUrl, videoInput: videoUrl || "", isTimed, isUnilateral } : e));
       toast({ title: "Exercise replaced", description: `Swapped to ${newName}` });
     } catch (e: any) {
       toast({ title: "Error", description: e.message, variant: "destructive" });
@@ -546,6 +564,16 @@ export default function AdminWorkoutBuilderPage() {
                           <Timer className="h-2.5 w-2.5 mr-0.5" />Conditioning
                         </Badge>
                       )}
+                      {exercise.isTimed && (
+                        <Badge variant="outline" className="text-[10px] h-4 px-1.5 border-accent text-accent-foreground">
+                          <Timer className="h-2.5 w-2.5 mr-0.5" />Timed
+                        </Badge>
+                      )}
+                      {exercise.isUnilateral && (
+                        <Badge variant="outline" className="text-[10px] h-4 px-1.5 border-accent text-accent-foreground">
+                          L/R
+                        </Badge>
+                      )}
                     </div>
                   </div>
                   <DropdownMenu>
@@ -567,7 +595,7 @@ export default function AdminWorkoutBuilderPage() {
                         <ArrowRightLeft className="h-4 w-4 mr-2" />
                         Replace Exercise
                       </DropdownMenuItem>
-                      <AdminExerciseMenu exerciseName={exercise.exercise_name} isAdmin={true} />
+                      <AdminExerciseMenu exerciseName={exercise.exercise_name} isAdmin={true} onMetadataChange={(field, value) => handleMetadataChange(exercise.id, field, value)} />
                       <DropdownMenuSeparator />
                       <DropdownMenuItem className="text-destructive" onClick={() => handleRemoveExercise(exercise.id)}>
                         <Trash2 className="h-4 w-4 mr-2" />
@@ -614,8 +642,8 @@ export default function AdminWorkoutBuilderPage() {
                 {/* Set Grid Header */}
                 <div className="grid grid-cols-[40px_1fr_1fr_1fr_44px_36px] gap-1.5 items-center py-2.5 px-4 border-b border-border/50 bg-muted/30">
                   <span className="text-[11px] font-semibold text-muted-foreground text-center uppercase">Set</span>
-                  <span className="text-[11px] font-semibold text-muted-foreground text-center uppercase">Kg</span>
-                  <span className="text-[11px] font-semibold text-muted-foreground text-center uppercase">Reps</span>
+                  <span className="text-[11px] font-semibold text-muted-foreground text-center uppercase">{exercise.isTimed ? "+Load" : "Kg"}</span>
+                  <span className="text-[11px] font-semibold text-muted-foreground text-center uppercase">{exercise.isTimed ? "Sec" : "Reps"}</span>
                   <span className="text-[11px] font-semibold text-muted-foreground text-center uppercase">RIR</span>
                   <span className="text-[11px] font-semibold text-muted-foreground text-center uppercase">Done</span>
                   <span></span>
@@ -630,7 +658,9 @@ export default function AdminWorkoutBuilderPage() {
                         s.is_completed ? "bg-primary/5" : ""
                       }`}
                     >
-                      <span className="text-center text-sm font-bold text-muted-foreground font-mono">{s.set_number}</span>
+                      <span className="text-center text-sm font-bold text-muted-foreground font-mono">
+                        {s.set_number}
+                      </span>
                       <Input
                         type="number" inputMode="decimal" placeholder="—"
                         value={s.weight ?? ""}
@@ -639,7 +669,7 @@ export default function AdminWorkoutBuilderPage() {
                         className="h-10 text-center text-sm font-mono border-border/50 bg-secondary/20"
                       />
                       <Input
-                        type="number" inputMode="numeric" placeholder="—"
+                        type="number" inputMode="numeric" placeholder={exercise.isTimed ? "sec" : "—"}
                         value={s.reps ?? ""}
                         onChange={(e) => handleUpdateSet(s.id, "reps", e.target.value ? Number(e.target.value) : null)}
                         onBlur={() => handleSaveSet(s.id)}
