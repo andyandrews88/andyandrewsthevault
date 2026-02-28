@@ -1,54 +1,84 @@
 
 
-# Admin Exercise Metadata from Exercise Card (Train Section)
+# Add Custom Date Range Picker Across All Analytics Components
 
-## Summary
-When viewing an exercise card during a workout, the admin should see extra menu options to set the movement pattern, equipment type, and video URL for that exercise — saving directly to the `exercise_library` table. Regular users won't see these options.
+## Components That Need Custom Date Range
 
-## Database Migration
-Add `movement_pattern` and `equipment_type` columns to `exercise_library`:
+1. **`MovementBalanceChart.tsx`** — currently has `1 week / 4 weeks / 12 weeks` buttons
+2. **`ReadinessChart.tsx`** — currently has `7d / 14d / 30d` buttons
+3. **`VolumeTrendChart.tsx`** — hardcoded to 4 weeks, no selector at all
+4. **`StrengthTrendChart.tsx`** — no time range selector, fetches all history
+5. **`ActivityHeatmap.tsx`** — hardcoded to 12 weeks
+6. **`ClientPerformanceReport.tsx`** — has `4 / 8 / 12 / 24 weeks` select
+7. **`WeightChart.tsx`** (progress) — displays all entries, no time filter
 
-```sql
-ALTER TABLE exercise_library ADD COLUMN movement_pattern text;
-ALTER TABLE exercise_library ADD COLUMN equipment_type text DEFAULT 'other';
-```
+## Approach: Shared `DateRangeSelector` Component
 
-## Code Changes
+Create a single reusable component that all analytics cards use, providing:
+- Preset buttons: 1W, 2W, 1M, 3M, 6M, 1Y
+- A "Custom" button that opens a popover with two Calendar pickers (From / To)
+- Returns either a preset key or a `{ from: Date, to: Date }` object
+- Compact design that fits in card headers
 
-### 1. `src/components/workout/ExerciseCard.tsx`
-- Import `useAdminCheck` hook
-- In the kebab dropdown menu, add an admin-only section (gated by `isAdmin`):
-  - **Movement Pattern** submenu — lists all 9 patterns (Hinge, Squat, Push, Pull, Single Leg, Core, Carry, Olympic, Isolation). Selecting one upserts the `exercise_library` row with the chosen `movement_pattern`
-  - **Equipment Type** submenu — lists all 8 types (Barbell, Dumbbell, Kettlebell, Machine, Cable, Sandbag, Bodyweight, Other). Selecting one upserts the row with the chosen `equipment_type`
-  - **Set Video URL** menu item — opens a small dialog with an input field for the video URL, saves to `exercise_library.video_url`
-- The upsert logic: query `exercise_library` by name; if exists, update; if not, insert a new row with name, category (default 'strength'), and the chosen field
-- Show a toast on success
+### New File: `src/components/ui/DateRangeSelector.tsx`
+- Props: `onRangeChange(from: Date, to: Date)`, `presets` (optional override of which presets to show), `className`
+- State: `activePreset` string or `'custom'`, `customFrom`, `customTo`
+- When a preset is clicked, compute the date range and call `onRangeChange`
+- When "Custom" is clicked, show a Popover with two Calendar pickers side-by-side (stacked on mobile), and an "Apply" button
+- Highlight the active preset button
 
-### 2. `src/components/workout/ConditioningCard.tsx`
-- Same admin-only menu items (pattern, equipment, video URL) added to the kebab dropdown
-- Same upsert logic
+### Component Updates
 
-### 3. `src/components/admin/ExerciseLibraryAdmin.tsx`
-- Add `movement_pattern` and `equipment_type` fields to the form
-- Display pattern/equipment badges in the exercise list rows
-- Update `handleSave` to include both new columns
+Each component will be updated to:
+1. Replace its current time selector with `<DateRangeSelector />`
+2. Accept `fromDate` / `toDate` as Date objects instead of a weeks count
+3. Pass the date range to its data-fetching function
 
-### 4. `src/lib/movementPatterns.ts`
-- Add `classifyExerciseWithDb(name, dbPattern?, dbEquipment?)` that uses DB values when available, falling back to hardcoded maps
-- Update `getEquipmentType` to accept an optional DB override
+**`MovementBalanceChart.tsx`**
+- Replace the 3-button `TimeRange` toggle with `DateRangeSelector`
+- Change `fetchData(weeks)` to `fetchData(fromDate, toDate)` using the Date objects directly
+- Default preset: 1M
 
-### 5. `src/components/workout/MovementBalanceChart.tsx`
-- When fetching exercise data, also query `exercise_library` for stored `movement_pattern` and `equipment_type`
-- Use DB values as primary classification source, fall back to hardcoded
+**`ReadinessChart.tsx`**
+- Replace the `7d / 14d / 30d` buttons with `DateRangeSelector`
+- Update the query to use `from` and `to` dates
+- Default preset: 1W
+
+**`VolumeTrendChart.tsx`**
+- Add `DateRangeSelector` in the card header (currently has none)
+- Update `fetchWeeklyVolume` call to accept a date range
+- Default preset: 1M
+
+**`StrengthTrendChart.tsx`**
+- Add `DateRangeSelector` in the card header alongside the exercise selector
+- Filter `history` results by the selected date range
+- Default preset: 3M
+
+**`ActivityHeatmap.tsx`**
+- Add `DateRangeSelector` in the card header
+- Replace hardcoded `WEEKS_TO_SHOW = 12` with computed weeks from selected range
+- Default preset: 3M
+
+**`ClientPerformanceReport.tsx`**
+- Replace the `Select` dropdown with `DateRangeSelector`
+- Pass dates instead of weeks string to the edge function
+- Default preset: 2M (closest to current 8 weeks)
+
+**`WeightChart.tsx`**
+- Add `DateRangeSelector` above the chart
+- Filter `entries` prop by selected date range before charting
+- Default preset: 3M
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| DB migration | Add `movement_pattern` and `equipment_type` columns |
-| `ExerciseCard.tsx` | Admin-only submenu items for pattern, equipment, video URL |
-| `ConditioningCard.tsx` | Same admin-only submenu items |
-| `ExerciseLibraryAdmin.tsx` | Add pattern + equipment fields to form and list |
-| `movementPatterns.ts` | DB-aware classification helpers |
-| `MovementBalanceChart.tsx` | Use DB-stored pattern/equipment for classification |
+| `src/components/ui/DateRangeSelector.tsx` | New shared component with presets + custom calendar popover |
+| `src/components/workout/MovementBalanceChart.tsx` | Replace time toggle with DateRangeSelector |
+| `src/components/lifestyle/ReadinessChart.tsx` | Replace day buttons with DateRangeSelector |
+| `src/components/workout/VolumeTrendChart.tsx` | Add DateRangeSelector (currently has none) |
+| `src/components/workout/StrengthTrendChart.tsx` | Add DateRangeSelector |
+| `src/components/workout/ActivityHeatmap.tsx` | Add DateRangeSelector, dynamic weeks |
+| `src/components/admin/ClientPerformanceReport.tsx` | Replace Select with DateRangeSelector |
+| `src/components/progress/WeightChart.tsx` | Add DateRangeSelector for filtering entries |
 
