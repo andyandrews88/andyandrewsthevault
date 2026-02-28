@@ -17,6 +17,7 @@ import { Plus, MoreVertical, History, Trash2, Percent, Play, ChevronUp, ChevronD
 import { WorkoutExercise } from "@/types/workout";
 import { SetRow } from "./SetRow";
 import { ExerciseSearch } from "./ExerciseSearch";
+import { ExerciseActionSheet } from "./ExerciseActionSheet";
 import { useWorkoutStore } from "@/stores/workoutStore";
 import { supabase } from "@/integrations/supabase/client";
 import { toEmbedUrl } from "@/lib/vaultService";
@@ -24,6 +25,7 @@ import { cn } from "@/lib/utils";
 import { AdminExerciseMenu } from "./AdminExerciseMenu";
 import { isTimedExercise, isBodyweightExercise, isUnilateralExercise } from "@/lib/movementPatterns";
 import { useAdminCheck } from "@/hooks/useAdminCheck";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface ExerciseCardProps {
   exercise: WorkoutExercise;
@@ -44,6 +46,7 @@ function parsePercentageHint(notes: string | null | undefined): string | null {
 export function ExerciseCard({ exercise, onRemove, allExercises = [], onMoveUp, onMoveDown, canMoveUp = false, canMoveDown = false }: ExerciseCardProps) {
   const { addSet, removeSet, updateSet, completeSet, loadLastSession, getLastSessionSets, preferredUnit, linkSuperset, unlinkSuperset, replaceExercise } = useWorkoutStore();
   const { isAdmin } = useAdminCheck();
+  const isMobile = useIsMobile();
   const [previousSets, setPreviousSets] = useState<{ weight: number; reps: number }[]>([]);
   const [isLoadingPrevious, setIsLoadingPrevious] = useState(false);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
@@ -53,6 +56,7 @@ export function ExerciseCard({ exercise, onRemove, allExercises = [], onMoveUp, 
   const [showVideo, setShowVideo] = useState(false);
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [showReplaceSearch, setShowReplaceSearch] = useState(false);
+  const [showActionSheet, setShowActionSheet] = useState(false);
 
   const percentageHint = parsePercentageHint(exercise.notes);
   const isSupersetted = !!exercise.superset_group;
@@ -157,56 +161,73 @@ export function ExerciseCard({ exercise, onRemove, allExercises = [], onMoveUp, 
               </Button>
             )}
           
-            <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <MoreVertical className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={handleLoadLastSession} disabled={isLoadingPrevious}>
-                <History className="h-4 w-4 mr-2" />
-                Load Last Session
-              </DropdownMenuItem>
-              
-              {/* Superset options */}
-              {linkableExercises.length > 0 && (
-                <DropdownMenuSub>
-                  <DropdownMenuSubTrigger>
-                    <Link className="h-4 w-4 mr-2" />
-                    Link Superset
-                  </DropdownMenuSubTrigger>
-                  <DropdownMenuSubContent>
-                    {linkableExercises.map(e => (
-                      <DropdownMenuItem
-                        key={e.id}
-                        onClick={() => linkSuperset(exercise.id, e.id)}
-                      >
-                        {e.exercise_name}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuSubContent>
-                </DropdownMenuSub>
-              )}
-              {isSupersetted && (
-                <DropdownMenuItem onClick={() => unlinkSuperset(exercise.id)}>
-                  <Unlink className="h-4 w-4 mr-2" />
-                  Unlink Superset
-                </DropdownMenuItem>
-              )}
-              
-              <DropdownMenuItem onClick={() => setShowReplaceSearch(true)}>
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Replace Exercise
-              </DropdownMenuItem>
-              <AdminExerciseMenu exerciseName={exercise.exercise_name} isAdmin={isAdmin} />
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={onRemove} className="text-destructive">
-                <Trash2 className="h-4 w-4 mr-2" />
-                Remove Exercise
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-            </DropdownMenu>
+            {/* Mobile: action sheet, Desktop: dropdown */}
+            {isMobile ? (
+              <>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowActionSheet(true)}>
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+                <ExerciseActionSheet
+                  open={showActionSheet}
+                  onOpenChange={setShowActionSheet}
+                  exercise={exercise}
+                  isAdmin={isAdmin}
+                  isSupersetted={isSupersetted}
+                  linkableExercises={linkableExercises}
+                  onLoadLastSession={handleLoadLastSession}
+                  isLoadingPrevious={isLoadingPrevious}
+                  onLinkSuperset={(targetId) => linkSuperset(exercise.id, targetId)}
+                  onUnlinkSuperset={() => unlinkSuperset(exercise.id)}
+                  onReplace={() => setShowReplaceSearch(true)}
+                  onRemove={onRemove}
+                />
+              </>
+            ) : (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={handleLoadLastSession} disabled={isLoadingPrevious}>
+                    <History className="h-4 w-4 mr-2" />
+                    Load Last Session
+                  </DropdownMenuItem>
+                  {linkableExercises.length > 0 && (
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger>
+                        <Link className="h-4 w-4 mr-2" />
+                        Link Superset
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuSubContent>
+                        {linkableExercises.map(e => (
+                          <DropdownMenuItem key={e.id} onClick={() => linkSuperset(exercise.id, e.id)}>
+                            {e.exercise_name}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuSubContent>
+                    </DropdownMenuSub>
+                  )}
+                  {isSupersetted && (
+                    <DropdownMenuItem onClick={() => unlinkSuperset(exercise.id)}>
+                      <Unlink className="h-4 w-4 mr-2" />
+                      Unlink Superset
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem onClick={() => setShowReplaceSearch(true)}>
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Replace Exercise
+                  </DropdownMenuItem>
+                  <AdminExerciseMenu exerciseName={exercise.exercise_name} isAdmin={isAdmin} />
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={onRemove} className="text-destructive">
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Remove Exercise
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
         </div>
       </CardHeader>
