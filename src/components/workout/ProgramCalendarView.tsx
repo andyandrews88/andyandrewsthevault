@@ -36,9 +36,10 @@ interface RegularWorkoutMap {
 
 interface ProgramCalendarViewProps {
   onSwitchToLogger?: () => void;
+  onOpenWorkout?: (workoutId: string) => void;
 }
 
-export function ProgramCalendarView({ onSwitchToLogger }: ProgramCalendarViewProps) {
+export function ProgramCalendarView({ onSwitchToLogger, onOpenWorkout }: ProgramCalendarViewProps) {
   const [viewMonth, setViewMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [workoutMap, setWorkoutMap] = useState<CalendarWorkoutMap>({});
@@ -277,7 +278,15 @@ export function ProgramCalendarView({ onSwitchToLogger }: ProgramCalendarViewPro
 
               {/* Regular logged workouts */}
               {selectedRegularWorkouts.map(w => (
-                <Card key={w.id} variant="elevated" className="overflow-hidden">
+                <Card
+                  key={w.id}
+                  variant="elevated"
+                  className="overflow-hidden cursor-pointer hover:ring-1 hover:ring-primary/40 transition-all"
+                  onClick={() => {
+                    setSelectedDate(null);
+                    onOpenWorkout?.(w.id);
+                  }}
+                >
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-3">

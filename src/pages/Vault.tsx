@@ -79,33 +79,32 @@ export function VaultDashboard() {
 
         {/* Main tabs */}
         <Tabs value={activeTab} className="space-y-6" onValueChange={handleTabChange}>
-          <div className="overflow-x-auto scrollbar-hide -mx-4 px-4 md:-mx-6 md:px-6">
-            <TabsList className="inline-flex w-max min-w-full gap-0.5 sm:gap-1 h-auto p-1">
-              <TabsTrigger value="dashboard" className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-2 px-2 sm:px-3 py-2 sm:py-2.5 whitespace-nowrap min-w-[52px] sm:min-w-0" aria-label="Dashboard">
+          <TabsList className="grid grid-cols-5 gap-0.5 h-auto p-1 sm:inline-flex sm:w-auto sm:gap-1">
+              <TabsTrigger value="dashboard" className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-2 px-1.5 sm:px-3 py-2 sm:py-2.5 whitespace-nowrap" aria-label="Dashboard">
                 <LayoutDashboard className="w-4 h-4" />
                 <span className="text-[10px] sm:text-sm leading-none">Home</span>
               </TabsTrigger>
-              <TabsTrigger value="workouts" className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-2 px-2 sm:px-3 py-2 sm:py-2.5 whitespace-nowrap min-w-[52px] sm:min-w-0" aria-label="Workouts">
+              <TabsTrigger value="workouts" className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-2 px-1.5 sm:px-3 py-2 sm:py-2.5 whitespace-nowrap" aria-label="Workouts">
                 <Dumbbell className="w-4 h-4" />
                 <span className="text-[10px] sm:text-sm leading-none">Train</span>
               </TabsTrigger>
-              <TabsTrigger value="library" className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-2 px-2 sm:px-3 py-2 sm:py-2.5 whitespace-nowrap min-w-[52px] sm:min-w-0" aria-label="Library">
+              <TabsTrigger value="library" className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-2 px-1.5 sm:px-3 py-2 sm:py-2.5 whitespace-nowrap" aria-label="Library">
                 <Library className="w-4 h-4" />
                 <span className="text-[10px] sm:text-sm leading-none">Library</span>
               </TabsTrigger>
-              <TabsTrigger value="progress" className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-2 px-2 sm:px-3 py-2 sm:py-2.5 whitespace-nowrap min-w-[52px] sm:min-w-0" aria-label="Progress">
+              <TabsTrigger value="progress" className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-2 px-1.5 sm:px-3 py-2 sm:py-2.5 whitespace-nowrap" aria-label="Progress">
                 <Activity className="w-4 h-4" />
                 <span className="text-[10px] sm:text-sm leading-none">Progress</span>
               </TabsTrigger>
-              <TabsTrigger value="lifestyle" className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-2 px-2 sm:px-3 py-2 sm:py-2.5 whitespace-nowrap min-w-[52px] sm:min-w-0" aria-label="Lifestyle">
+              <TabsTrigger value="lifestyle" className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-2 px-1.5 sm:px-3 py-2 sm:py-2.5 whitespace-nowrap" aria-label="Lifestyle">
                 <Heart className="w-4 h-4" />
                 <span className="text-[10px] sm:text-sm leading-none">Lifestyle</span>
               </TabsTrigger>
-              <TabsTrigger value="podcast" className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-2 px-2 sm:px-3 py-2 sm:py-2.5 whitespace-nowrap min-w-[52px] sm:min-w-0" aria-label="Podcast">
+              <TabsTrigger value="podcast" className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-2 px-1.5 sm:px-3 py-2 sm:py-2.5 whitespace-nowrap" aria-label="Podcast">
                 <Radio className="w-4 h-4" />
                 <span className="text-[10px] sm:text-sm leading-none">Podcast</span>
               </TabsTrigger>
-              <TabsTrigger value="community" className="relative flex flex-col sm:flex-row items-center gap-0.5 sm:gap-2 px-2 sm:px-3 py-2 sm:py-2.5 whitespace-nowrap min-w-[52px] sm:min-w-0" aria-label="Community">
+              <TabsTrigger value="community" className="relative flex flex-col sm:flex-row items-center gap-0.5 sm:gap-2 px-1.5 sm:px-3 py-2 sm:py-2.5 whitespace-nowrap" aria-label="Community">
                 <div className="relative">
                   <Users className="w-4 h-4" />
                   {showCommunityDot && (
@@ -114,18 +113,17 @@ export function VaultDashboard() {
                 </div>
                 <span className="text-[10px] sm:text-sm leading-none">Community</span>
               </TabsTrigger>
-              <TabsTrigger value="tracks" className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-2 px-2 sm:px-3 py-2 sm:py-2.5 whitespace-nowrap min-w-[52px] sm:min-w-0" aria-label="Tracks">
+              <TabsTrigger value="tracks" className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-2 px-1.5 sm:px-3 py-2 sm:py-2.5 whitespace-nowrap" aria-label="Tracks">
                 <Target className="w-4 h-4" />
                 <span className="text-[10px] sm:text-sm leading-none">Tracks</span>
               </TabsTrigger>
               {isAdmin && (
-                <TabsTrigger value="admin" className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-2 px-2 sm:px-3 py-2 sm:py-2.5 whitespace-nowrap min-w-[52px] sm:min-w-0" aria-label="Admin">
+                <TabsTrigger value="admin" className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-2 px-1.5 sm:px-3 py-2 sm:py-2.5 whitespace-nowrap" aria-label="Admin">
                   <Shield className="w-4 h-4" />
                   <span className="text-[10px] sm:text-sm leading-none">Admin</span>
                 </TabsTrigger>
               )}
-            </TabsList>
-          </div>
+          </TabsList>
 
           <TabsContent value="dashboard"><DashboardView /></TabsContent>
           <TabsContent value="library"><LibraryTab isPremiumMember={true} isAdmin={isAdmin} /></TabsContent>
