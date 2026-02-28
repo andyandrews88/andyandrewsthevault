@@ -664,14 +664,17 @@ export function AuditForm() {
                   {errors.protein && <p className="text-xs text-destructive">{errors.protein}</p>}
                 </div>
 
-                {/* Stress */}
+                {/* Life Stress */}
                 <div className="space-y-4">
-                  <Label className="text-sm text-muted-foreground">Current non-training stress level?</Label>
+                  <Label className="text-sm text-muted-foreground">How much life stress are you dealing with right now?</Label>
+                  <p className="text-xs text-muted-foreground/80 leading-relaxed">
+                    Think about work, relationships, finances, family, and daily hassles — everything outside the gym. <strong>1-3:</strong> Life feels manageable, you're sleeping well and rarely feel overwhelmed. <strong>4-6:</strong> Moderate demands — some deadlines or tensions but you're coping. <strong>7-10:</strong> High pressure — feeling stretched thin, irritable, or losing sleep over non-training concerns.
+                  </p>
                   <div className="space-y-3">
                     <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>Low</span>
+                      <span>Manageable</span>
                       <span className="font-mono text-primary text-base">{data.stress || 5}</span>
-                      <span>High</span>
+                      <span>Overwhelmed</span>
                     </div>
                     <Slider value={[data.stress as number || 5]} onValueChange={([v]) => updateData({ stress: v })} min={1} max={10} step={1} />
                   </div>
@@ -928,7 +931,7 @@ export function AuditForm() {
                     <p className="font-mono text-base md:text-lg">{data.sleep ? sleepLabels[data.sleep] : '-'}</p>
                   </div>
                   <div className="p-3 md:p-4 rounded-lg bg-secondary/50">
-                    <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5">Stress</p>
+                    <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5">Life Stress</p>
                     <p className="font-mono text-base md:text-lg">{data.stress}/10</p>
                   </div>
                   <div className="p-3 md:p-4 rounded-lg bg-secondary/50">
