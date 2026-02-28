@@ -6,42 +6,44 @@ import {
   DropdownMenu, 
   DropdownMenuContent, 
   DropdownMenuItem, 
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuSeparator,
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
-import { Plus, MoreVertical, History, Trash2, Percent, Play, ChevronUp } from "lucide-react";
+import { Plus, MoreVertical, History, Trash2, Percent, Play, ChevronUp, ChevronDown, Link, Unlink } from "lucide-react";
 import { WorkoutExercise } from "@/types/workout";
 import { SetRow } from "./SetRow";
 import { useWorkoutStore } from "@/stores/workoutStore";
 import { supabase } from "@/integrations/supabase/client";
 import { toEmbedUrl } from "@/lib/vaultService";
+import { cn } from "@/lib/utils";
 
 interface ExerciseCardProps {
   exercise: WorkoutExercise;
   onRemove: () => void;
+  allExercises?: WorkoutExercise[];
 }
 
-/**
- * Parses a percentage hint encoded in exercise notes during program session creation.
- * Format: "@ 85% TM" — returns "85" or null.
- */
 function parsePercentageHint(notes: string | null | undefined): string | null {
   if (!notes) return null;
   const match = notes.match(/@\s*(\d+(?:\.\d+)?)%\s*TM/);
   return match ? match[1] : null;
 }
 
-export function ExerciseCard({ exercise, onRemove }: ExerciseCardProps) {
-  const { addSet, removeSet, updateSet, completeSet, loadLastSession, getLastSessionSets, preferredUnit } = useWorkoutStore();
+export function ExerciseCard({ exercise, onRemove, allExercises = [] }: ExerciseCardProps) {
+  const { addSet, removeSet, updateSet, completeSet, loadLastSession, getLastSessionSets, preferredUnit, linkSuperset, unlinkSuperset } = useWorkoutStore();
   const [previousSets, setPreviousSets] = useState<{ weight: number; reps: number }[]>([]);
   const [isLoadingPrevious, setIsLoadingPrevious] = useState(false);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [showVideo, setShowVideo] = useState(false);
+  const [showAddMenu, setShowAddMenu] = useState(false);
 
   const percentageHint = parsePercentageHint(exercise.notes);
+  const isSupersetted = !!exercise.superset_group;
 
-  // Fetch video URL from exercise_library
   useEffect(() => {
     let cancelled = false;
     const fetchVideo = async () => {
@@ -78,20 +80,35 @@ export function ExerciseCard({ exercise, onRemove }: ExerciseCardProps) {
     await completeSet(setId, exercise.exercise_name, weight, reps, rir);
   };
 
-  const completedSets = exercise.sets?.filter(s => s.is_completed).length || 0;
-  const totalSets = exercise.sets?.length || 0;
+  const completedWorkingSets = exercise.sets?.filter(s => s.is_completed && s.set_type !== 'warmup').length || 0;
+  const totalWorkingSets = exercise.sets?.filter(s => s.set_type !== 'warmup').length || 0;
+
+  // Exercises available for superset linking (not this one, not already in same group)
+  const linkableExercises = allExercises.filter(e => 
+    e.id !== exercise.id && e.superset_group !== exercise.superset_group
+  );
 
   return (
-    <Card variant="elevated" className="overflow-hidden">
+    <Card variant="elevated" className={cn(
+      "overflow-hidden",
+      isSupersetted && "border-l-4 border-l-primary"
+    )}>
       <CardHeader className="py-3 px-4 bg-secondary/30">
         <div className="flex items-center justify-between">
           <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-base uppercase tracking-wide">
-              {exercise.exercise_name}
-            </h3>
+            <div className="flex items-center gap-2">
+              <h3 className="font-semibold text-base uppercase tracking-wide">
+                {exercise.exercise_name}
+              </h3>
+              {isSupersetted && (
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-primary/10 text-primary border-primary/30">
+                  SS
+                </Badge>
+              )}
+            </div>
             <div className="flex items-center gap-2 mt-0.5">
               <p className="text-xs text-muted-foreground">
-                {completedSets}/{totalSets} sets completed
+                {completedWorkingSets}/{totalWorkingSets} sets completed
               </p>
               {percentageHint && (
                 <Badge variant="secondary" className="text-[10px] px-1.5 py-0 gap-0.5 h-4">
@@ -125,6 +142,34 @@ export function ExerciseCard({ exercise, onRemove }: ExerciseCardProps) {
                 <History className="h-4 w-4 mr-2" />
                 Load Last Session
               </DropdownMenuItem>
+              
+              {/* Superset options */}
+              {linkableExercises.length > 0 && (
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>
+                    <Link className="h-4 w-4 mr-2" />
+                    Link Superset
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent>
+                    {linkableExercises.map(e => (
+                      <DropdownMenuItem
+                        key={e.id}
+                        onClick={() => linkSuperset(exercise.id, e.id)}
+                      >
+                        {e.exercise_name}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+              )}
+              {isSupersetted && (
+                <DropdownMenuItem onClick={() => unlinkSuperset(exercise.id)}>
+                  <Unlink className="h-4 w-4 mr-2" />
+                  Unlink Superset
+                </DropdownMenuItem>
+              )}
+              
+              <DropdownMenuSeparator />
               <DropdownMenuItem onClick={onRemove} className="text-destructive">
                 <Trash2 className="h-4 w-4 mr-2" />
                 Remove Exercise
@@ -176,16 +221,24 @@ export function ExerciseCard({ exercise, onRemove }: ExerciseCardProps) {
           ))}
         </div>
         
-        {/* Add Set Button */}
-        <div className="p-3 border-t border-border/50">
+        {/* Add Set Buttons */}
+        <div className="p-3 border-t border-border/50 flex gap-2">
           <Button 
             variant="outline" 
             size="sm" 
-            onClick={() => addSet(exercise.id)}
-            className="w-full"
+            onClick={() => addSet(exercise.id, 'working')}
+            className="flex-1"
           >
             <Plus className="h-4 w-4 mr-2" />
             Add Set
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => addSet(exercise.id, 'warmup')}
+            className="text-muted-foreground text-xs"
+          >
+            + Warmup
           </Button>
         </div>
       </CardContent>

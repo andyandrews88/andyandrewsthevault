@@ -6,6 +6,7 @@ import { useState, useEffect } from "react";
 import { useWorkoutStore } from "@/stores/workoutStore";
 import { convertWeight } from "@/lib/weightConversion";
 import { WeightInputPopup } from "./WeightInputPopup";
+import { cn } from "@/lib/utils";
 
 interface SetRowProps {
   set: ExerciseSet;
@@ -29,6 +30,8 @@ export function SetRow({
   const [reps, setReps] = useState(set.reps?.toString() || '');
   const [rir, setRir] = useState(set.rir?.toString() || '');
   const [showWeightPopup, setShowWeightPopup] = useState(false);
+
+  const isWarmup = set.set_type === 'warmup';
 
   useEffect(() => {
     if (set.weight) {
@@ -93,6 +96,12 @@ export function SetRow({
     }
   };
 
+  const toggleSetType = () => {
+    if (set.is_completed || disabled) return;
+    const newType = isWarmup ? 'working' : 'warmup';
+    onUpdate({ set_type: newType } as any);
+  };
+
   const displayPrevious = previousData 
     ? preferredUnit === 'kg'
       ? `${convertWeight(previousData.weight, 'lbs', 'kg')}×${previousData.reps}`
@@ -101,11 +110,24 @@ export function SetRow({
 
   return (
     <>
-      <div className="grid grid-cols-[28px_1fr_1fr_1fr_44px_36px_24px] gap-1 sm:gap-1.5 items-center py-2 border-b border-border/50 last:border-0">
-        {/* Set Number */}
-        <span className="text-center text-sm font-medium text-muted-foreground">
-          {set.set_number}
-        </span>
+      <div className={cn(
+        "grid grid-cols-[28px_1fr_1fr_1fr_44px_36px_24px] gap-1 sm:gap-1.5 items-center py-2 border-b border-border/50 last:border-0",
+        isWarmup && "opacity-60 bg-muted/20"
+      )}>
+        {/* Set Number / Warmup Toggle */}
+        <button
+          onClick={toggleSetType}
+          disabled={set.is_completed || disabled}
+          className={cn(
+            "text-center text-sm font-medium cursor-pointer select-none rounded",
+            isWarmup 
+              ? "text-warning font-bold" 
+              : "text-muted-foreground"
+          )}
+          title={isWarmup ? "Warmup set (tap to make working)" : "Working set (tap to make warmup)"}
+        >
+          {isWarmup ? 'W' : set.set_number}
+        </button>
         
         {/* Previous Data */}
         <div className="text-center text-xs text-muted-foreground">
@@ -116,7 +138,7 @@ export function SetRow({
           )}
         </div>
         
-        {/* Weight Input - Tappable button */}
+        {/* Weight Input */}
         <Button
           variant="outline"
           size="sm"

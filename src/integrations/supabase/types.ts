@@ -300,6 +300,7 @@ export type Database = {
           rir: number | null
           rpe: number | null
           set_number: number
+          set_type: string
           weight: number | null
         }
         Insert: {
@@ -311,6 +312,7 @@ export type Database = {
           rir?: number | null
           rpe?: number | null
           set_number?: number
+          set_type?: string
           weight?: number | null
         }
         Update: {
@@ -322,6 +324,7 @@ export type Database = {
           rir?: number | null
           rpe?: number | null
           set_number?: number
+          set_type?: string
           weight?: number | null
         }
         Relationships: [
@@ -1156,6 +1159,7 @@ export type Database = {
           id: string
           notes: string | null
           order_index: number
+          superset_group: string | null
           workout_id: string
         }
         Insert: {
@@ -1165,6 +1169,7 @@ export type Database = {
           id?: string
           notes?: string | null
           order_index?: number
+          superset_group?: string | null
           workout_id: string
         }
         Update: {
@@ -1174,6 +1179,7 @@ export type Database = {
           id?: string
           notes?: string | null
           order_index?: number
+          superset_group?: string | null
           workout_id?: string
         }
         Relationships: [

@@ -31,10 +31,6 @@ export const MOVEMENT_PATTERN_SHORT: Record<MovementPattern, string> = {
 };
 
 // ─── Difficulty Coefficients ──────────────────────────────────────────
-// Used to normalize volume across patterns so a radar chart is meaningful.
-// Hinge = 1.0 (baseline, heaviest pattern). Lower coefficient = lower
-// typical load, so dividing raw volume by it scales the number up to
-// make patterns comparable.
 export const DIFFICULTY_COEFFICIENTS: Record<MovementPattern, number> = {
   hinge: 1.0,
   squat: 0.95,
@@ -47,23 +43,175 @@ export const DIFFICULTY_COEFFICIENTS: Record<MovementPattern, number> = {
   core: 0.35,
 };
 
+// ─── Equipment Modifiers ──────────────────────────────────────────────
+// Applied on top of pattern coefficient: NTU = rawVolume / (patternCoeff * equipmentModifier)
+// Barbell = 1.0 (baseline). Other implements scale down because they typically
+// allow less absolute load or involve less systemic demand.
+export type EquipmentType = 'barbell' | 'dumbbell' | 'kettlebell' | 'machine' | 'cable' | 'sandbag' | 'bodyweight' | 'other';
+
+export const EQUIPMENT_MODIFIER_VALUES: Record<EquipmentType, number> = {
+  barbell: 1.0,
+  machine: 0.85,
+  dumbbell: 0.80,
+  sandbag: 0.75,
+  kettlebell: 0.70,
+  cable: 0.65,
+  bodyweight: 0.70,
+  other: 0.80,
+};
+
+// Map exercise names (lowercase) → equipment type
+const EXERCISE_EQUIPMENT_MAP: Record<string, EquipmentType> = {};
+
+function tagEquipment(exercises: string[], equipment: EquipmentType) {
+  for (const e of exercises) {
+    EXERCISE_EQUIPMENT_MAP[e.toLowerCase()] = equipment;
+  }
+}
+
+// ── Barbell exercises ──
+tagEquipment([
+  'Bench Press (Barbell)', 'Incline Bench Press (Barbell)', 'Decline Bench Press',
+  'Close-Grip Bench Press', 'Floor Press',
+  'Overhead Press (Barbell)', 'Push Press', 'Behind-the-Neck Press', 'Z Press',
+  'Bradford Press', 'Log Press',
+  'Back Squat (High Bar)', 'Back Squat (Low Bar)', 'Front Squat',
+  'Zercher Squat', 'Safety Bar Squat', 'Box Squat', 'Pause Squat', 'Anderson Squat',
+  'Cyclist Squat', 'Heel-Elevated Squat', 'Overhead Squat',
+  'Deadlift (Conventional)', 'Deadlift (Sumo)', 'Romanian Deadlift',
+  'Stiff-Leg Deadlift', 'Deficit Deadlift', 'Rack Pull', 'Rack Deadlift',
+  'Sumo Deadlift', 'Trap Bar Deadlift', 'Snatch Grip Deadlift',
+  'Romanian Deadlift (Barbell)', 'Jefferson Deadlift',
+  'Hip Thrust (Barbell)', 'Good Morning',
+  'Barbell Row (Overhand)', 'Barbell Row (Underhand)', 'Pendlay Row',
+  'T-Bar Row', 'Upright Row',
+  'Barbell Curl', 'EZ Bar Curl', 'Preacher Curl (Barbell)', 'Preacher Curl (EZ Bar)',
+  '21s (Barbell Curl)', 'Drag Curl', 'Reverse Curl',
+  'Skull Crusher (Barbell)', 'Skull Crusher (EZ Bar)',
+  'Overhead Tricep Extension (EZ Bar)', 'JM Press', 'French Press',
+  'Shrug (Barbell)', 'Shrug (Trap Bar)',
+  'Front Raise (Barbell)',
+  'Clean', 'Clean & Jerk', 'Power Clean', 'Hang Clean',
+  'Snatch', 'Power Snatch', 'Hang Snatch',
+  'Clean Pull', 'Snatch Pull', 'Muscle Clean', 'Muscle Snatch',
+  'Push Jerk', 'Split Jerk', 'Clean High Pull',
+  'Thruster', 'Cluster',
+], 'barbell');
+
+// ── Dumbbell exercises ──
+tagEquipment([
+  'Bench Press (Dumbbell)', 'Incline Bench Press (Dumbbell)',
+  'Chest Fly (Dumbbell)', 'Overhead Press (Dumbbell)',
+  'Seated Dumbbell Press', 'Arnold Press',
+  'Goblet Squat',
+  'Romanian Deadlift (Dumbbell)',
+  'Single-Leg Romanian Deadlift',
+  'Hip Thrust (Dumbbell)',
+  'Dumbbell Row (Single-Arm)', 'Dumbbell Row (Two-Arm)',
+  'Dumbbell Curl (Standing)', 'Dumbbell Curl (Seated)', 'Dumbbell Curl (Incline)',
+  'Hammer Curl', 'Cross-Body Hammer Curl', 'Zottman Curl',
+  'Concentration Curl', 'Spider Curl', 'Preacher Curl (Dumbbell)',
+  'Skull Crusher (Dumbbell)', 'Overhead Tricep Extension (Dumbbell)',
+  'Tricep Kickback',
+  'Lateral Raise (Dumbbell)', 'Front Raise (Dumbbell)',
+  'Rear Delt Fly (Dumbbell)', 'Lu Raise', 'Bus Driver',
+  'Shrug (Dumbbell)', 'Standing Calf Raise (Dumbbell)',
+  'Woodchop (Dumbbell)',
+  'Bulgarian Split Squat', 'Walking Lunge', 'Reverse Lunge',
+  'Forward Lunge', 'Lateral Lunge', 'Step-Up', 'Box Step-Up',
+], 'dumbbell');
+
+// ── Kettlebell exercises ──
+tagEquipment([
+  'Kettlebell Swing', 'Kettlebell Swings (Cardio)',
+  'Turkish Get-Up', 'Windmill (Kettlebell)', 'Bottoms-Up Press',
+], 'kettlebell');
+
+// ── Machine exercises ──
+tagEquipment([
+  'Hack Squat', 'Leg Press', 'Leg Press (Single-Leg)',
+  'Leg Extension', 'Leg Curl (Lying)', 'Leg Curl (Seated)', 'Leg Curl (Standing)',
+  'Machine Chest Press', 'Pec Deck', 'Machine Shoulder Press',
+  'Lateral Raise (Machine)', 'Rear Delt Fly (Machine)',
+  'Machine Bicep Curl',
+  'Hip Abduction (Machine)', 'Hip Adduction (Machine)',
+  'Standing Calf Raise (Machine)', 'Standing Calf Raise (Smith)',
+  'Seated Calf Raise', 'Leg Press Calf Raise', 'Donkey Calf Raise',
+  'Chest-Supported Row',
+  'Smith Press',
+], 'machine');
+
+// ── Cable exercises ──
+tagEquipment([
+  'Chest Fly (Cable)', 'Cable Row (Seated)', 'Cable Row (Standing)',
+  'Lat Pulldown (Wide)', 'Lat Pulldown (Close)', 'Lat Pulldown (Reverse Grip)',
+  'Straight-Arm Pulldown',
+  'Cable Curl', 'Cable Hammer Curl',
+  'Tricep Pushdown (Rope)', 'Tricep Pushdown (Bar)', 'Tricep Pushdown (V-Bar)',
+  'Overhead Tricep Extension (Cable)', 'Cable Tricep Kickback',
+  'Lateral Raise (Cable)', 'Front Raise (Cable)',
+  'Rear Delt Fly (Cable)', 'Face Pull', 'Face Pull (Shoulder Focus)',
+  'Cable Upright Row', 'Cable Crunch',
+  'Pallof Press', 'Woodchop (Cable)', 'Cable Pull-Through',
+  'Cable Hip Abduction', 'Cable Kickback',
+  'Landmine Press', 'Landmine Press (Shoulder)', 'Landmine Rotation',
+], 'cable');
+
+// ── Sandbag exercises ──
+tagEquipment([
+  'Sandbag Carry', 'Atlas Stone',
+], 'sandbag');
+
+// ── Bodyweight exercises ──
+tagEquipment([
+  'Push-Up', 'Diamond Push-Up', 'Wide Push-Up', 'Decline Push-Up',
+  'Incline Push-Up', 'Deficit Push-Up', 'Ring Push-Up', 'Handstand Push-Up',
+  'Pull-Up', 'Chin-Up', 'Neutral-Grip Pull-Up', 'Strict Pull-Up',
+  'Kipping Pull-Up', 'Muscle-Up',
+  'Dips (Chest Focus)', 'Parallel Bar Dip', 'Ring Dip', 'Bench Dip',
+  'Inverted Row', 'Ring Row',
+  'Pistol Squat', 'Sissy Squat', 'Wall Sit',
+  'Nordic Curl', 'Glute-Ham Raise',
+  'Back Extension', 'Hyperextension', 'Reverse Hyperextension',
+  'Plank', 'Side Plank', 'Dead Bug', 'Bird Dog', 'Hollow Body Hold',
+  'Crunch', 'Bicycle Crunch', 'V-Up', 'Sit-Up', 'Decline Sit-Up',
+  'Russian Twist', 'Ab Rollout', 'Ab Wheel',
+  'Hanging Leg Raise', 'Hanging Knee Raise', "Captain's Chair Leg Raise",
+  'Toe Touch', 'Heel Touch', 'Mountain Climber', 'Flutter Kick',
+  'Dragon Flag', 'Bear Crawl', 'Crab Walk',
+  'Glute Bridge', 'Single-Leg Glute Bridge',
+  'Donkey Kick', 'Fire Hydrant', 'Clamshell',
+], 'bodyweight');
+
+/**
+ * Look up the equipment type for a given exercise name.
+ */
+export function getEquipmentType(exerciseName: string): EquipmentType {
+  return EXERCISE_EQUIPMENT_MAP[exerciseName.toLowerCase().trim()] || 'other';
+}
+
+/**
+ * Get the equipment modifier multiplier for an exercise.
+ */
+export function getEquipmentModifier(exerciseName: string): number {
+  const eq = getEquipmentType(exerciseName);
+  return EQUIPMENT_MODIFIER_VALUES[eq];
+}
+
 // ─── Pattern Colors (HSL values matching design system) ───────────────
 export const PATTERN_COLORS: Record<MovementPattern, string> = {
-  hinge: 'hsl(0, 72%, 51%)',       // red — heavy posterior
-  squat: 'hsl(262, 60%, 55%)',     // purple
-  push: 'hsl(192, 91%, 54%)',      // cyan (primary)
-  pull: 'hsl(142, 71%, 45%)',      // green (success)
-  single_leg: 'hsl(38, 92%, 50%)', // amber (warning)
-  core: 'hsl(45, 93%, 58%)',       // gold (accent)
-  carry: 'hsl(280, 60%, 55%)',     // violet
-  olympic: 'hsl(330, 70%, 55%)',   // pink
-  isolation: 'hsl(215, 14%, 50%)', // muted gray
+  hinge: 'hsl(0, 72%, 51%)',
+  squat: 'hsl(262, 60%, 55%)',
+  push: 'hsl(192, 91%, 54%)',
+  pull: 'hsl(142, 71%, 45%)',
+  single_leg: 'hsl(38, 92%, 50%)',
+  core: 'hsl(45, 93%, 58%)',
+  carry: 'hsl(280, 60%, 55%)',
+  olympic: 'hsl(330, 70%, 55%)',
+  isolation: 'hsl(215, 14%, 50%)',
 };
 
 // ─── Bodyweight Exercise Multipliers ──────────────────────────────────
-// When weight is null/0 on a set, the load is derived from body weight.
-// When weight IS present (e.g. weighted pull-ups +45 lbs), it represents
-// ADDED weight, so total load = BW * multiplier + added weight.
 export const BODYWEIGHT_EXERCISES: Record<string, { multiplier: number; pattern: MovementPattern }> = {
   'pull-up': { multiplier: 1.0, pattern: 'pull' },
   'chin-up': { multiplier: 1.0, pattern: 'pull' },
@@ -94,7 +242,6 @@ export const BODYWEIGHT_EXERCISES: Record<string, { multiplier: number; pattern:
 };
 
 // ─── Exercise → Movement Pattern Mapping ──────────────────────────────
-// Every exercise from EXERCISE_CATEGORIES classified by movement function.
 const EXERCISE_PATTERN_MAP: Record<string, MovementPattern> = {};
 
 function addAll(exercises: readonly string[], pattern: MovementPattern) {
@@ -103,7 +250,7 @@ function addAll(exercises: readonly string[], pattern: MovementPattern) {
   }
 }
 
-// HINGE — hip-dominant posterior chain
+// HINGE
 addAll([
   'Deadlift (Conventional)', 'Deadlift (Sumo)', 'Romanian Deadlift',
   'Stiff-Leg Deadlift', 'Deficit Deadlift', 'Rack Pull', 'Rack Deadlift',
@@ -116,7 +263,7 @@ addAll([
   'Banded Good Morning', 'Jefferson Deadlift', 'Snatch Grip Deadlift',
 ], 'hinge');
 
-// SQUAT — knee-dominant bilateral
+// SQUAT
 addAll([
   'Back Squat (High Bar)', 'Back Squat (Low Bar)', 'Front Squat',
   'Goblet Squat', 'Zercher Squat', 'Hack Squat', 'Safety Bar Squat',
@@ -125,7 +272,7 @@ addAll([
   'Sissy Squat', 'Wall Sit', 'Thruster', 'Cluster',
 ], 'squat');
 
-// PUSH — horizontal + vertical pressing
+// PUSH
 addAll([
   'Bench Press (Barbell)', 'Bench Press (Dumbbell)',
   'Incline Bench Press (Barbell)', 'Incline Bench Press (Dumbbell)',
@@ -144,7 +291,7 @@ addAll([
   'Tate Press', 'French Press',
 ], 'push');
 
-// PULL — horizontal + vertical pulling
+// PULL
 addAll([
   'Pull-Up', 'Chin-Up', 'Neutral-Grip Pull-Up',
   'Lat Pulldown (Wide)', 'Lat Pulldown (Close)', 'Lat Pulldown (Reverse Grip)',
@@ -158,7 +305,7 @@ addAll([
   'Face Pull (Shoulder Focus)', 'Band Pull-Apart',
 ], 'pull');
 
-// SINGLE LEG — unilateral lower body
+// SINGLE LEG
 addAll([
   'Bulgarian Split Squat', 'Walking Lunge', 'Reverse Lunge',
   'Forward Lunge', 'Lateral Lunge', 'Step-Up', 'Box Step-Up',
@@ -166,7 +313,7 @@ addAll([
   'Single-Leg Romanian Deadlift',
 ], 'single_leg');
 
-// CORE — anti-extension, anti-rotation, flexion
+// CORE
 addAll([
   'Plank', 'Side Plank', 'Plank (Weighted)', 'Dead Bug', 'Bird Dog',
   'Hollow Body Hold', 'Crunch', 'Bicycle Crunch', 'V-Up', 'Sit-Up',
@@ -179,13 +326,13 @@ addAll([
   'Wall Balls', 'Medicine Ball Slam', 'Medicine Ball Throw',
 ], 'core');
 
-// CARRY — loaded locomotion
+// CARRY
 addAll([
   "Farmer's Walk", 'Suitcase Carry', 'Overhead Carry',
   'Sandbag Carry', "Farmer's Walk (Cardio)",
 ], 'carry');
 
-// OLYMPIC — explosive full-body
+// OLYMPIC
 addAll([
   'Clean', 'Clean & Jerk', 'Power Clean', 'Hang Clean',
   'Snatch', 'Power Snatch', 'Hang Snatch',
@@ -193,7 +340,7 @@ addAll([
   'Push Jerk', 'Split Jerk', 'Clean High Pull',
 ], 'olympic');
 
-// ISOLATION — single-joint accessory work
+// ISOLATION
 addAll([
   'Leg Extension', 'Leg Curl (Lying)', 'Leg Curl (Seated)',
   'Leg Curl (Standing)',
@@ -227,11 +374,8 @@ addAll([
 // ─── Classification Function ─────────────────────────────────────────
 export function classifyExercise(name: string): MovementPattern {
   const key = name.toLowerCase().trim();
-  
-  // Direct map lookup
   if (EXERCISE_PATTERN_MAP[key]) return EXERCISE_PATTERN_MAP[key];
   
-  // Fuzzy matching via keywords
   if (/deadlift|rdl|good\s?morning|swing|hip\s?thrust|glute\s?bridge|pull.?through/i.test(key)) return 'hinge';
   if (/squat|leg\s?press(?!\s*calf)/i.test(key)) return 'squat';
   if (/press|push|dip|fly|pec|chest/i.test(key)) return 'push';
@@ -242,25 +386,16 @@ export function classifyExercise(name: string): MovementPattern {
   if (/clean|snatch|jerk|thruster/i.test(key)) return 'olympic';
   if (/curl|raise|extension|kickback|fly|shrug|calf/i.test(key)) return 'isolation';
   
-  // Default
   return 'isolation';
 }
 
 // ─── Volume Calculation ───────────────────────────────────────────────
-const DEFAULT_BODYWEIGHT_KG = 77; // ~170 lbs fallback
+const DEFAULT_BODYWEIGHT_KG = 77;
 
 export function isBodyweightExercise(name: string): boolean {
   return name.toLowerCase().trim() in BODYWEIGHT_EXERCISES;
 }
 
-/**
- * Calculate volume for a single set.
- * @param exerciseName Name of the exercise
- * @param weight Weight on the bar/machine (null for BW exercises)
- * @param reps Number of reps
- * @param bodyWeightKg User's body weight in kg (from user_body_entries)
- * @returns Raw volume in the user's unit system
- */
 export function calculateSetVolume(
   exerciseName: string,
   weight: number | null,
@@ -274,27 +409,25 @@ export function calculateSetVolume(
   const bw = bodyWeightKg ?? DEFAULT_BODYWEIGHT_KG;
   
   if (bwEntry) {
-    // Bodyweight exercise
     if (weight && weight > 0) {
-      // Weighted variant: (BW * multiplier + added weight) * reps
       return (bw * bwEntry.multiplier + weight) * reps;
     }
-    // Pure bodyweight: BW * multiplier * reps
     return bw * bwEntry.multiplier * reps;
   }
   
-  // Standard loaded exercise
   if (!weight || weight <= 0) return 0;
   return weight * reps;
 }
 
 /**
  * Convert raw volume to Normalized Training Units (NTUs).
- * NTU = rawVolume / difficultyCoefficient
+ * NTU = rawVolume / (patternCoeff * equipmentModifier)
  */
-export function normalizeVolume(rawVolume: number, pattern: MovementPattern): number {
-  const coeff = DIFFICULTY_COEFFICIENTS[pattern];
-  return coeff > 0 ? rawVolume / coeff : rawVolume;
+export function normalizeVolume(rawVolume: number, pattern: MovementPattern, exerciseName?: string): number {
+  const patternCoeff = DIFFICULTY_COEFFICIENTS[pattern];
+  const equipMod = exerciseName ? getEquipmentModifier(exerciseName) : 1.0;
+  const combined = patternCoeff * equipMod;
+  return combined > 0 ? rawVolume / combined : rawVolume;
 }
 
 // ─── Aggregation Types ────────────────────────────────────────────────
@@ -309,7 +442,7 @@ export interface PatternVolumeData {
 export interface WeeklyPatternVolume {
   weekStart: string;
   weekLabel: string;
-  patterns: Record<MovementPattern, number>; // raw volume per pattern
+  patterns: Record<MovementPattern, number>;
 }
 
 export const ALL_PATTERNS: MovementPattern[] = [

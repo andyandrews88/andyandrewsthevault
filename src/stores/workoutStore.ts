@@ -14,6 +14,26 @@ import {
 import { format, subDays, startOfWeek, addDays } from 'date-fns';
 import { WeightUnit, getStoredUnit, setStoredUnit } from '@/lib/weightConversion';
 
+// Helper to cast Supabase set rows to ExerciseSet (set_type comes as string)
+function castSet(s: any): ExerciseSet {
+  return { ...s, set_type: (s.set_type as 'warmup' | 'working') || 'working' };
+}
+function castSets(sets: any[]): ExerciseSet[] {
+  return (sets || []).map(castSet);
+}
+function castExercises(exercisesData: any[]): WorkoutExercise[] {
+  return (exercisesData || []).map(e => ({
+    ...e,
+    exercise_type: (e.exercise_type as 'strength' | 'conditioning') || 'strength',
+    superset_group: e.superset_group || null,
+    sets: castSets(e.sets || []).sort((a, b) => a.set_number - b.set_number),
+    conditioning_sets: (e.conditioning_sets || []).map((cs: any) => ({
+      ...cs,
+      distance_unit: (cs.distance_unit as 'miles' | 'km' | 'meters') || 'miles'
+    })).sort((a: ConditioningSet, b: ConditioningSet) => a.set_number - b.set_number),
+  })) as WorkoutExercise[];
+}
+
 interface WorkoutState {
   // Current workout session
   activeWorkout: Workout | null;
@@ -41,6 +61,9 @@ interface WorkoutState {
   // New PR celebration
   newPR: { exerciseName: string; weight: number } | null;
   clearNewPR: () => void;
+
+  // Rest timer trigger
+  restTimerTrigger: number;
   
   // Calendar actions
   setSelectedDate: (date: Date) => void;
@@ -50,13 +73,17 @@ interface WorkoutState {
   startWorkout: (name: string, date?: Date) => Promise<void>;
   addExercise: (name: string) => Promise<void>;
   removeExercise: (exerciseId: string) => Promise<void>;
-  addSet: (exerciseId: string) => Promise<void>;
+  addSet: (exerciseId: string, setType?: 'warmup' | 'working') => Promise<void>;
   removeSet: (setId: string) => Promise<void>;
   updateSet: (setId: string, data: Partial<ExerciseSet>) => void;
   completeSet: (setId: string, exerciseName: string, weight: number, reps: number, rir?: number | null) => Promise<boolean>;
   loadLastSession: (exerciseId: string, exerciseName: string) => Promise<void>;
   finishWorkout: () => Promise<void>;
   cancelWorkout: () => Promise<void>;
+  
+  // Superset actions
+  linkSuperset: (exerciseId: string, targetExerciseId: string) => Promise<void>;
+  unlinkSuperset: (exerciseId: string) => Promise<void>;
   
   // Conditioning actions
   addConditioningSet: (exerciseId: string) => Promise<void>;
@@ -91,6 +118,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
   isLoading: false,
   isSaving: false,
   newPR: null,
+  restTimerTrigger: 0,
   
   clearNewPR: () => set({ newPR: null }),
   
@@ -110,7 +138,6 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
     
     const dateStr = format(date, 'yyyy-MM-dd');
     
-    // Prefer the workout with the highest volume to avoid picking up empty orphans
     const { data: workout } = await supabase
       .from('workouts')
       .select('*')
@@ -129,13 +156,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
         .eq('workout_id', workout.id)
         .order('order_index');
       
-      const exercises = (exercisesData || []).map(e => ({
-        ...e,
-        exercise_type: (e.exercise_type as 'strength' | 'conditioning') || 'strength',
-        sets: e.sets?.sort((a: ExerciseSet, b: ExerciseSet) => a.set_number - b.set_number) || []
-      })) as WorkoutExercise[];
-      
-      set({ viewingWorkout: workout, viewingExercises: exercises });
+      set({ viewingWorkout: workout, viewingExercises: castExercises(exercisesData || []) });
     } else {
       set({ viewingWorkout: null, viewingExercises: [] });
     }
@@ -192,38 +213,32 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
     }
     
     if (exerciseType === 'conditioning') {
-      // Add a default empty conditioning set
       const { data: firstSet } = await supabase
         .from('conditioning_sets')
-        .insert({
-          exercise_id: exercise.id,
-          set_number: 1,
-        })
+        .insert({ exercise_id: exercise.id, set_number: 1 })
         .select()
         .single();
       
       const newExercise: WorkoutExercise = { 
         ...exercise, 
         exercise_type: 'conditioning',
+        superset_group: exercise.superset_group || null,
         conditioning_sets: firstSet ? [{...firstSet, distance_unit: (firstSet.distance_unit as 'miles' | 'km' | 'meters') || 'miles'}] : [],
         sets: []
       };
       set({ exercises: [...exercises, newExercise] });
     } else {
-      // Add a default empty strength set
       const { data: firstSet } = await supabase
         .from('exercise_sets')
-        .insert({
-          exercise_id: exercise.id,
-          set_number: 1,
-        })
+        .insert({ exercise_id: exercise.id, set_number: 1 })
         .select()
         .single();
       
       const newExercise: WorkoutExercise = { 
         ...exercise, 
         exercise_type: 'strength',
-        sets: firstSet ? [firstSet] : [],
+        superset_group: exercise.superset_group || null,
+        sets: firstSet ? [castSet(firstSet)] : [],
         conditioning_sets: []
       };
       set({ exercises: [...exercises, newExercise] });
@@ -232,16 +247,11 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
   
   removeExercise: async (exerciseId: string) => {
     const { exercises } = get();
-    
-    await supabase
-      .from('workout_exercises')
-      .delete()
-      .eq('id', exerciseId);
-    
+    await supabase.from('workout_exercises').delete().eq('id', exerciseId);
     set({ exercises: exercises.filter(e => e.id !== exerciseId) });
   },
   
-  addSet: async (exerciseId: string) => {
+  addSet: async (exerciseId: string, setType: 'warmup' | 'working' = 'working') => {
     const { exercises } = get();
     const exercise = exercises.find(e => e.id === exerciseId);
     if (!exercise) return;
@@ -253,6 +263,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
       .insert({
         exercise_id: exerciseId,
         set_number: newSetNumber,
+        set_type: setType,
       })
       .select()
       .single();
@@ -262,7 +273,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
     set({
       exercises: exercises.map(e => 
         e.id === exerciseId 
-          ? { ...e, sets: [...(e.sets || []), newSet] }
+          ? { ...e, sets: [...(e.sets || []), castSet(newSet)] }
           : e
       )
     });
@@ -270,12 +281,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
   
   removeSet: async (setId: string) => {
     const { exercises } = get();
-    
-    await supabase
-      .from('exercise_sets')
-      .delete()
-      .eq('id', setId);
-    
+    await supabase.from('exercise_sets').delete().eq('id', setId);
     set({
       exercises: exercises.map(e => ({
         ...e,
@@ -294,10 +300,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
     
     const { data: newSet, error } = await supabase
       .from('conditioning_sets')
-      .insert({
-        exercise_id: exerciseId,
-        set_number: newSetNumber,
-      })
+      .insert({ exercise_id: exerciseId, set_number: newSetNumber })
       .select()
       .single();
     
@@ -319,12 +322,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
   
   removeConditioningSet: async (setId: string) => {
     const { exercises } = get();
-    
-    await supabase
-      .from('conditioning_sets')
-      .delete()
-      .eq('id', setId);
-    
+    await supabase.from('conditioning_sets').delete().eq('id', setId);
     set({
       exercises: exercises.map(e => ({
         ...e,
@@ -335,7 +333,6 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
   
   updateConditioningSet: (setId: string, data: Partial<ConditioningSet>) => {
     const { exercises } = get();
-    
     set({
       exercises: exercises.map(e => ({
         ...e,
@@ -344,23 +341,12 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
         )
       }))
     });
-    
-    // Save to DB
-    supabase
-      .from('conditioning_sets')
-      .update(data)
-      .eq('id', setId)
-      .then(() => {});
+    supabase.from('conditioning_sets').update(data).eq('id', setId).then(() => {});
   },
   
   completeConditioningSet: async (setId: string) => {
     const { exercises } = get();
-    
-    await supabase
-      .from('conditioning_sets')
-      .update({ is_completed: true })
-      .eq('id', setId);
-    
+    await supabase.from('conditioning_sets').update({ is_completed: true }).eq('id', setId);
     set({
       exercises: exercises.map(e => ({
         ...e,
@@ -373,7 +359,6 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
   
   updateSet: (setId: string, data: Partial<ExerciseSet>) => {
     const { exercises } = get();
-    
     set({
       exercises: exercises.map(e => ({
         ...e,
@@ -382,13 +367,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
         )
       }))
     });
-    
-    // Debounced save to DB
-    supabase
-      .from('exercise_sets')
-      .update(data)
-      .eq('id', setId)
-      .then(() => {});
+    supabase.from('exercise_sets').update(data).eq('id', setId).then(() => {});
   },
   
   completeSet: async (setId: string, exerciseName: string, weight: number, reps: number, rir?: number | null) => {
@@ -398,14 +377,10 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
     
     const { exercises, activeWorkout, personalRecords } = get();
     
-    // Update the set as completed
     const updateData: any = { is_completed: true, weight, reps };
     if (rir !== undefined) updateData.rir = rir;
     
-    await supabase
-      .from('exercise_sets')
-      .update(updateData)
-      .eq('id', setId);
+    await supabase.from('exercise_sets').update(updateData).eq('id', setId);
     
     // Update local state
     set({
@@ -416,13 +391,21 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
         )
       }))
     });
+
+    // Trigger rest timer
+    set({ restTimerTrigger: get().restTimerTrigger + 1 });
+
+    // Find the set to check if it's a working set before checking PR
+    const currentSet = exercises.flatMap(e => e.sets || []).find(s => s.id === setId);
+    const setType = currentSet?.set_type || 'working';
     
-    // Check for PR
+    // Only check PR for working sets
+    if (setType !== 'working') return false;
+    
     const normalizedName = exerciseName.toLowerCase();
     const currentPR = personalRecords.find(pr => pr.exercise_name === normalizedName);
     
     if (!currentPR || weight > currentPR.max_weight) {
-      // New PR!
       const { data: newPR } = await supabase
         .from('personal_records')
         .upsert({
@@ -433,9 +416,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
           workout_id: activeWorkout?.id,
           set_id: setId,
           achieved_at: new Date().toISOString(),
-        }, {
-          onConflict: 'user_id,exercise_name',
-        })
+        }, { onConflict: 'user_id,exercise_name' })
         .select()
         .single();
       
@@ -447,7 +428,6 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
           newPR: { exerciseName, weight }
         });
 
-        // Sync with goals
         import('@/stores/goalStore').then(({ useGoalStore }) => {
           useGoalStore.getState().syncGoalsAfterPR(exerciseName, weight);
         });
@@ -470,13 +450,8 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
     const exercise = exercises.find(e => e.id === exerciseId);
     if (!exercise) return;
     
-    // Delete existing sets
-    await supabase
-      .from('exercise_sets')
-      .delete()
-      .eq('exercise_id', exerciseId);
+    await supabase.from('exercise_sets').delete().eq('exercise_id', exerciseId);
     
-    // Create new sets based on last session
     const { data: newSets } = await supabase
       .from('exercise_sets')
       .insert(
@@ -493,7 +468,59 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
     if (newSets) {
       set({
         exercises: exercises.map(e =>
-          e.id === exerciseId ? { ...e, sets: newSets } : e
+          e.id === exerciseId ? { ...e, sets: castSets(newSets) } : e
+        )
+      });
+    }
+  },
+  
+  // Superset actions
+  linkSuperset: async (exerciseId: string, targetExerciseId: string) => {
+    const { exercises } = get();
+    const target = exercises.find(e => e.id === targetExerciseId);
+    const groupId = target?.superset_group || crypto.randomUUID();
+    
+    // Update both exercises
+    await Promise.all([
+      supabase.from('workout_exercises').update({ superset_group: groupId }).eq('id', exerciseId),
+      supabase.from('workout_exercises').update({ superset_group: groupId }).eq('id', targetExerciseId),
+    ]);
+    
+    set({
+      exercises: exercises.map(e => 
+        e.id === exerciseId || e.id === targetExerciseId
+          ? { ...e, superset_group: groupId }
+          : e
+      )
+    });
+  },
+  
+  unlinkSuperset: async (exerciseId: string) => {
+    const { exercises } = get();
+    const exercise = exercises.find(e => e.id === exerciseId);
+    if (!exercise?.superset_group) return;
+    
+    const groupId = exercise.superset_group;
+    const groupMembers = exercises.filter(e => e.superset_group === groupId);
+    
+    // If only 2 in group, unlink both
+    if (groupMembers.length <= 2) {
+      await Promise.all(
+        groupMembers.map(e => 
+          supabase.from('workout_exercises').update({ superset_group: null }).eq('id', e.id)
+        )
+      );
+      set({
+        exercises: exercises.map(e => 
+          e.superset_group === groupId ? { ...e, superset_group: null } : e
+        )
+      });
+    } else {
+      // Just remove this one
+      await supabase.from('workout_exercises').update({ superset_group: null }).eq('id', exerciseId);
+      set({
+        exercises: exercises.map(e => 
+          e.id === exerciseId ? { ...e, superset_group: null } : e
         )
       });
     }
@@ -505,15 +532,11 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
     
     set({ isSaving: true });
     
-    await supabase
-      .from('workouts')
-      .update({ is_completed: true })
-      .eq('id', activeWorkout.id);
+    await supabase.from('workouts').update({ is_completed: true }).eq('id', activeWorkout.id);
     
     const wasEditing = get().isEditing;
     const currentSelectedDate = get().selectedDate;
     set({ activeWorkout: null, exercises: [], isSaving: false, isEditing: false });
-    // After finishing an edit, refresh viewingWorkout so the user sees the completed workout
     if (wasEditing) {
       get().fetchWorkoutByDate(currentSelectedDate);
     }
@@ -522,13 +545,8 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
   editWorkout: async (workoutId: string) => {
     set({ isLoading: true });
 
-    // Mark workout as not completed so it becomes editable
-    await supabase
-      .from('workouts')
-      .update({ is_completed: false })
-      .eq('id', workoutId);
+    await supabase.from('workouts').update({ is_completed: false }).eq('id', workoutId);
 
-    // Fetch the workout
     const { data: workout } = await supabase
       .from('workouts')
       .select('*')
@@ -540,26 +558,15 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
       return;
     }
 
-    // Fetch exercises with sets and conditioning sets
     const { data: exercisesData } = await supabase
       .from('workout_exercises')
       .select('*, sets:exercise_sets(*), conditioning_sets:conditioning_sets(*)')
       .eq('workout_id', workoutId)
       .order('order_index');
 
-    const exercises = (exercisesData || []).map(e => ({
-      ...e,
-      exercise_type: (e.exercise_type as 'strength' | 'conditioning') || 'strength',
-      sets: e.sets?.sort((a: ExerciseSet, b: ExerciseSet) => a.set_number - b.set_number) || [],
-      conditioning_sets: (e.conditioning_sets || []).map((cs: any) => ({
-        ...cs,
-        distance_unit: (cs.distance_unit as 'miles' | 'km' | 'meters') || 'miles'
-      })).sort((a: ConditioningSet, b: ConditioningSet) => a.set_number - b.set_number),
-    })) as WorkoutExercise[];
-
     set({
       activeWorkout: workout,
-      exercises,
+      exercises: castExercises(exercisesData || []),
       viewingWorkout: null,
       viewingExercises: [],
       selectedDate: new Date(workout.date + 'T12:00:00'),
@@ -572,11 +579,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
     const { activeWorkout } = get();
     if (!activeWorkout) return;
     set({ activeWorkout: { ...activeWorkout, notes } });
-    supabase
-      .from('workouts')
-      .update({ notes })
-      .eq('id', activeWorkout.id)
-      .then(() => {});
+    supabase.from('workouts').update({ notes }).eq('id', activeWorkout.id).then(() => {});
   },
 
   cancelWorkout: async () => {
@@ -584,22 +587,13 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
     if (!activeWorkout) return;
     
     if (isEditing) {
-      // Restore the workout to completed state instead of deleting
-      await supabase
-        .from('workouts')
-        .update({ is_completed: true })
-        .eq('id', activeWorkout.id);
+      await supabase.from('workouts').update({ is_completed: true }).eq('id', activeWorkout.id);
     } else {
-      // New workout — delete entirely
-      await supabase
-        .from('workouts')
-        .delete()
-        .eq('id', activeWorkout.id);
+      await supabase.from('workouts').delete().eq('id', activeWorkout.id);
     }
     
     const currentSelectedDate = get().selectedDate;
     set({ activeWorkout: null, exercises: [], isEditing: false });
-    // After cancelling an edit, refresh viewingWorkout so the restored workout is visible
     if (isEditing) {
       get().fetchWorkoutByDate(currentSelectedDate);
     }
@@ -610,17 +604,12 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
     if (!session?.user) return;
     const user = session.user;
     
-    // BUG 1 fix: If we're actively editing a workout, skip fetching to prevent
-    // the auto-abandon logic from destroying the editing session on remount.
-    if (get().isEditing) {
-      return;
-    }
+    if (get().isEditing) return;
 
     set({ isLoading: true });
     
     const today = format(new Date(), 'yyyy-MM-dd');
 
-    // Find any incomplete workout
     const { data: workout } = await supabase
       .from('workouts')
       .select('*')
@@ -631,12 +620,8 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
       .maybeSingle();
     
     if (workout) {
-      // Auto-abandon stale workouts from past dates, but ONLY for free-log sessions.
-      // Program sessions (name contains "—") must never be auto-abandoned so retroactive
-      // logging works correctly.
       const isProgramSession = workout.workout_name.includes('—');
       if (workout.date < today && !isProgramSession) {
-        // Check if the stale workout has any completed sets (real data)
         const { count } = await supabase
           .from('exercise_sets')
           .select('id', { count: 'exact', head: true })
@@ -650,46 +635,26 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
           .eq('is_completed', true);
 
         if (count && count > 0) {
-          // Has real data — mark as completed
-          await supabase
-            .from('workouts')
-            .update({ is_completed: true })
-            .eq('id', workout.id);
+          await supabase.from('workouts').update({ is_completed: true }).eq('id', workout.id);
         } else {
-          // Empty/orphan workout — delete it entirely
-          await supabase
-            .from('workouts')
-            .delete()
-            .eq('id', workout.id);
+          await supabase.from('workouts').delete().eq('id', workout.id);
         }
         set({ activeWorkout: null, exercises: [], isLoading: false });
         return;
       }
 
-      // Fetch exercises with sets
       const { data: exercisesData } = await supabase
         .from('workout_exercises')
         .select('*, sets:exercise_sets(*), conditioning_sets:conditioning_sets(*)')
         .eq('workout_id', workout.id)
         .order('order_index');
       
-      const exercises = (exercisesData || []).map(e => ({
-        ...e,
-        exercise_type: (e.exercise_type as 'strength' | 'conditioning') || 'strength',
-        sets: e.sets?.sort((a: ExerciseSet, b: ExerciseSet) => a.set_number - b.set_number) || [],
-        conditioning_sets: (e.conditioning_sets || []).map((cs: any) => ({
-          ...cs,
-          distance_unit: (cs.distance_unit as 'miles' | 'km' | 'meters') || 'miles'
-        })).sort((a: ConditioningSet, b: ConditioningSet) => a.set_number - b.set_number),
-      })) as WorkoutExercise[];
-      
-      set({ activeWorkout: workout, exercises, isLoading: false });
+      set({ activeWorkout: workout, exercises: castExercises(exercisesData || []), isLoading: false });
     } else {
       set({ activeWorkout: null, exercises: [], isLoading: false });
     }
   },
 
-  // Load a specific workout by ID into active state (used by program sessions)
   loadWorkoutIntoActive: async (workoutId: string) => {
     const { data: workout } = await supabase
       .from('workouts')
@@ -705,17 +670,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
       .eq('workout_id', workoutId)
       .order('order_index');
 
-    const exercises = (exercisesData || []).map(e => ({
-      ...e,
-      exercise_type: (e.exercise_type as 'strength' | 'conditioning') || 'strength',
-      sets: e.sets?.sort((a: ExerciseSet, b: ExerciseSet) => a.set_number - b.set_number) || [],
-      conditioning_sets: (e.conditioning_sets || []).map((cs: any) => ({
-        ...cs,
-        distance_unit: (cs.distance_unit as 'miles' | 'km' | 'meters') || 'miles'
-      })).sort((a: ConditioningSet, b: ConditioningSet) => a.set_number - b.set_number),
-    })) as WorkoutExercise[];
-
-    set({ activeWorkout: workout, exercises, viewingWorkout: null, viewingExercises: [] });
+    set({ activeWorkout: workout, exercises: castExercises(exercisesData || []), viewingWorkout: null, viewingExercises: [] });
   },
   
   fetchWorkoutHistory: async (days = 30) => {
@@ -757,7 +712,6 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
     
     const normalizedName = exerciseName.toLowerCase();
     
-    // Get workouts that contain this exercise
     const { data: exercisesData } = await supabase
       .from('workout_exercises')
       .select(`
@@ -770,7 +724,6 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
     
     if (!exercisesData) return [];
     
-    // Filter by user and aggregate by date
     const historyMap = new Map<string, ExerciseHistory>();
     
     for (const ex of exercisesData) {
@@ -813,7 +766,6 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
     
     if (!workouts) return [];
     
-    // Aggregate by week
     const weeklyMap = new Map<string, number>();
     
     for (const w of workouts) {
@@ -839,7 +791,6 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
     const fromDate = format(subDays(new Date(), weeks * 7), 'yyyy-MM-dd');
     const futureDate = format(addDays(new Date(), weeks * 7), 'yyyy-MM-dd');
 
-    // 1. Free-log completed workouts
     const { data: workouts } = await supabase
       .from('workouts')
       .select('date')
@@ -847,7 +798,6 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
       .eq('is_completed', true)
       .gte('date', fromDate);
 
-    // 2. Program calendar workouts (past AND future scheduled) — active enrollments only
     const { data: programWorkouts } = await supabase
       .from('user_calendar_workouts')
       .select('scheduled_date, is_completed, enrollment:user_program_enrollments!inner(status)')
@@ -879,29 +829,40 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
     if (!session?.user) return [];
     const user = session.user;
     
+    const { activeWorkout } = get();
     const normalizedName = exerciseName.toLowerCase();
     
-    // Find the most recent workout with this exercise
-    const { data: lastExercise } = await supabase
+    // Fetch recent exercises for this movement, excluding current workout
+    const query = supabase
       .from('workout_exercises')
       .select(`
         id,
+        workout_id,
         workout:workouts!inner(id, date, user_id, is_completed),
-        sets:exercise_sets(weight, reps, set_number, is_completed)
+        sets:exercise_sets(weight, reps, set_number, is_completed, set_type)
       `)
       .ilike('exercise_name', normalizedName)
+      .eq('workout.is_completed', true)
+      .eq('workout.user_id', user.id)
       .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .limit(5);
     
-    if (!lastExercise) return [];
+    const { data: results } = await query;
     
-    const workout = lastExercise.workout as unknown as { user_id: string; is_completed: boolean };
-    if (workout.user_id !== user.id || !workout.is_completed) return [];
+    if (!results || results.length === 0) return [];
     
-    return (lastExercise.sets || [])
-      .filter((s: any) => s.is_completed && s.weight)
-      .sort((a: any, b: any) => a.set_number - b.set_number)
-      .map((s: any) => ({ weight: s.weight, reps: s.reps }));
+    // Find first result that's not the current active workout
+    for (const entry of results) {
+      if (activeWorkout && entry.workout_id === activeWorkout.id) continue;
+      
+      const completedSets = (entry.sets || [])
+        .filter((s: any) => s.is_completed && s.weight)
+        .sort((a: any, b: any) => a.set_number - b.set_number)
+        .map((s: any) => ({ weight: s.weight, reps: s.reps }));
+      
+      if (completedSets.length > 0) return completedSets;
+    }
+    
+    return [];
   },
 }));
