@@ -12,7 +12,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuditStore, AuditData } from "@/stores/auditStore";
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, ArrowLeft, User, Dumbbell, Timer, CheckCircle, Heart, Calculator, Apple, Activity, Info } from "lucide-react";
+import { ArrowRight, ArrowLeft, User, Dumbbell, Timer, CheckCircle, Heart, Calculator, Apple, Activity, Info, AlertCircle } from "lucide-react";
 
 const steps = [
   { id: 'biometrics', title: 'Biometrics', icon: User, description: 'Basic measurements' },
@@ -72,6 +72,8 @@ export function AuditForm() {
   const [estimateMode, setEstimateMode] = useState<Record<string, boolean>>({});
   const [estimations, setEstimations] = useState<Record<string, LiftEstimation>>({});
   const [skipMovement, setSkipMovement] = useState<Record<string, boolean>>({});
+  const [stressTouched, setStressTouched] = useState(false);
+  const [stressNudge, setStressNudge] = useState(false);
 
   const progress = ((currentStep + 1) / steps.length) * 100;
 
@@ -129,6 +131,11 @@ export function AuditForm() {
       if (!data.protein) newErrors.protein = 'Required';
       if (!data.stress) newErrors.stress = 'Required';
       if (!data.experience) newErrors.experience = 'Required';
+      // Soft nudge for stress slider if untouched and still default
+      if (!stressTouched && (data.stress === 5 || !data.stress)) {
+        setStressNudge(true);
+        // Don't block, just nudge once
+      }
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -160,6 +167,7 @@ export function AuditForm() {
         <Input
           id={name}
           type="number"
+          inputMode="decimal"
           placeholder={placeholder}
           value={(data as any)[name] || ''}
           onChange={(e) => updateData({ [name]: parseFloat(e.target.value) || undefined })}
@@ -457,7 +465,7 @@ export function AuditForm() {
                 {/* Broad Jump */}
                 {renderMovementField('broadJump', 'Broad Jump', 'broadJump', ['broadJumpFeet', 'broadJumpMode'], (
                   <div className="space-y-3">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 flex-wrap">
                       <Label className="text-xs text-muted-foreground whitespace-nowrap">Measure in:</Label>
                       <ToggleGroup
                         type="single"
@@ -476,6 +484,7 @@ export function AuditForm() {
                     <div className="relative">
                       <Input
                         type="number"
+                        inputMode="decimal"
                         placeholder={data.broadJumpMode === 'feet' ? '8' : '3'}
                         className="font-mono pr-20"
                         value={data.broadJumpMode === 'feet' ? (data.broadJumpFeet || '') : (data.broadJumpFeet ? data.broadJumpFeet / 2.5 : '')}
@@ -499,7 +508,7 @@ export function AuditForm() {
                 {renderMovementField('deadHang', 'Dead Hang', 'deadHang', ['deadHangSeconds'], (
                   <div className="relative">
                     <Input
-                      type="number" placeholder="45" className="font-mono pr-16"
+                      type="number" inputMode="decimal" placeholder="45" className="font-mono pr-16"
                       value={data.deadHangSeconds || ''}
                       onChange={(e) => updateData({ deadHangSeconds: parseFloat(e.target.value) || undefined })}
                     />
@@ -567,7 +576,7 @@ export function AuditForm() {
                 {renderMovementField('maxPullups', 'Max Rep Pull-ups', 'maxPullups', ['maxPullups'], (
                   <div className="relative">
                     <Input
-                      type="number" placeholder="8" className="font-mono pr-12"
+                      type="number" inputMode="numeric" placeholder="8" className="font-mono pr-12"
                       value={data.maxPullups !== undefined ? data.maxPullups : ''}
                       onChange={(e) => updateData({ maxPullups: e.target.value === '' ? undefined : parseInt(e.target.value) || 0 })}
                     />
@@ -579,7 +588,7 @@ export function AuditForm() {
                 {renderMovementField('maxPushups', 'Max Rep Push-ups', 'maxPushups', ['maxPushups'], (
                   <div className="relative">
                     <Input
-                      type="number" placeholder="25" className="font-mono pr-12"
+                      type="number" inputMode="numeric" placeholder="25" className="font-mono pr-12"
                       value={data.maxPushups !== undefined ? data.maxPushups : ''}
                       onChange={(e) => updateData({ maxPushups: e.target.value === '' ? undefined : parseInt(e.target.value) || 0 })}
                     />
@@ -591,7 +600,7 @@ export function AuditForm() {
                 {renderMovementField('lSit', 'Parallette L-Sit', 'lSit', ['lSitSeconds'], (
                   <div className="relative">
                     <Input
-                      type="number" placeholder="20" className="font-mono pr-16"
+                      type="number" inputMode="decimal" placeholder="20" className="font-mono pr-16"
                       value={data.lSitSeconds || ''}
                       onChange={(e) => updateData({ lSitSeconds: parseFloat(e.target.value) || undefined })}
                     />
@@ -601,7 +610,7 @@ export function AuditForm() {
 
                 {/* Pistol Squat */}
                 {renderMovementField('pistolSquat', 'Pistol Squat (Barefoot)', 'pistolSquat', ['pistolSquatLeft', 'pistolSquatRight'], (
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-2">
                       <Label className="text-xs text-muted-foreground">Left Leg</Label>
                       <ToggleGroup
@@ -676,9 +685,15 @@ export function AuditForm() {
                       <span className="font-mono text-primary text-base">{data.stress || 5}</span>
                       <span>Overwhelmed</span>
                     </div>
-                    <Slider value={[data.stress as number || 5]} onValueChange={([v]) => updateData({ stress: v })} min={1} max={10} step={1} />
+                    <Slider value={[data.stress as number || 5]} onValueChange={([v]) => { setStressTouched(true); setStressNudge(false); updateData({ stress: v }); }} min={1} max={10} step={1} />
                   </div>
                   {errors.stress && <p className="text-xs text-destructive">{errors.stress}</p>}
+                  {stressNudge && !stressTouched && (
+                    <div className="flex items-center gap-2 text-xs text-warning mt-1">
+                      <AlertCircle className="w-3.5 h-3.5" />
+                      <span>Please confirm your life stress level by adjusting the slider</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Experience */}

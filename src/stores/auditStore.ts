@@ -423,6 +423,13 @@ export const useAuditStore = create<AuditStore>()(
         const tier = determineTier(scores, fullData.experience);
         const overallScore = Math.round(Object.values(scores).reduce((a, b) => a + b, 0) / 5);
 
+        // Partial movement data note
+        const movementKeys: (keyof AuditData)[] = ['broadJumpFeet', 'deadHangSeconds', 'toeTouch', 'heelSit', 'deepSquat', 'overheadReach', 'maxPullups', 'maxPushups', 'lSitSeconds', 'pistolSquatLeft'];
+        const completedMovementTests = movementKeys.filter(k => fullData[k] !== undefined).length;
+        if (completedMovementTests > 0 && completedMovementTests < 3) {
+          skippedAreas.push('Limited movement data — scores reflect partial assessment');
+        }
+
         const foundationRecommended = fullData.experience === '<1';
         const foundationReason = foundationRecommended 
           ? 'With less than 1 year of consistent training, the Foundation track ensures long-term structural integrity and prevents injury.'
