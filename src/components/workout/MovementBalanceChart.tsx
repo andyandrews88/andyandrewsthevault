@@ -250,11 +250,10 @@ export function MovementBalanceChart() {
     <>
       <Card variant="elevated">
         <CardHeader className="pb-2">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-            <CardTitle className="text-base">Movement Balance</CardTitle>
-          <div className="flex items-center gap-2">
-              <DateRangeSelector defaultPreset="1M" onRangeChange={fetchDataByRange} />
-              <div className="flex rounded-md border border-border overflow-hidden">
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base">Movement Balance</CardTitle>
+              <div className="flex rounded-md border border-border overflow-hidden shrink-0">
                 <button onClick={() => setView('radar')} className={`p-1.5 ${view === 'radar' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
                   <Target className="h-3.5 w-3.5" />
                 </button>
@@ -266,6 +265,7 @@ export function MovementBalanceChart() {
                 </button>
               </div>
             </div>
+            <DateRangeSelector defaultPreset="1M" onRangeChange={fetchDataByRange} />
           </div>
         </CardHeader>
 
