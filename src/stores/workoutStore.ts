@@ -13,10 +13,11 @@ import {
 } from '@/types/workout';
 import { format, subDays, startOfWeek, addDays } from 'date-fns';
 import { WeightUnit, getStoredUnit, setStoredUnit } from '@/lib/weightConversion';
+import { isUnilateralExercise } from '@/lib/movementPatterns';
 
 // Helper to cast Supabase set rows to ExerciseSet (set_type comes as string)
 function castSet(s: any): ExerciseSet {
-  return { ...s, set_type: (s.set_type as 'warmup' | 'working') || 'working', duration_seconds: s.duration_seconds ?? null };
+  return { ...s, set_type: (s.set_type as 'warmup' | 'working') || 'working', duration_seconds: s.duration_seconds ?? null, side: s.side ?? null };
 }
 function castSets(sets: any[]): ExerciseSet[] {
   return (sets || []).map(castSet);
@@ -73,7 +74,7 @@ interface WorkoutState {
   startWorkout: (name: string, date?: Date) => Promise<void>;
   addExercise: (name: string) => Promise<void>;
   removeExercise: (exerciseId: string) => Promise<void>;
-  addSet: (exerciseId: string, setType?: 'warmup' | 'working') => Promise<void>;
+  addSet: (exerciseId: string, setType?: 'warmup' | 'working', isUnilateral?: boolean) => Promise<void>;
   removeSet: (setId: string) => Promise<void>;
   updateSet: (setId: string, data: Partial<ExerciseSet>) => void;
   completeSet: (setId: string, exerciseName: string, weight: number, reps: number, rir?: number | null) => Promise<boolean>;
@@ -230,20 +231,47 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
       };
       set({ exercises: [...exercises, newExercise] });
     } else {
-      const { data: firstSet } = await supabase
-        .from('exercise_sets')
-        .insert({ exercise_id: exercise.id, set_number: 1 })
-        .select()
-        .single();
-      
-      const newExercise: WorkoutExercise = { 
-        ...exercise, 
-        exercise_type: 'strength',
-        superset_group: exercise.superset_group || null,
-        sets: firstSet ? [castSet(firstSet)] : [],
-        conditioning_sets: []
-      };
-      set({ exercises: [...exercises, newExercise] });
+      // Check if exercise is unilateral (DB flag or hardcoded)
+      const { data: libData } = await supabase
+        .from('exercise_library')
+        .select('is_unilateral')
+        .ilike('name', name)
+        .maybeSingle();
+      const unilateral = isUnilateralExercise(name, (libData as any)?.is_unilateral);
+
+      if (unilateral) {
+        const { data: firstSets } = await supabase
+          .from('exercise_sets')
+          .insert([
+            { exercise_id: exercise.id, set_number: 1, side: 'left' },
+            { exercise_id: exercise.id, set_number: 1, side: 'right' },
+          ])
+          .select();
+        
+        const newExercise: WorkoutExercise = { 
+          ...exercise, 
+          exercise_type: 'strength',
+          superset_group: exercise.superset_group || null,
+          sets: firstSets ? castSets(firstSets) : [],
+          conditioning_sets: []
+        };
+        set({ exercises: [...exercises, newExercise] });
+      } else {
+        const { data: firstSet } = await supabase
+          .from('exercise_sets')
+          .insert({ exercise_id: exercise.id, set_number: 1 })
+          .select()
+          .single();
+        
+        const newExercise: WorkoutExercise = { 
+          ...exercise, 
+          exercise_type: 'strength',
+          superset_group: exercise.superset_group || null,
+          sets: firstSet ? [castSet(firstSet)] : [],
+          conditioning_sets: []
+        };
+        set({ exercises: [...exercises, newExercise] });
+      }
     }
   },
   
@@ -253,33 +281,56 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
     set({ exercises: exercises.filter(e => e.id !== exerciseId) });
   },
   
-  addSet: async (exerciseId: string, setType: 'warmup' | 'working' = 'working') => {
+  addSet: async (exerciseId: string, setType: 'warmup' | 'working' = 'working', isUnilateral: boolean = false) => {
     const { exercises } = get();
     const exercise = exercises.find(e => e.id === exerciseId);
-    console.log('[addSet] exerciseId:', exerciseId, 'setType:', setType, 'found:', !!exercise);
     if (!exercise) return;
     
-    const newSetNumber = (exercise.sets?.length || 0) + 1;
-    
-    const { data: newSet, error } = await supabase
-      .from('exercise_sets')
-      .insert({
-        exercise_id: exerciseId,
-        set_number: newSetNumber,
-        set_type: setType,
-      })
-      .select()
-      .single();
-    
-    if (error || !newSet) return;
-    
-    set({
-      exercises: exercises.map(e => 
-        e.id === exerciseId 
-          ? { ...e, sets: [...(e.sets || []), castSet(newSet)] }
-          : e
-      )
-    });
+    if (isUnilateral) {
+      // For unilateral exercises, find max set_number among existing sets
+      const maxSetNum = Math.max(0, ...(exercise.sets || []).map(s => s.set_number));
+      const newSetNumber = maxSetNum + 1;
+      
+      const { data: newSets, error } = await supabase
+        .from('exercise_sets')
+        .insert([
+          { exercise_id: exerciseId, set_number: newSetNumber, set_type: setType, side: 'left' },
+          { exercise_id: exerciseId, set_number: newSetNumber, set_type: setType, side: 'right' },
+        ])
+        .select();
+      
+      if (error || !newSets) return;
+      
+      set({
+        exercises: exercises.map(e => 
+          e.id === exerciseId 
+            ? { ...e, sets: [...(e.sets || []), ...castSets(newSets)].sort((a, b) => a.set_number - b.set_number || (a.side === 'left' ? -1 : 1)) }
+            : e
+        )
+      });
+    } else {
+      const newSetNumber = (exercise.sets?.length || 0) + 1;
+      
+      const { data: newSet, error } = await supabase
+        .from('exercise_sets')
+        .insert({
+          exercise_id: exerciseId,
+          set_number: newSetNumber,
+          set_type: setType,
+        })
+        .select()
+        .single();
+      
+      if (error || !newSet) return;
+      
+      set({
+        exercises: exercises.map(e => 
+          e.id === exerciseId 
+            ? { ...e, sets: [...(e.sets || []), castSet(newSet)] }
+            : e
+        )
+      });
+    }
   },
   
   removeSet: async (setId: string) => {

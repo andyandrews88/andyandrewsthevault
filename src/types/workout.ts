@@ -35,6 +35,7 @@ export interface ExerciseSet {
   rir: number | null;
   duration_seconds: number | null;
   set_type: 'warmup' | 'working';
+  side: 'left' | 'right' | null;
   is_completed: boolean;
   created_at: string;
 }

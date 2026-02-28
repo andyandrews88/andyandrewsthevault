@@ -17,6 +17,7 @@ interface SetRowProps {
   disabled?: boolean;
   isTimed?: boolean;
   isBodyweight?: boolean;
+  side?: 'left' | 'right' | null;
 }
 
 export function SetRow({ 
@@ -28,6 +29,7 @@ export function SetRow({
   disabled,
   isTimed = false,
   isBodyweight = false,
+  side = null,
 }: SetRowProps) {
   const { preferredUnit } = useWorkoutStore();
   const [weight, setWeight] = useState(set.weight?.toString() || '');
@@ -137,12 +139,12 @@ export function SetRow({
         "grid grid-cols-[28px_1fr_1fr_1fr_44px_36px_24px] gap-1 sm:gap-1.5 items-center py-2 border-b border-border/50 last:border-0",
         isWarmup && "opacity-60 bg-muted/20"
       )}>
-        {/* Set Number / Warmup Toggle */}
+        {/* Set Number / Warmup Toggle / Side Badge */}
         <button
           onClick={toggleSetType}
           disabled={set.is_completed || disabled}
           className={cn(
-            "text-center text-sm font-medium cursor-pointer select-none rounded",
+            "text-center text-sm font-medium cursor-pointer select-none rounded flex items-center justify-center gap-0.5",
             isWarmup 
               ? "text-warning font-bold" 
               : "text-muted-foreground"
@@ -150,6 +152,12 @@ export function SetRow({
           title={isWarmup ? "Warmup set (tap to make working)" : "Working set (tap to make warmup)"}
         >
           {isWarmup ? 'W' : set.set_number}
+          {side === 'left' && (
+            <span className="text-[9px] font-bold text-blue-400">L</span>
+          )}
+          {side === 'right' && (
+            <span className="text-[9px] font-bold text-green-400">R</span>
+          )}
         </button>
         
         {/* Previous Data */}

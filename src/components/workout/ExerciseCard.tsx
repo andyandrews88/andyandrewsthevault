@@ -22,7 +22,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toEmbedUrl } from "@/lib/vaultService";
 import { cn } from "@/lib/utils";
 import { AdminExerciseMenu } from "./AdminExerciseMenu";
-import { isTimedExercise, isBodyweightExercise } from "@/lib/movementPatterns";
+import { isTimedExercise, isBodyweightExercise, isUnilateralExercise } from "@/lib/movementPatterns";
 import { useAdminCheck } from "@/hooks/useAdminCheck";
 
 interface ExerciseCardProps {
@@ -48,6 +48,7 @@ export function ExerciseCard({ exercise, onRemove, allExercises = [], onMoveUp, 
   const [isLoadingPrevious, setIsLoadingPrevious] = useState(false);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [isTimed, setIsTimed] = useState(false);
+  const [isUnilateral, setIsUnilateral] = useState(false);
   const isBW = isBodyweightExercise(exercise.exercise_name);
   const [showVideo, setShowVideo] = useState(false);
   const [showAddMenu, setShowAddMenu] = useState(false);
@@ -61,12 +62,13 @@ export function ExerciseCard({ exercise, onRemove, allExercises = [], onMoveUp, 
     const fetchLibrary = async () => {
       const { data } = await supabase
         .from('exercise_library')
-        .select('video_url, is_timed')
+        .select('video_url, is_timed, is_unilateral')
         .ilike('name', exercise.exercise_name)
         .maybeSingle();
       if (!cancelled) {
         if (data?.video_url) setVideoUrl(data.video_url);
         setIsTimed(isTimedExercise(exercise.exercise_name, (data as any)?.is_timed));
+        setIsUnilateral(isUnilateralExercise(exercise.exercise_name, (data as any)?.is_unilateral));
       }
     };
     fetchLibrary();
@@ -238,18 +240,25 @@ export function ExerciseCard({ exercise, onRemove, allExercises = [], onMoveUp, 
         
         {/* Sets */}
         <div className="px-4">
-          {exercise.sets?.map((set, index) => (
-            <SetRow
-              key={set.id}
-              set={set}
-              previousData={previousSets[index] || null}
-              onUpdate={(data) => updateSet(set.id, data)}
-              onComplete={(weight, reps, rir) => { handleCompleteSet(set.id, weight, reps, rir); }}
-              onRemove={() => removeSet(set.id)}
-              isTimed={isTimed}
-              isBodyweight={isBW}
-            />
-          ))}
+          {exercise.sets?.map((set, index) => {
+            // For unilateral sets, match previous data by set_number & side
+            const prevIndex = isUnilateral
+              ? exercise.sets!.filter(s => s.side === set.side).indexOf(set)
+              : index;
+            return (
+              <SetRow
+                key={set.id}
+                set={set}
+                previousData={previousSets[prevIndex] || null}
+                onUpdate={(data) => updateSet(set.id, data)}
+                onComplete={(weight, reps, rir) => { handleCompleteSet(set.id, weight, reps, rir); }}
+                onRemove={() => removeSet(set.id)}
+                isTimed={isTimed}
+                isBodyweight={isBW}
+                side={set.side}
+              />
+            );
+          })}
         </div>
         
         {/* Add Set Row */}
@@ -257,7 +266,7 @@ export function ExerciseCard({ exercise, onRemove, allExercises = [], onMoveUp, 
           <Button 
             variant="outline" 
             size="sm" 
-            onClick={() => addSet(exercise.id, 'working')}
+            onClick={() => addSet(exercise.id, 'working', isUnilateral)}
             className="flex-1"
           >
             <Plus className="h-4 w-4 mr-2" />
@@ -266,7 +275,7 @@ export function ExerciseCard({ exercise, onRemove, allExercises = [], onMoveUp, 
           <Button 
             variant="ghost" 
             size="sm" 
-            onClick={() => addSet(exercise.id, 'warmup')}
+            onClick={() => addSet(exercise.id, 'warmup', isUnilateral)}
             className="text-muted-foreground text-xs"
           >
             + Warmup
