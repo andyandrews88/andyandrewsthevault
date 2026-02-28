@@ -85,7 +85,8 @@ export function ExerciseCard({ exercise, onRemove, allExercises = [] }: Exercise
 
   // Exercises available for superset linking (not this one, not already in same group)
   const linkableExercises = allExercises.filter(e => 
-    e.id !== exercise.id && e.superset_group !== exercise.superset_group
+    e.id !== exercise.id && 
+    (!exercise.superset_group || e.superset_group !== exercise.superset_group)
   );
 
   return (
@@ -221,7 +222,7 @@ export function ExerciseCard({ exercise, onRemove, allExercises = [] }: Exercise
           ))}
         </div>
         
-        {/* Add Set Buttons */}
+        {/* Add Set Row */}
         <div className="p-3 border-t border-border/50 flex gap-2">
           <Button 
             variant="outline" 
@@ -240,43 +241,50 @@ export function ExerciseCard({ exercise, onRemove, allExercises = [] }: Exercise
           >
             + Warmup
           </Button>
-          {linkableExercises.length > 0 && !isSupersetted && (
+        </div>
+
+        {/* Superset Row — always visible when linkable exercises exist */}
+        {linkableExercises.length > 0 && !isSupersetted && (
+          <div className="px-3 pb-3">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button 
-                  variant="ghost" 
+                  variant="outline" 
                   size="sm" 
-                  className="text-primary text-xs gap-1"
+                  className="w-full border-primary/40 text-primary hover:bg-primary/10 gap-2"
                 >
-                  <Link className="h-3.5 w-3.5" />
-                  Superset
+                  <Link className="h-4 w-4" />
+                  Link as Superset
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">Link with:</div>
+              <DropdownMenuContent align="center" className="w-56">
+                <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">Pair with:</div>
                 {linkableExercises.map(e => (
                   <DropdownMenuItem
                     key={e.id}
                     onClick={() => linkSuperset(exercise.id, e.id)}
+                    className="font-medium"
                   >
                     {e.exercise_name}
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
-          )}
-          {isSupersetted && (
+          </div>
+        )}
+        {isSupersetted && (
+          <div className="px-3 pb-3">
             <Button 
-              variant="ghost" 
+              variant="outline" 
               size="sm" 
               onClick={() => unlinkSuperset(exercise.id)}
-              className="text-destructive text-xs gap-1"
+              className="w-full border-destructive/40 text-destructive hover:bg-destructive/10 gap-2"
             >
-              <Unlink className="h-3.5 w-3.5" />
-              Unlink
+              <Unlink className="h-4 w-4" />
+              Unlink Superset
             </Button>
-          )}
-        </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
