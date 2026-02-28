@@ -26,6 +26,7 @@ import { AdminExerciseMenu } from "./AdminExerciseMenu";
 import { isTimedExercise, isBodyweightExercise, isUnilateralExercise } from "@/lib/movementPatterns";
 import { useAdminCheck } from "@/hooks/useAdminCheck";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 
 interface ExerciseCardProps {
   exercise: WorkoutExercise;
@@ -41,6 +42,46 @@ function parsePercentageHint(notes: string | null | undefined): string | null {
   if (!notes) return null;
   const match = notes.match(/@\s*(\d+(?:\.\d+)?)%\s*TM/);
   return match ? match[1] : null;
+}
+
+function SupersetLinkButton({ exercise, linkableExercises, linkSuperset }: { exercise: WorkoutExercise; linkableExercises: WorkoutExercise[]; linkSuperset: (a: string, b: string) => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="px-3 pb-3">
+      <ResponsiveSheet
+        open={open}
+        onOpenChange={setOpen}
+        title="Pair with exercise"
+        trigger={
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="w-full border-primary/40 text-primary hover:bg-primary/10 gap-2"
+          >
+            <Link className="h-4 w-4" />
+            Link as Superset
+          </Button>
+        }
+        popoverAlign="center"
+        popoverClassName="w-56"
+      >
+        <div className="space-y-1">
+          <p className="text-xs font-medium text-muted-foreground mb-2">Pair with:</p>
+          {linkableExercises.map(e => (
+            <Button
+              key={e.id}
+              variant="ghost"
+              size="sm"
+              className="w-full justify-start font-medium"
+              onClick={() => { linkSuperset(exercise.id, e.id); setOpen(false); }}
+            >
+              {e.exercise_name}
+            </Button>
+          ))}
+        </div>
+      </ResponsiveSheet>
+    </div>
+  );
 }
 
 export function ExerciseCard({ exercise, onRemove, allExercises = [], onMoveUp, onMoveDown, canMoveUp = false, canMoveDown = false }: ExerciseCardProps) {
@@ -305,32 +346,7 @@ export function ExerciseCard({ exercise, onRemove, allExercises = [], onMoveUp, 
 
         {/* Superset Row — always visible when linkable exercises exist */}
         {linkableExercises.length > 0 && !isSupersetted && (
-          <div className="px-3 pb-3">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="w-full border-primary/40 text-primary hover:bg-primary/10 gap-2"
-                >
-                  <Link className="h-4 w-4" />
-                  Link as Superset
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="center" className="w-56">
-                <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">Pair with:</div>
-                {linkableExercises.map(e => (
-                  <DropdownMenuItem
-                    key={e.id}
-                    onClick={() => linkSuperset(exercise.id, e.id)}
-                    className="font-medium"
-                  >
-                    {e.exercise_name}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+          <SupersetLinkButton exercise={exercise} linkableExercises={linkableExercises} linkSuperset={linkSuperset} />
         )}
         {isSupersetted && (
           <div className="px-3 pb-3">

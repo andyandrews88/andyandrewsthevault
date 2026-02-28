@@ -7,13 +7,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CalendarIcon, Scale, Ruler, Scan, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useProgressStore } from "@/stores/progressStore";
 import { toast } from "sonner";
+import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { 
   type BodyEntryFormData, 
   type MeasurementSource,
@@ -96,14 +96,19 @@ export function BodyEntryForm({ onSuccess }: BodyEntryFormProps) {
     }
   };
 
+  const [calendarOpen, setCalendarOpen] = useState(false);
+
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       {/* Date and Unit Toggle */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
         <div className="flex-1">
           <Label>Date</Label>
-          <Popover>
-            <PopoverTrigger asChild>
+          <ResponsiveSheet
+            open={calendarOpen}
+            onOpenChange={setCalendarOpen}
+            title="Select Date"
+            trigger={
               <Button
                 variant="outline"
                 className={cn(
@@ -114,16 +119,17 @@ export function BodyEntryForm({ onSuccess }: BodyEntryFormProps) {
                 <CalendarIcon className="mr-2 h-4 w-4" />
                 {date ? format(date, "PPP") : <span>Pick a date</span>}
               </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={date}
-                onSelect={(d) => d && setDate(d)}
-                initialFocus
-              />
-            </PopoverContent>
-          </Popover>
+            }
+            popoverAlign="start"
+            popoverClassName="w-auto p-0"
+          >
+            <Calendar
+              mode="single"
+              selected={date}
+              onSelect={(d) => { if (d) { setDate(d); setCalendarOpen(false); } }}
+              initialFocus
+            />
+          </ResponsiveSheet>
         </div>
         
         <div className="flex items-center gap-2">
