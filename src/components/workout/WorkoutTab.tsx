@@ -10,9 +10,16 @@ import { ActivityHeatmap } from "./ActivityHeatmap";
 import { PRBoard } from "./PRBoard";
 import { ProgramCalendarView } from "./ProgramCalendarView";
 import { MovementBalanceChart } from "./MovementBalanceChart";
+import { useWorkoutStore } from "@/stores/workoutStore";
 
 export function WorkoutTab() {
   const [activeTab, setActiveTab] = useState("logger");
+  const { loadWorkoutIntoActive, editWorkout } = useWorkoutStore();
+
+  const handleOpenWorkout = async (workoutId: string) => {
+    await loadWorkoutIntoActive(workoutId);
+    setActiveTab("logger");
+  };
 
   return (
     <div className="space-y-6">
@@ -50,24 +57,20 @@ export function WorkoutTab() {
         </TabsContent>
 
         <TabsContent value="calendar">
-          <ProgramCalendarView onSwitchToLogger={() => setActiveTab("logger")} />
+          <ProgramCalendarView
+            onSwitchToLogger={() => setActiveTab("logger")}
+            onOpenWorkout={handleOpenWorkout}
+          />
         </TabsContent>
 
         <TabsContent value="dashboard">
           <div className="space-y-6">
-            {/* Strength & Volume Charts */}
             <div className="grid md:grid-cols-2 gap-6">
               <StrengthTrendChart />
               <VolumeTrendChart />
             </div>
-
-            {/* Movement Balance */}
             <MovementBalanceChart />
-
-            {/* Heatmap */}
             <ActivityHeatmap />
-
-            {/* PR Board */}
             <PRBoard />
           </div>
         </TabsContent>
