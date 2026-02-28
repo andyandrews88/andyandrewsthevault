@@ -411,6 +411,31 @@ export function isTimedExercise(name: string, dbIsTimed?: boolean | null): boole
   return TIME_BASED_EXERCISES.has(name.toLowerCase().trim());
 }
 
+// ─── Unilateral Exercises ─────────────────────────────────────────────
+export const UNILATERAL_EXERCISES = new Set([
+  'single-leg romanian deadlift',
+  'bulgarian split squat',
+  'walking lunge', 'reverse lunge', 'forward lunge', 'lateral lunge',
+  'step-up', 'box step-up',
+  'pistol squat',
+  'leg press (single-leg)',
+  'single-leg calf raise',
+  'single-leg glute bridge',
+  'hip thrust (single-leg)',
+  'dumbbell row (single-arm)', 'meadows row',
+  'concentration curl',
+  'side plank', 'suitcase carry',
+]);
+
+/**
+ * Check if an exercise should use unilateral (L/R) tracking.
+ * Checks DB flag first, then falls back to hardcoded set.
+ */
+export function isUnilateralExercise(name: string, dbIsUnilateral?: boolean | null): boolean {
+  if (dbIsUnilateral != null) return dbIsUnilateral;
+  return UNILATERAL_EXERCISES.has(name.toLowerCase().trim());
+}
+
 // ─── Volume Calculation ───────────────────────────────────────────────
 const DEFAULT_BODYWEIGHT_KG = 77;
 

@@ -15,7 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Dumbbell, Wrench, Video, Timer } from "lucide-react";
+import { Dumbbell, Wrench, Video, Timer, ArrowLeftRight } from "lucide-react";
 import { MOVEMENT_PATTERN_LABELS, type MovementPattern, EQUIPMENT_MODIFIER_VALUES, type EquipmentType } from "@/lib/movementPatterns";
 import { upsertExerciseLibraryField } from "@/lib/exerciseLibraryUpsert";
 
@@ -51,6 +51,10 @@ export function AdminExerciseMenu({ exerciseName, isAdmin }: AdminExerciseMenuPr
 
   const handleToggleTimed = async (isTimed: boolean) => {
     await upsertExerciseLibraryField(exerciseName, { is_timed: isTimed });
+  };
+
+  const handleToggleUnilateral = async (isUnilateral: boolean) => {
+    await upsertExerciseLibraryField(exerciseName, { is_unilateral: isUnilateral });
   };
 
   return (
@@ -103,6 +107,21 @@ export function AdminExerciseMenu({ exerciseName, isAdmin }: AdminExerciseMenuPr
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => handleToggleTimed(false)}>
             ✗ No (reps)
+          </DropdownMenuItem>
+        </DropdownMenuSubContent>
+      </DropdownMenuSub>
+
+      <DropdownMenuSub>
+        <DropdownMenuSubTrigger>
+          <ArrowLeftRight className="h-4 w-4 mr-2" />
+          Unilateral (L/R)
+        </DropdownMenuSubTrigger>
+        <DropdownMenuSubContent>
+          <DropdownMenuItem onClick={() => handleToggleUnilateral(true)}>
+            ✓ Yes (left &amp; right)
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => handleToggleUnilateral(false)}>
+            ✗ No (bilateral)
           </DropdownMenuItem>
         </DropdownMenuSubContent>
       </DropdownMenuSub>

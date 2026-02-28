@@ -412,6 +412,7 @@ export type Database = {
           equipment_type: string | null
           id: string
           is_timed: boolean
+          is_unilateral: boolean
           movement_pattern: string | null
           muscle_group: string | null
           name: string
@@ -425,6 +426,7 @@ export type Database = {
           equipment_type?: string | null
           id?: string
           is_timed?: boolean
+          is_unilateral?: boolean
           movement_pattern?: string | null
           muscle_group?: string | null
           name: string
@@ -438,6 +440,7 @@ export type Database = {
           equipment_type?: string | null
           id?: string
           is_timed?: boolean
+          is_unilateral?: boolean
           movement_pattern?: string | null
           muscle_group?: string | null
           name?: string
@@ -459,6 +462,7 @@ export type Database = {
           rpe: number | null
           set_number: number
           set_type: string
+          side: string | null
           weight: number | null
         }
         Insert: {
@@ -472,6 +476,7 @@ export type Database = {
           rpe?: number | null
           set_number?: number
           set_type?: string
+          side?: string | null
           weight?: number | null
         }
         Update: {
@@ -485,6 +490,7 @@ export type Database = {
           rpe?: number | null
           set_number?: number
           set_type?: string
+          side?: string | null
           weight?: number | null
         }
         Relationships: [
