@@ -49,7 +49,7 @@ serve(async (req) => {
       }
     }
 
-    const userPrompt = `This athlete's past 7 days:\n${lines.join("\n")}\n\nWrite a weekly performance review structured into exactly four sections using ## markdown headers:\n## Training\n## Nutrition\n## Lifestyle\n## Overall Summary\n\nWrite 3-4 sentences per section. Be direct and coaching-oriented. Mention specific numbers. If conditioning work was done, acknowledge it in the Training section. If RIR data is available, remember: lower RIR = harder effort (0 = failure, 1 = one rep left, 2 = sweet spot, 3+ = moderate/easy). Cross-reference RIR with readiness scores to evaluate autoregulation. If daily check-in notes are provided, identify patterns and correlate them with the data in the Lifestyle section. If a metric needs attention, call it out with a suggestion. Where appropriate, ground your recommendations in established coaching frameworks from Huberman, Walker, OPEX, Precision Nutrition, or NCI.`;
+    const userPrompt = `This athlete's past 7 days:\n${lines.join("\n")}\n\nWrite a weekly performance review structured into exactly four sections using ## markdown headers:\n## Training\n## Nutrition\n## Lifestyle\n## Overall Summary\n\nWrite 3-4 sentences per section. Be direct and coaching-oriented. Mention specific numbers. If conditioning work was done, acknowledge it in the Training section. If RIR data is available, remember: lower RIR = harder effort (0 = failure, 1 = one rep left, 2 = sweet spot, 3+ = moderate/easy). Cross-reference RIR with readiness scores to evaluate autoregulation. If daily check-in notes are provided, identify patterns and correlate them with the data in the Lifestyle section. If a metric needs attention, call it out with a suggestion. Give recommendations as direct coaching advice. Never cite or name-drop any experts, books, or certifications — just give the recommendation.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -74,10 +74,33 @@ RIR SCALE: lower number = harder set. 0 = failure, 1 = one rep left, 2 = product
 
 AUTOREGULATION LOGIC: Cross-reference RIR with readiness. High readiness + low RIR (0-2) = ideal. High readiness + high RIR (3+) = sandbagging. Low readiness + high RIR (3+) = smart autoregulation. Low readiness + low RIR (0-1) = overreaching risk.
 
-EXPERT KNOWLEDGE BASE — Limit to 1-2 expert references per review, pick the most relevant:
-SLEEP & RECOVERY: Andrew Huberman (morning sunlight, delayed caffeine, NSDR), Matthew Walker (sleep consistency, 7-9 hours, cool environment).
-TRAINING: OPEX Fitness (aerobic base hierarchy, fitness-fatigue model, life stress as training variable).
-NUTRITION: Precision Nutrition (hand-portion method, 80% consistency, anchor habits), NCI (periodized nutrition, stress-eating patterns, sustainable habits).`,
+COACHING KNOWLEDGE BASE — Use this knowledge to inform recommendations. Never cite sources or name-drop experts.
+
+SLEEP & RECOVERY:
+- 7-9 hours is non-negotiable for recovery. Consistency of sleep/wake times (±1 hour, 7 days/week) matters more than total hours.
+- Morning sunlight exposure within 30-60 min of waking sets circadian rhythm and improves sleep quality that night.
+- Delay caffeine 90-120 min after waking to avoid afternoon crashes. No caffeine after 4pm.
+- A 1-3 degree drop in body temperature is required to initiate sleep. Cool bedroom (65-68°F), warm shower before bed.
+- Non-Sleep Deep Rest (NSDR) protocols (10-20 min yoga nidra or body scan) can partially restore missed sleep and reduce cortisol.
+- Sleep debt is cumulative and cannot be "caught up" on weekends.
+
+TRAINING & AUTOREGULATION:
+- Life stress is a training variable. High life stress = reduce training volume/intensity, not increase it.
+- The aerobic system is the foundation of all energy systems. Aerobic base work (nasal-breathing pace) should comprise 70-80% of conditioning volume.
+- Fitness-fatigue model: performance = fitness minus fatigue. Deload when accumulated fatigue exceeds fitness gains.
+- The body adapts to stress during recovery, not during the session itself.
+- Gain (strength), Pain (glycolytic), Sustain (aerobic) — balanced development across all three energy systems.
+
+NUTRITION & HABITS:
+- One habit at a time. 80%+ adherence when focusing on a single behavior change; <5% success when attempting 3+ simultaneously.
+- Hand-portion method: 1 palm protein, 1 fist vegetables, 1 cupped hand carbs, 1 thumb fats — per meal as baseline.
+- 80% consistency beats 100% perfection. Missing 1-2 meals per week from plan is normal and sustainable.
+- Caloric deficit is king for fat loss, but sustained deficits cause metabolic adaptation — periodic diet breaks or maintenance phases are essential.
+- Protein intake 0.7-1.2g/lb bodyweight depending on activity type and goals.
+- Stress-eating is a symptom, not the problem. Address sleep, stress management, and meal timing before restricting further.
+- Periodize nutrition: fat loss phases, maintenance phases, and performance phases serve different goals and cannot be pursued simultaneously.
+
+IMPORTANT: Never reference specific experts, authors, books, or coaching organizations by name. Deliver all advice as direct coaching guidance.`,
           },
           { role: "user", content: userPrompt },
         ],

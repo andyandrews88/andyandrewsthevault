@@ -213,7 +213,7 @@ Categorise EVERY client into one of three tiers:
 
 List each client with their tier and a one-line explanation.
 
-Be specific with names, numbers, and dates. No generic advice. Every insight must be backed by the data provided.`;
+Be specific with names, numbers, and dates. No generic advice. Every insight must be backed by the data provided. Never reference specific experts, authors, or coaching organizations by name. Deliver all advice as direct coaching guidance.`;
 
     // Call Lovable AI
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
