@@ -1,6 +1,7 @@
 import { useAuditStore } from "@/stores/auditStore";
 import { useNavigate } from "react-router-dom";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -55,10 +56,13 @@ const tierBadges = {
 
 export function ResultsPage() {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const { results, reset } = useAuditStore();
   const [aiRecap, setAiRecap] = useState<string | null>(null);
   const [recapLoading, setRecapLoading] = useState(false);
   const [recapError, setRecapError] = useState<string | null>(null);
+  const [recapSlow, setRecapSlow] = useState(false);
+  const slowTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
   const recommendedResources = useMemo(() => {
     if (!results) return [];
@@ -70,17 +74,30 @@ export function ResultsPage() {
     if (!results) return;
     setRecapLoading(true);
     setRecapError(null);
+    setRecapSlow(false);
+
+    // Show "taking longer" message after 30s
+    slowTimerRef.current = setTimeout(() => setRecapSlow(true), 30000);
+
     try {
       const { data, error } = await supabase.functions.invoke('audit-recap', {
         body: { results }
       });
-      if (error) throw error;
+      if (error) {
+        // Handle specific HTTP errors
+        const status = (error as any)?.status;
+        if (status === 429) throw new Error('Rate limit reached — please wait a moment and try again.');
+        if (status === 402) throw new Error('AI credits exhausted. Your scores and leaks are still shown below.');
+        throw error;
+      }
       setAiRecap(data.recap);
     } catch (e: any) {
       console.error('Recap error:', e);
       setRecapError(e.message || 'Failed to generate analysis');
     } finally {
       setRecapLoading(false);
+      setRecapSlow(false);
+      clearTimeout(slowTimerRef.current);
     }
   };
 
@@ -175,12 +192,12 @@ export function ResultsPage() {
             <CardDescription>Your metrics compared to Foundation and Performance benchmarks</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="h-[400px] w-full">
+            <div className={`w-full ${isMobile ? 'h-[300px]' : 'h-[400px]'}`}>
               <ResponsiveContainer width="100%" height="100%">
                 <RadarChart data={chartData}>
                   <PolarGrid stroke="hsl(215 14% 20%)" />
-                  <PolarAngleAxis dataKey="metric" tick={{ fill: 'hsl(215 14% 50%)', fontSize: 12 }} />
-                  <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fill: 'hsl(215 14% 40%)' }} tickCount={5} />
+                  <PolarAngleAxis dataKey="metric" tick={{ fill: 'hsl(215 14% 50%)', fontSize: isMobile ? 10 : 12 }} />
+                  <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fill: 'hsl(215 14% 40%)' }} tickCount={isMobile ? 3 : 5} />
                   <Radar name="Foundation Baseline" dataKey="foundation" stroke="hsl(215 14% 40%)" fill="hsl(215 14% 40%)" fillOpacity={0.1} strokeDasharray="4 4" />
                   <Radar name="Performance Target" dataKey="performance" stroke="hsl(45 93% 58%)" fill="hsl(45 93% 58%)" fillOpacity={0.1} strokeDasharray="4 4" />
                   <Radar name="Your Results" dataKey="user" stroke="hsl(192 91% 54%)" fill="hsl(192 91% 54%)" fillOpacity={0.3} strokeWidth={2} />
@@ -213,7 +230,12 @@ export function ResultsPage() {
           <CardContent>
             {recapLoading && (
               <div className="space-y-3">
-                <p className="text-sm text-muted-foreground animate-pulse">Generating your personalized analysis...</p>
+                <p className="text-sm text-muted-foreground animate-pulse">
+                  {recapSlow ? 'Taking longer than expected...' : 'Generating your personalized analysis...'}
+                </p>
+                {recapSlow && (
+                  <Button variant="outline" size="sm" onClick={fetchRecap}>Retry Now</Button>
+                )}
                 <Skeleton className="h-4 w-full" />
                 <Skeleton className="h-4 w-5/6" />
                 <Skeleton className="h-4 w-4/6" />
@@ -228,7 +250,7 @@ export function ResultsPage() {
               </div>
             )}
             {aiRecap && !recapLoading && (
-              <div className="prose prose-sm prose-invert max-w-none">
+              <div className="prose prose-sm prose-invert max-w-none overflow-x-auto break-words">
                 {renderMarkdown(aiRecap)}
               </div>
             )}
