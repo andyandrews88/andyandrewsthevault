@@ -27,7 +27,8 @@ import {
   Dumbbell,
   Clock,
   TrendingUp,
-  FileText
+  FileText,
+  Timer
 } from "lucide-react";
 import { useWorkoutStore } from "@/stores/workoutStore";
 import { ExerciseCard } from "./ExerciseCard";
@@ -86,6 +87,7 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
   const [workoutName, setWorkoutName] = useState("");
   const [startTime] = useState(new Date());
   const [programWorkoutsForDate, setProgramWorkoutsForDate] = useState<UserCalendarWorkout[]>([]);
+  const [showRestTimer, setShowRestTimer] = useState(false);
 
   const fetchProgramWorkoutsForDate = async (date: Date) => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -401,15 +403,26 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
           </p>
         </div>
         
-        <Button 
-          variant="hero" 
-          size="sm" 
-          onClick={handleFinish}
-          disabled={isSaving || exercises.length === 0}
-        >
-          <Save className="h-4 w-4 mr-2" />
-          Finish
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="outline" 
+            size="icon"
+            className="h-9 w-9"
+            onClick={() => setShowRestTimer(true)}
+            title="Rest Timer"
+          >
+            <Timer className="h-4 w-4" />
+          </Button>
+          <Button 
+            variant="hero" 
+            size="sm" 
+            onClick={handleFinish}
+            disabled={isSaving || exercises.length === 0}
+          >
+            <Save className="h-4 w-4 mr-2" />
+            Finish
+          </Button>
+        </div>
       </div>
       
       {/* Exercise Cards */}
@@ -496,7 +509,11 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
       </Card>
 
       {/* Rest Timer */}
-      <RestTimer trigger={restTimerTrigger} />
+      <RestTimer 
+        trigger={restTimerTrigger} 
+        manualOpen={showRestTimer}
+        onManualClose={() => setShowRestTimer(false)}
+      />
       
       {/* Exercise Search Dialog */}
       <ExerciseSearch
