@@ -646,6 +646,54 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify({ results }), { headers: corsHeaders });
       }
 
+      // ==================== COACHING ANALYTICS DASHBOARD ====================
+      case "get_coaching_dashboard": {
+        const { userId, fromDate, toDate } = body;
+        if (!userId) throw new Error("userId required");
+
+        const from = fromDate || new Date(Date.now() - 28 * 86400000).toISOString().split("T")[0];
+        const to = toDate || new Date().toISOString().split("T")[0];
+
+        // Weekly volume from view
+        const { data: volumeData, error: volErr } = await serviceClient
+          .from("weekly_volume_summary")
+          .select("*")
+          .eq("user_id", userId)
+          .gte("week_start", from)
+          .lte("week_start", to)
+          .order("week_start", { ascending: true });
+        if (volErr) throw volErr;
+
+        // Weekly RIR from view
+        const { data: rirData, error: rirErr } = await serviceClient
+          .from("weekly_rir_summary")
+          .select("*")
+          .eq("user_id", userId)
+          .gte("week_start", from)
+          .lte("week_start", to)
+          .order("week_start", { ascending: true });
+        if (rirErr) throw rirErr;
+
+        // Compliance: completed vs total workouts in range
+        const { data: allWorkouts, error: compErr } = await serviceClient
+          .from("workouts")
+          .select("id, is_completed")
+          .eq("user_id", userId)
+          .gte("date", from)
+          .lte("date", to);
+        if (compErr) throw compErr;
+
+        const total = allWorkouts?.length || 0;
+        const completed = allWorkouts?.filter((w: any) => w.is_completed).length || 0;
+        const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+        return new Response(JSON.stringify({
+          weeklyVolume: volumeData || [],
+          weeklyRir: rirData || [],
+          compliance: { completed, total, incomplete: total - completed, percentage },
+        }), { headers: corsHeaders });
+      }
+
       default:
         return new Response(
           JSON.stringify({ error: `Unknown action: ${action}` }),

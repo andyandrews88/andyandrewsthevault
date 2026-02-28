@@ -10,6 +10,8 @@ import { ActivityHeatmap } from "./ActivityHeatmap";
 import { PRBoard } from "./PRBoard";
 import { ProgramCalendarView } from "./ProgramCalendarView";
 import { MovementBalanceChart } from "./MovementBalanceChart";
+import { IntensityTrendChart } from "./IntensityTrendChart";
+import { ComplianceDonut } from "./ComplianceDonut";
 import { useWorkoutStore } from "@/stores/workoutStore";
 
 export function WorkoutTab() {
@@ -68,6 +70,10 @@ export function WorkoutTab() {
             <div className="grid md:grid-cols-2 gap-6">
               <StrengthTrendChart />
               <VolumeTrendChart />
+            </div>
+            <div className="grid md:grid-cols-2 gap-6">
+              <IntensityTrendChart />
+              <ComplianceDonut />
             </div>
             <MovementBalanceChart />
             <ActivityHeatmap />
