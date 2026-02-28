@@ -4,12 +4,79 @@ import { supabase } from "@/integrations/supabase/client";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
-import { formatDistanceToNow, format } from "date-fns";
+import { formatDistanceToNow, format, differenceInDays } from "date-fns";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
+import { Users, Activity, TrendingUp, CalendarCheck } from "lucide-react";
 
 type Section = "users" | "training" | "nutrition" | "lifestyle" | "community" | "content";
+
+function getInitials(name: string) {
+  return name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
+}
+
+function DateBadge({ date, label }: { date: string | null; label?: string }) {
+  if (!date) return <span className="text-xs text-muted-foreground">—</span>;
+  const days = differenceInDays(new Date(), new Date(date));
+  const variant = days <= 3 ? "success" : days <= 7 ? "warning" : "destructive";
+  return (
+    <Badge variant={variant} className="text-[10px] font-normal">
+      {formatDistanceToNow(new Date(date), { addSuffix: true })}
+    </Badge>
+  );
+}
+
+function ComplianceText({ scheduled, completed }: { scheduled: number; completed: number }) {
+  if (scheduled === 0) return <span className="text-xs text-muted-foreground">—</span>;
+  const pct = Math.round((completed / scheduled) * 100);
+  const color = pct >= 80 ? "text-green-500" : pct >= 50 ? "text-yellow-500" : "text-red-500";
+  return <span className={`text-xs font-semibold ${color}`}>{pct}%</span>;
+}
+
+function UserStatCards({ users }: { users: any[] }) {
+  const total = users.length;
+  const now = new Date();
+  const weekAgo = new Date(now.getTime() - 7 * 86400000);
+
+  const activeThisWeek = users.filter(u => u.lastWorkoutDate && new Date(u.lastWorkoutDate) >= weekAgo).length;
+
+  const usersWithCompliance = users.filter(u => u.scheduledWorkouts > 0);
+  const avgCompliance = usersWithCompliance.length > 0
+    ? Math.round(usersWithCompliance.reduce((sum, u) => sum + (u.completedWorkouts / u.scheduledWorkouts) * 100, 0) / usersWithCompliance.length)
+    : 0;
+
+  const avgStreak = total > 0
+    ? Math.round(users.reduce((sum, u) => sum + (u.checkinStreak || 0), 0) / total * 10) / 10
+    : 0;
+
+  const stats = [
+    { label: "Total Clients", value: total, icon: Users },
+    { label: "Compliance", value: `${avgCompliance}%`, icon: TrendingUp },
+    { label: "Active This Week", value: activeThisWeek, icon: Activity },
+    { label: "Avg Streak", value: `${avgStreak}d`, icon: CalendarCheck },
+  ];
+
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
+      {stats.map(s => (
+        <Card key={s.label} className="bg-muted/30">
+          <CardContent className="p-3 flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-primary/10">
+              <s.icon className="w-4 h-4 text-primary" />
+            </div>
+            <div>
+              <p className="text-lg font-bold leading-none">{s.value}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">{s.label}</p>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
 
 export function AdminDetailDrawer({
   section,
@@ -28,11 +95,8 @@ export function AdminDetailDrawer({
 
   useEffect(() => {
     if (!open || !section) return;
-
-    // Avoid refetching for the same section when already loaded
     const key = section;
     if (prevKeyRef.current === key && data) return;
-
     prevKeyRef.current = key;
     setData(null);
     setLoading(true);
@@ -50,7 +114,7 @@ export function AdminDetailDrawer({
   }, [open, section]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const titles: Record<Section, string> = {
-    users: "User Directory",
+    users: "Client Directory",
     training: "Training Breakdown",
     nutrition: "Nutrition Overview",
     lifestyle: "Lifestyle & Goals",
@@ -63,27 +127,55 @@ export function AdminDetailDrawer({
     if (!data || !section) return null;
 
     if (section === "users") {
+      const users = data.users || [];
       return (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Joined</TableHead>
-              <TableHead className="text-right">Workouts</TableHead>
-              <TableHead className="text-right">Streak</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {(data.users || []).map((u: any) => (
-              <TableRow key={u.id} className="cursor-pointer hover:bg-muted/50" onClick={() => { onClose(); navigate(`/admin/user/${u.id}`); }}>
-                <TableCell className="font-medium">{u.displayName}</TableCell>
-                <TableCell className="text-muted-foreground text-xs">{formatDistanceToNow(new Date(u.createdAt), { addSuffix: true })}</TableCell>
-                <TableCell className="text-right">{u.workoutsCount}</TableCell>
-                <TableCell className="text-right">{u.checkinStreak > 0 ? `${u.checkinStreak}d` : "—"}</TableCell>
+        <div>
+          <UserStatCards users={users} />
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Client</TableHead>
+                <TableHead>Last Workout</TableHead>
+                <TableHead className="hidden md:table-cell">Last Check-in</TableHead>
+                <TableHead className="hidden md:table-cell text-right">Compliance</TableHead>
+                <TableHead className="text-right">Workouts</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {users.map((u: any) => (
+                <TableRow key={u.id} className="cursor-pointer hover:bg-muted/50" onClick={() => { onClose(); navigate(`/admin/user/${u.id}`); }}>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Avatar className="h-8 w-8">
+                        <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                          {getInitials(u.displayName || "?")}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{u.displayName}</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {u.lastActive ? `Active ${formatDistanceToNow(new Date(u.lastActive), { addSuffix: true })}` : "Never"}
+                        </p>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <DateBadge date={u.lastWorkoutDate} />
+                  </TableCell>
+                  <TableCell className="hidden md:table-cell">
+                    <DateBadge date={u.lastCheckinDate} />
+                  </TableCell>
+                  <TableCell className="hidden md:table-cell text-right">
+                    <ComplianceText scheduled={u.scheduledWorkouts} completed={u.completedWorkouts} />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <span className="text-sm">{u.workoutsCount}</span>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       );
     }
 
@@ -281,7 +373,7 @@ export function AdminDetailDrawer({
 
   return (
     <Sheet open={open} onOpenChange={(isOpen) => { if (!isOpen) { prevKeyRef.current = null; setData(null); onClose(); } }}>
-      <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+      <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
         <SheetHeader>
           <SheetTitle>{section ? titles[section] : ""}</SheetTitle>
         </SheetHeader>
