@@ -3,13 +3,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Moon, Brain, Zap, Flame, CheckCircle, Edit3 } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
+import { Moon, Brain, Zap, Flame, CheckCircle, Edit3, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
 interface CheckinData {
   id?: string;
+  sleep_hours: number;
   sleep_score: number;
   stress_score: number;
   energy_score: number;
@@ -48,8 +50,27 @@ const METRICS = [
   },
 ];
 
+/** Matthew Walker-weighted sleep hours → 1-5 score */
+function sleepHoursToScore(hours: number): number {
+  if (hours < 5) return 1;
+  if (hours < 6) return 2;
+  if (hours < 7) return 3;
+  if (hours < 8) return 4;
+  return 5;
+}
+
+/** Walker-weighted readiness: sleep_hours×2 + sleep_quality + energy + drive + (6-stress) / 7 × 100 */
+function calcReadiness(data: CheckinData): number {
+  const { sleep_hours, sleep_score, stress_score, energy_score, drive_score } = data;
+  if (!sleep_score || !stress_score || !energy_score || !drive_score) return 0;
+  const shScore = sleepHoursToScore(sleep_hours);
+  const raw = (shScore * 2 + sleep_score + energy_score + drive_score + (6 - stress_score)) / (7 * 5);
+  return Math.round(raw * 100);
+}
+
 export function DailyCheckin() {
   const [data, setData] = useState<CheckinData>({
+    sleep_hours: 7,
     sleep_score: 0,
     stress_score: 0,
     energy_score: 0,
@@ -81,6 +102,7 @@ export function DailyCheckin() {
       if (checkin) {
         setData({
           id: checkin.id,
+          sleep_hours: (checkin as any).sleep_hours ?? 7,
           sleep_score: checkin.sleep_score,
           stress_score: checkin.stress_score,
           energy_score: checkin.energy_score,
@@ -96,11 +118,7 @@ export function DailyCheckin() {
     }
   };
 
-  const readinessScore = () => {
-    const { sleep_score, stress_score, energy_score, drive_score } = data;
-    if (!sleep_score || !stress_score || !energy_score || !drive_score) return 0;
-    return Math.round(((sleep_score + stress_score + energy_score + drive_score) / 20) * 100);
-  };
+  const readinessScore = () => calcReadiness(data);
 
   const handleSubmit = async () => {
     const { sleep_score, stress_score, energy_score, drive_score } = data;
@@ -115,9 +133,10 @@ export function DailyCheckin() {
       if (!user) throw new Error("Not authenticated");
 
       const today = format(new Date(), "yyyy-MM-dd");
-      const payload = {
+      const payload: any = {
         user_id: user.id,
         check_date: today,
+        sleep_hours: data.sleep_hours,
         sleep_score,
         stress_score,
         energy_score,
@@ -187,21 +206,68 @@ export function DailyCheckin() {
       </CardHeader>
       <CardContent className="space-y-6">
         {isSubmitted && !isEditing ? (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {METRICS.map(metric => {
-              const val = data[metric.key] as number;
-              return (
-                <div key={metric.key} className="text-center p-3 rounded-lg bg-secondary/50">
-                  <metric.icon className="w-5 h-5 mx-auto mb-1 text-primary" />
-                  <p className="text-xs text-muted-foreground">{metric.label}</p>
-                  <p className="font-mono text-lg font-semibold">{val}/5</p>
-                  <p className="text-xs text-muted-foreground">{metric.labels[val - 1]}</p>
-                </div>
-              );
-            })}
+          <div className="space-y-4">
+            {/* Sleep Hours display */}
+            <div className="text-center p-3 rounded-lg bg-secondary/50">
+              <Clock className="w-5 h-5 mx-auto mb-1 text-primary" />
+              <p className="text-xs text-muted-foreground">Sleep Duration</p>
+              <p className="font-mono text-lg font-semibold">{data.sleep_hours}h</p>
+              <p className="text-xs text-muted-foreground">
+                {data.sleep_hours >= 7 ? "✓ Optimal range" : data.sleep_hours >= 6 ? "⚠ Below optimal" : "⚠ Sleep deficit"}
+              </p>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {METRICS.map(metric => {
+                const val = data[metric.key] as number;
+                return (
+                  <div key={metric.key} className="text-center p-3 rounded-lg bg-secondary/50">
+                    <metric.icon className="w-5 h-5 mx-auto mb-1 text-primary" />
+                    <p className="text-xs text-muted-foreground">{metric.label}</p>
+                    <p className="font-mono text-lg font-semibold">{val}/5</p>
+                    <p className="text-xs text-muted-foreground">{metric.labels[val - 1]}</p>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         ) : (
           <>
+            {/* Sleep Hours Input */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-primary" />
+                <span className="text-sm font-medium">How many hours did you sleep?</span>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">Hours</span>
+                  <span className="text-lg font-mono font-bold text-primary">{data.sleep_hours}h</span>
+                </div>
+                <Slider
+                  value={[data.sleep_hours]}
+                  onValueChange={([v]) => setData(prev => ({ ...prev, sleep_hours: v }))}
+                  min={0}
+                  max={14}
+                  step={0.5}
+                  className="w-full"
+                  disabled={isSubmitted && !isEditing}
+                />
+                <div className="flex justify-between text-[10px] text-muted-foreground">
+                  <span>0h</span>
+                  <span className="text-destructive font-medium">5h</span>
+                  <span className="text-yellow-500 font-medium">7h</span>
+                  <span className="text-green-500 font-medium">8h+</span>
+                  <span>14h</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {data.sleep_hours >= 8 ? "🟢 Excellent — full recovery likely" : 
+                   data.sleep_hours >= 7 ? "🟢 Good — meets Walker's minimum" :
+                   data.sleep_hours >= 6 ? "🟡 Below optimal — some recovery debt" :
+                   "🔴 Sleep deficit — expect reduced performance"}
+                </p>
+              </div>
+            </div>
+
             {METRICS.map(metric => {
               const val = data[metric.key] as number;
               return (
@@ -243,7 +309,10 @@ export function DailyCheckin() {
 
             {score > 0 && (
               <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/50">
-                <span className="text-sm text-muted-foreground">Readiness Score</span>
+                <div>
+                  <span className="text-sm text-muted-foreground">Readiness Score</span>
+                  <p className="text-[10px] text-muted-foreground">Walker-weighted: sleep hours ×2</p>
+                </div>
                 <Badge variant={score >= 80 ? "default" : score >= 60 ? "secondary" : "destructive"} className="font-mono text-base px-3">
                   {score}%
                 </Badge>

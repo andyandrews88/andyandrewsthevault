@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   ChevronLeft, User, Dumbbell, Award, Heart, Target, MessageSquare, Scale, Mail, Calendar, Send, Copy, ClipboardList,
+  Moon, Zap, Brain, Flame, UtensilsCrossed, BookOpen,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { useAuthStore } from "@/stores/authStore";
@@ -23,6 +24,7 @@ import { AssignTemplateWizard } from "@/components/admin/AssignTemplateWizard";
 import { TouchpointLog } from "@/components/admin/TouchpointLog";
 import { ClientPerformanceReport } from "@/components/admin/ClientPerformanceReport";
 import { CoachingAnalyticsDashboard } from "@/components/admin/CoachingAnalyticsDashboard";
+import { ClientAIReport } from "@/components/admin/ClientAIReport";
 
 export default function AdminUserProfile() {
   const { userId } = useParams<{ userId: string }>();
@@ -177,6 +179,84 @@ export default function AdminUserProfile() {
           </Card>
         </div>
 
+        {/* Readiness / Lifestyle Summary */}
+        {data.checkins.avgScores && (
+          <section className="space-y-3">
+            <Badge variant="outline" className="text-xs">READINESS & LIFESTYLE</Badge>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              {data.checkins.avgScores.avgSleepHours && (
+                <Card className="glass border-border/50 border-l-4 border-l-purple-500">
+                  <CardContent className="p-3 text-center">
+                    <Moon className="h-4 w-4 mx-auto text-purple-500 mb-1" />
+                    <p className="text-xl font-bold">{data.checkins.avgScores.avgSleepHours}h</p>
+                    <p className="text-xs text-muted-foreground">Avg Sleep</p>
+                  </CardContent>
+                </Card>
+              )}
+              <Card className="glass border-border/50 border-l-4 border-l-blue-500">
+                <CardContent className="p-3 text-center">
+                  <Moon className="h-4 w-4 mx-auto text-blue-500 mb-1" />
+                  <p className="text-xl font-bold">{data.checkins.avgScores.sleep}/5</p>
+                  <p className="text-xs text-muted-foreground">Sleep Quality</p>
+                </CardContent>
+              </Card>
+              <Card className="glass border-border/50 border-l-4 border-l-yellow-500">
+                <CardContent className="p-3 text-center">
+                  <Zap className="h-4 w-4 mx-auto text-yellow-500 mb-1" />
+                  <p className="text-xl font-bold">{data.checkins.avgScores.energy}/5</p>
+                  <p className="text-xs text-muted-foreground">Avg Energy</p>
+                </CardContent>
+              </Card>
+              <Card className="glass border-border/50 border-l-4 border-l-red-500">
+                <CardContent className="p-3 text-center">
+                  <Brain className="h-4 w-4 mx-auto text-red-500 mb-1" />
+                  <p className="text-xl font-bold">{data.checkins.avgScores.stress}/5</p>
+                  <p className="text-xs text-muted-foreground">Avg Stress</p>
+                </CardContent>
+              </Card>
+              <Card className="glass border-border/50 border-l-4 border-l-orange-500">
+                <CardContent className="p-3 text-center">
+                  <Flame className="h-4 w-4 mx-auto text-orange-500 mb-1" />
+                  <p className="text-xl font-bold">{data.checkins.avgScores.drive}/5</p>
+                  <p className="text-xs text-muted-foreground">Avg Drive</p>
+                </CardContent>
+              </Card>
+            </div>
+          </section>
+        )}
+
+        {/* AI Client Report */}
+        <ClientAIReport userId={userId!} displayName={p?.display_name || "User"} />
+
+        {/* Program Compliance */}
+        {data.programCompliance && data.programCompliance.length > 0 && (
+          <section className="space-y-3">
+            <Badge variant="outline" className="text-xs">PROGRAM COMPLIANCE</Badge>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {data.programCompliance.map((pc: any) => (
+                <Card key={pc.enrollmentId} className="glass border-border/50">
+                  <CardContent className="p-3 flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium">{pc.programName}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {pc.completed}/{pc.scheduled} workouts · Started {pc.startDate ? format(new Date(pc.startDate), "MMM d") : "—"}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <Badge variant={pc.status === "active" ? "default" : "secondary"} className="capitalize text-[10px]">{pc.status}</Badge>
+                      {pc.compliancePct !== null && (
+                        <p className={`text-lg font-mono font-bold mt-1 ${pc.compliancePct >= 80 ? "text-green-500" : pc.compliancePct >= 50 ? "text-yellow-500" : "text-red-500"}`}>
+                          {pc.compliancePct}%
+                        </p>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* Training */}
         <section className="space-y-3">
           <div className="flex items-center justify-between">
@@ -264,9 +344,6 @@ export default function AdminUserProfile() {
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm">
                   {data.checkins.totalCount} check-ins · {data.checkins.streak} day streak
-                  {data.checkins.avgScores && (
-                    <span className="text-muted-foreground font-normal"> · Avg: Energy {data.checkins.avgScores.energy} · Sleep {data.checkins.avgScores.sleep} · Stress {data.checkins.avgScores.stress} · Drive {data.checkins.avgScores.drive}</span>
-                  )}
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-0">
@@ -274,8 +351,9 @@ export default function AdminUserProfile() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Date</TableHead>
+                      <TableHead className="text-center">Sleep Hrs</TableHead>
+                      <TableHead className="text-center">Sleep Q</TableHead>
                       <TableHead className="text-center">Energy</TableHead>
-                      <TableHead className="text-center">Sleep</TableHead>
                       <TableHead className="text-center">Stress</TableHead>
                       <TableHead className="text-center">Drive</TableHead>
                     </TableRow>
@@ -284,8 +362,9 @@ export default function AdminUserProfile() {
                     {data.checkins.entries.slice(0, 14).map((c: any) => (
                       <TableRow key={c.id}>
                         <TableCell className="text-sm">{format(new Date(c.check_date), "MMM d")}</TableCell>
-                        <TableCell className="text-center text-sm">{c.energy_score}</TableCell>
+                        <TableCell className="text-center text-sm">{c.sleep_hours ? `${c.sleep_hours}h` : "—"}</TableCell>
                         <TableCell className="text-center text-sm">{c.sleep_score}</TableCell>
+                        <TableCell className="text-center text-sm">{c.energy_score}</TableCell>
                         <TableCell className="text-center text-sm">{c.stress_score}</TableCell>
                         <TableCell className="text-center text-sm">{c.drive_score}</TableCell>
                       </TableRow>
@@ -323,9 +402,13 @@ export default function AdminUserProfile() {
         <section className="space-y-3">
           <Badge variant="outline" className="text-xs">NUTRITION</Badge>
           <Card className="glass border-border/50">
-            <CardContent className="p-4 text-sm space-y-1">
-              <p>Calculator: {data.nutrition.calculatorData ? "✓ Set up" : "✗ Not set up"}</p>
+            <CardContent className="p-4 text-sm space-y-2">
+              <div className="flex items-center gap-2">
+                <UtensilsCrossed className="h-4 w-4 text-primary" />
+                <span>Calculator: {data.nutrition.calculatorData ? "✓ Set up" : "✗ Not set up"}</span>
+              </div>
               <p>Saved Meals: {data.nutrition.meals.length}</p>
+              <p>Food Diary Entries: {data.foodDiary?.length || 0}</p>
               <p>Audit: {data.nutrition.auditData ? "✓ Completed" : "✗ Not done"}</p>
             </CardContent>
           </Card>
