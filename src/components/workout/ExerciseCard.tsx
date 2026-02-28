@@ -240,6 +240,42 @@ export function ExerciseCard({ exercise, onRemove, allExercises = [] }: Exercise
           >
             + Warmup
           </Button>
+          {linkableExercises.length > 0 && !isSupersetted && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="text-primary text-xs gap-1"
+                >
+                  <Link className="h-3.5 w-3.5" />
+                  Superset
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">Link with:</div>
+                {linkableExercises.map(e => (
+                  <DropdownMenuItem
+                    key={e.id}
+                    onClick={() => linkSuperset(exercise.id, e.id)}
+                  >
+                    {e.exercise_name}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+          {isSupersetted && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => unlinkSuperset(exercise.id)}
+              className="text-destructive text-xs gap-1"
+            >
+              <Unlink className="h-3.5 w-3.5" />
+              Unlink
+            </Button>
+          )}
         </div>
       </CardContent>
     </Card>

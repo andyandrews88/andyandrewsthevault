@@ -6,11 +6,13 @@ import { cn } from "@/lib/utils";
 interface RestTimerProps {
   trigger: number; // increment to auto-start
   defaultSeconds?: number;
+  manualOpen?: boolean; // allow manual opening
+  onManualClose?: () => void;
 }
 
 const PRESETS = [30, 60, 90, 120, 180];
 
-export function RestTimer({ trigger, defaultSeconds = 90 }: RestTimerProps) {
+export function RestTimer({ trigger, defaultSeconds = 90, manualOpen, onManualClose }: RestTimerProps) {
   const [remaining, setRemaining] = useState(0);
   const [total, setTotal] = useState(defaultSeconds);
   const [isRunning, setIsRunning] = useState(false);
@@ -29,6 +31,18 @@ export function RestTimer({ trigger, defaultSeconds = 90 }: RestTimerProps) {
       setIsExpanded(false);
     }
   }, [trigger, defaultSeconds]);
+
+  // Manual open support
+  useEffect(() => {
+    if (manualOpen) {
+      setIsDismissed(false);
+      setIsExpanded(true);
+      if (remaining === 0) {
+        setRemaining(defaultSeconds);
+        setTotal(defaultSeconds);
+      }
+    }
+  }, [manualOpen]);
 
   // Countdown logic
   useEffect(() => {
@@ -90,6 +104,7 @@ export function RestTimer({ trigger, defaultSeconds = 90 }: RestTimerProps) {
     setIsRunning(false);
     setRemaining(0);
     setIsDismissed(true);
+    onManualClose?.();
     if (intervalRef.current) clearInterval(intervalRef.current);
   };
 
