@@ -8,7 +8,16 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
   ChevronLeft, Dumbbell, Plus, Trash2, Check, X, Loader2,
   FileText, Timer, Save, Video, ChevronDown, ChevronUp, RotateCcw,
+  MoreVertical, RefreshCw, ArrowRightLeft,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { AdminExerciseMenu } from "@/components/workout/AdminExerciseMenu";
 import { supabase } from "@/integrations/supabase/client";
 import { useAdminCheck } from "@/hooks/useAdminCheck";
 import { toast } from "@/hooks/use-toast";
@@ -75,6 +84,8 @@ export default function AdminWorkoutBuilderPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
   const [exerciseSearchOpen, setExerciseSearchOpen] = useState(false);
+  const [replaceSearchOpen, setReplaceSearchOpen] = useState(false);
+  const [replacingExerciseId, setReplacingExerciseId] = useState<string | null>(null);
   const [addingExercise, setAddingExercise] = useState(false);
   const [savingSetId, setSavingSetId] = useState<string | null>(null);
 
@@ -381,6 +392,63 @@ export default function AdminWorkoutBuilderPage() {
     navigate(`/admin/user/${userId}`);
   };
 
+  const handleLoadLastSession = async (exerciseId: string, exerciseName: string) => {
+    try {
+      const workouts = await invokeBuilder({ action: "get_user_workouts", userId, limit: 50 });
+      let lastSets: any[] = [];
+      for (const w of (workouts || [])) {
+        const detail = await invokeBuilder({ action: "get_workout_detail", workoutId: w.id });
+        const matchEx = (detail.exercises || []).find((e: any) => e.exercise_name.toLowerCase() === exerciseName.toLowerCase());
+        if (matchEx && matchEx.sets?.length > 0) {
+          lastSets = matchEx.sets;
+          break;
+        }
+      }
+      if (lastSets.length === 0) {
+        toast({ title: "No previous data", description: `No past sessions found for ${exerciseName}` });
+        return;
+      }
+      // Update existing sets with last session data
+      const ex = exercises.find(e => e.id === exerciseId);
+      if (!ex) return;
+      for (let i = 0; i < lastSets.length; i++) {
+        if (i < ex.sets.length) {
+          await invokeBuilder({ action: "update_set", setId: ex.sets[i].id, weight: lastSets[i].weight, reps: lastSets[i].reps, rir: lastSets[i].rir, isCompleted: false });
+        } else {
+          await invokeBuilder({ action: "add_set", exerciseId, setNumber: i + 1, weight: lastSets[i].weight, reps: lastSets[i].reps });
+        }
+      }
+      // Reload exercise sets
+      const detail = await invokeBuilder({ action: "get_workout_detail", workoutId: workoutId! });
+      const updatedEx = (detail.exercises || []).find((e: any) => e.id === exerciseId);
+      if (updatedEx) {
+        setExercises(prev => prev.map(e => e.id === exerciseId ? {
+          ...e, sets: (updatedEx.sets || []).map((s: any) => ({ id: s.id, set_number: s.set_number, weight: s.weight, reps: s.reps, rir: s.rir || null, is_completed: s.is_completed || false }))
+        } : e));
+      }
+      toast({ title: "Last session loaded", description: `Loaded ${lastSets.length} sets for ${exerciseName}` });
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    }
+  };
+
+  const handleReplaceExercise = async (newName: string) => {
+    if (!replacingExerciseId) return;
+    try {
+      await invokeBuilder({ action: "replace_exercise", exerciseId: replacingExerciseId, newExerciseName: newName });
+      // Fetch new video
+      let videoUrl: string | null = null;
+      try { const v = await invokeBuilder({ action: "get_exercise_video", exerciseName: newName }); videoUrl = v.video_url || null; } catch {}
+      setExercises(prev => prev.map(e => e.id === replacingExerciseId ? { ...e, exercise_name: newName, videoUrl, videoInput: videoUrl || "" } : e));
+      toast({ title: "Exercise replaced", description: `Swapped to ${newName}` });
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    } finally {
+      setReplacingExerciseId(null);
+      setReplaceSearchOpen(false);
+    }
+  };
+
   if (adminLoading || isCreating) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -480,24 +548,33 @@ export default function AdminWorkoutBuilderPage() {
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className={`h-8 w-8 ${exercise.videoUrl ? 'text-primary' : 'text-muted-foreground'}`}
-                      onClick={() => toggleVideoExpanded(exercise.id)}
-                    >
-                      <Video className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                      onClick={() => handleRemoveExercise(exercise.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                      <DropdownMenuItem onClick={() => toggleVideoExpanded(exercise.id)}>
+                        <Video className={`h-4 w-4 mr-2 ${exercise.videoUrl ? 'text-primary' : ''}`} />
+                        {exercise.videoExpanded ? 'Hide Video' : 'Show Video'}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleLoadLastSession(exercise.id, exercise.exercise_name)}>
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Load Last Session
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => { setReplacingExerciseId(exercise.id); setReplaceSearchOpen(true); }}>
+                        <ArrowRightLeft className="h-4 w-4 mr-2" />
+                        Replace Exercise
+                      </DropdownMenuItem>
+                      <AdminExerciseMenu exerciseName={exercise.exercise_name} isAdmin={true} />
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem className="text-destructive" onClick={() => handleRemoveExercise(exercise.id)}>
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Remove Exercise
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </CardHeader>
 
@@ -692,6 +769,13 @@ export default function AdminWorkoutBuilderPage() {
         open={exerciseSearchOpen}
         onOpenChange={setExerciseSearchOpen}
         onSelectExercise={handleAddExercise}
+        recentExercises={exercises.map(e => e.exercise_name)}
+      />
+
+      <ExerciseSearch
+        open={replaceSearchOpen}
+        onOpenChange={(open) => { setReplaceSearchOpen(open); if (!open) setReplacingExerciseId(null); }}
+        onSelectExercise={handleReplaceExercise}
         recentExercises={exercises.map(e => e.exercise_name)}
       />
     </div>

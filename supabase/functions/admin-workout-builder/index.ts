@@ -76,6 +76,11 @@ Deno.serve(async (req) => {
           .select()
           .single();
         if (error) throw error;
+        // Auto-register in exercise_library (insert if not exists)
+        const { data: existingLib } = await serviceClient.from("exercise_library").select("id").ilike("name", exerciseName).maybeSingle();
+        if (!existingLib) {
+          await serviceClient.from("exercise_library").insert({ name: exerciseName, category: exerciseType === "conditioning" ? "conditioning" : "strength" });
+        }
         if (exerciseType === "conditioning") {
           const { data: firstSet } = await serviceClient.from("conditioning_sets").insert({ exercise_id: exercise.id, set_number: 1 }).select().single();
           return new Response(JSON.stringify({ ...exercise, sets: [], conditioning_sets: firstSet ? [firstSet] : [] }), { headers: corsHeaders });
@@ -83,6 +88,18 @@ Deno.serve(async (req) => {
           const { data: firstSet } = await serviceClient.from("exercise_sets").insert({ exercise_id: exercise.id, set_number: 1 }).select().single();
           return new Response(JSON.stringify({ ...exercise, sets: firstSet ? [firstSet] : [], conditioning_sets: [] }), { headers: corsHeaders });
         }
+      }
+
+      case "replace_exercise": {
+        const { exerciseId, newExerciseName } = body;
+        const { error } = await serviceClient.from("workout_exercises").update({ exercise_name: newExerciseName }).eq("id", exerciseId);
+        if (error) throw error;
+        // Auto-register new exercise name
+        const { data: existingLib } = await serviceClient.from("exercise_library").select("id").ilike("name", newExerciseName).maybeSingle();
+        if (!existingLib) {
+          await serviceClient.from("exercise_library").insert({ name: newExerciseName, category: "strength" });
+        }
+        return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
       }
 
       case "add_set": {
