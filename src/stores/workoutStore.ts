@@ -102,6 +102,8 @@ interface WorkoutState {
   getLastSessionSets: (exerciseName: string) => Promise<{ weight: number; reps: number }[]>;
   editWorkout: (workoutId: string) => Promise<void>;
   updateWorkoutNotes: (notes: string) => void;
+  moveExercise: (exerciseId: string, direction: 'up' | 'down') => Promise<void>;
+  replaceExercise: (exerciseId: string, newName: string) => Promise<void>;
 }
 
 export const useWorkoutStore = create<WorkoutState>((set, get) => ({
@@ -585,6 +587,51 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
     if (!activeWorkout) return;
     set({ activeWorkout: { ...activeWorkout, notes } });
     supabase.from('workouts').update({ notes }).eq('id', activeWorkout.id).then(() => {});
+  },
+
+  moveExercise: async (exerciseId: string, direction: 'up' | 'down') => {
+    const { exercises } = get();
+    const sorted = [...exercises].sort((a, b) => a.order_index - b.order_index);
+    const idx = sorted.findIndex(e => e.id === exerciseId);
+    if (idx < 0) return;
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= sorted.length) return;
+
+    const current = sorted[idx];
+    const neighbor = sorted[swapIdx];
+    const currentOrder = current.order_index;
+    const neighborOrder = neighbor.order_index;
+
+    // Swap in DB
+    await Promise.all([
+      supabase.from('workout_exercises').update({ order_index: neighborOrder }).eq('id', current.id),
+      supabase.from('workout_exercises').update({ order_index: currentOrder }).eq('id', neighbor.id),
+    ]);
+
+    // Swap locally and re-sort
+    set({
+      exercises: exercises
+        .map(e => {
+          if (e.id === current.id) return { ...e, order_index: neighborOrder };
+          if (e.id === neighbor.id) return { ...e, order_index: currentOrder };
+          return e;
+        })
+        .sort((a, b) => a.order_index - b.order_index)
+    });
+  },
+
+  replaceExercise: async (exerciseId: string, newName: string) => {
+    const { exercises } = get();
+    const { error } = await supabase
+      .from('workout_exercises')
+      .update({ exercise_name: newName })
+      .eq('id', exerciseId);
+    if (error) { console.error('Error replacing exercise:', error); return; }
+    set({
+      exercises: exercises.map(e =>
+        e.id === exerciseId ? { ...e, exercise_name: newName } : e
+      )
+    });
   },
 
   cancelWorkout: async () => {

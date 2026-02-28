@@ -7,23 +7,30 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
-import { Plus, MoreVertical, Trash2, Timer } from "lucide-react";
+import { Plus, MoreVertical, Trash2, Timer, ArrowUp, ArrowDown, RefreshCw } from "lucide-react";
 import { WorkoutExercise, ConditioningSet } from "@/types/workout";
 import { ConditioningSetRow } from "./ConditioningSetRow";
+import { ExerciseSearch } from "./ExerciseSearch";
 import { useWorkoutStore } from "@/stores/workoutStore";
 
 interface ConditioningCardProps {
   exercise: WorkoutExercise;
   onRemove: () => void;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+  canMoveUp?: boolean;
+  canMoveDown?: boolean;
 }
 
-export function ConditioningCard({ exercise, onRemove }: ConditioningCardProps) {
+export function ConditioningCard({ exercise, onRemove, onMoveUp, onMoveDown, canMoveUp = false, canMoveDown = false }: ConditioningCardProps) {
   const { 
     addConditioningSet, 
     removeConditioningSet, 
     updateConditioningSet, 
-    completeConditioningSet 
+    completeConditioningSet,
+    replaceExercise
   } = useWorkoutStore();
+  const [showReplaceSearch, setShowReplaceSearch] = useState(false);
 
   const completedSets = exercise.conditioning_sets?.filter(s => s.is_completed).length || 0;
   const totalSets = exercise.conditioning_sets?.length || 0;
@@ -47,6 +54,18 @@ export function ConditioningCard({ exercise, onRemove }: ConditioningCardProps) 
               </p>
             </div>
           </div>
+
+          <div className="flex items-center gap-0.5">
+            {canMoveUp && (
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onMoveUp}>
+                <ArrowUp className="h-3.5 w-3.5" />
+              </Button>
+            )}
+            {canMoveDown && (
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onMoveDown}>
+                <ArrowDown className="h-3.5 w-3.5" />
+              </Button>
+            )}
           
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -55,12 +74,17 @@ export function ConditioningCard({ exercise, onRemove }: ConditioningCardProps) 
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setShowReplaceSearch(true)}>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Replace Exercise
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={onRemove} className="text-destructive">
                 <Trash2 className="h-4 w-4 mr-2" />
                 Remove Exercise
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          </div>
         </div>
       </CardHeader>
       
@@ -101,6 +125,12 @@ export function ConditioningCard({ exercise, onRemove }: ConditioningCardProps) 
           </Button>
         </div>
       </CardContent>
+      <ExerciseSearch
+        open={showReplaceSearch}
+        onOpenChange={setShowReplaceSearch}
+        onSelectExercise={(name) => replaceExercise(exercise.id, name)}
+        mode="replace"
+      />
     </Card>
   );
 }
