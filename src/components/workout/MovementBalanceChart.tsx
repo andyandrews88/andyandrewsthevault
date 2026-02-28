@@ -94,7 +94,7 @@ export function MovementBalanceChart() {
 
     const { data: sets } = await supabase
       .from('exercise_sets')
-      .select('exercise_id, weight, reps, is_completed, set_type')
+      .select('exercise_id, weight, reps, is_completed, set_type, duration_seconds')
       .in('exercise_id', exerciseIds)
       .eq('is_completed', true)
       .eq('set_type', 'working');
@@ -130,7 +130,7 @@ export function MovementBalanceChart() {
 
       const lib = libMap.get(ex.exercise_name.toLowerCase());
       const pattern = classifyExerciseWithDb(ex.exercise_name, lib?.movement_pattern);
-      const vol = calculateSetVolume(ex.exercise_name, set.weight, set.reps, bodyWeightKg);
+      const vol = calculateSetVolume(ex.exercise_name, set.weight, set.reps, bodyWeightKg, (set as any).duration_seconds);
 
       totals[pattern].rawVolume += vol;
       totals[pattern].normalizedVolume += normalizeVolume(vol, pattern, ex.exercise_name, lib?.equipment_type);

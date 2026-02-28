@@ -15,6 +15,7 @@ interface SetRowProps {
   onComplete: (weight: number, reps: number, rir?: number | null) => void;
   onRemove: () => void;
   disabled?: boolean;
+  isTimed?: boolean;
 }
 
 export function SetRow({ 
@@ -23,11 +24,13 @@ export function SetRow({
   onUpdate, 
   onComplete, 
   onRemove,
-  disabled 
+  disabled,
+  isTimed = false,
 }: SetRowProps) {
   const { preferredUnit } = useWorkoutStore();
   const [weight, setWeight] = useState(set.weight?.toString() || '');
   const [reps, setReps] = useState(set.reps?.toString() || '');
+  const [duration, setDuration] = useState(set.duration_seconds?.toString() || '');
   const [rir, setRir] = useState(set.rir?.toString() || '');
   const [showWeightPopup, setShowWeightPopup] = useState(false);
 
@@ -43,14 +46,23 @@ export function SetRow({
       setWeight('');
     }
     setReps(set.reps?.toString() || '');
+    setDuration(set.duration_seconds?.toString() || '');
     setRir(set.rir?.toString() || '');
-  }, [set.weight, set.reps, set.rir, preferredUnit]);
+  }, [set.weight, set.reps, set.rir, set.duration_seconds, preferredUnit]);
 
   const handleRepsChange = (value: string) => {
     setReps(value);
     const num = parseInt(value);
     if (!isNaN(num)) {
       onUpdate({ reps: num });
+    }
+  };
+
+  const handleDurationChange = (value: string) => {
+    setDuration(value);
+    const num = parseInt(value);
+    if (!isNaN(num)) {
+      onUpdate({ duration_seconds: num } as any);
     }
   };
 
@@ -84,13 +96,19 @@ export function SetRow({
   };
 
   const handleComplete = (checked: boolean) => {
-    if (checked && weight && reps) {
+    const hasValue = isTimed ? !!duration : !!reps;
+    if (checked && weight && hasValue) {
       const displayWeight = parseFloat(weight);
       const storedWeight = preferredUnit === 'kg' 
         ? convertWeight(displayWeight, 'kg', 'lbs') 
         : displayWeight;
       const rirVal = rir ? parseInt(rir) : null;
-      onComplete(storedWeight, parseInt(reps), rirVal);
+      const repsVal = isTimed ? (parseInt(duration) || 0) : parseInt(reps);
+      onComplete(storedWeight, repsVal, rirVal);
+      // For timed sets, also persist duration_seconds
+      if (isTimed) {
+        onUpdate({ duration_seconds: parseInt(duration) || 0 } as any);
+      }
     } else if (!checked) {
       onUpdate({ is_completed: false });
     }
@@ -149,16 +167,28 @@ export function SetRow({
           {weight ? `${weight}` : preferredUnit}
         </Button>
         
-        {/* Reps Input */}
-        <input
-          type="number"
-          inputMode="numeric"
-          placeholder="reps"
-          value={reps}
-          onChange={(e) => handleRepsChange(e.target.value)}
-          disabled={set.is_completed || disabled}
-          className="h-9 w-full text-center text-sm rounded-md border border-input bg-background px-2"
-        />
+        {/* Reps / Duration Input */}
+        {isTimed ? (
+          <input
+            type="number"
+            inputMode="numeric"
+            placeholder="sec"
+            value={duration}
+            onChange={(e) => handleDurationChange(e.target.value)}
+            disabled={set.is_completed || disabled}
+            className="h-9 w-full text-center text-sm rounded-md border border-input bg-background px-2"
+          />
+        ) : (
+          <input
+            type="number"
+            inputMode="numeric"
+            placeholder="reps"
+            value={reps}
+            onChange={(e) => handleRepsChange(e.target.value)}
+            disabled={set.is_completed || disabled}
+            className="h-9 w-full text-center text-sm rounded-md border border-input bg-background px-2"
+          />
+        )}
         
         {/* RIR Input */}
         <input
@@ -178,7 +208,7 @@ export function SetRow({
           <Checkbox
             checked={set.is_completed}
             onCheckedChange={handleComplete}
-            disabled={!weight || !reps || disabled}
+            disabled={(!weight || !(isTimed ? duration : reps)) || disabled}
             className="h-6 w-6"
           />
         </div>
