@@ -64,7 +64,7 @@ function calcReadiness(data: CheckinData): number {
   const { sleep_hours, sleep_score, stress_score, energy_score, drive_score } = data;
   if (!sleep_score || !stress_score || !energy_score || !drive_score) return 0;
   const shScore = sleepHoursToScore(sleep_hours);
-  const raw = (shScore * 2 + sleep_score + energy_score + drive_score + (6 - stress_score)) / (7 * 5);
+  const raw = (shScore * 2 + sleep_score + energy_score + drive_score + stress_score) / (7 * 5);
   return Math.round(raw * 100);
 }
 
