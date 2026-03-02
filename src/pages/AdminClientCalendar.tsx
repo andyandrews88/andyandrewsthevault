@@ -5,7 +5,7 @@ import { useAdminCheck } from "@/hooks/useAdminCheck";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Trash2, ChevronDown, ChevronUp, Copy, X } from "lucide-react";
 import { format, addWeeks, subWeeks, startOfWeek, addDays, eachDayOfInterval } from "date-fns";
 import { toast } from "@/hooks/use-toast";
 import { WeeklyCalendarGrid } from "@/components/admin/WeeklyCalendarGrid";
@@ -30,6 +30,8 @@ export default function AdminClientCalendar() {
   const [selectedWorkout, setSelectedWorkout] = useState<WorkoutWithExercises | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [mobileDay, setMobileDay] = useState(0);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedWorkoutIds, setSelectedWorkoutIds] = useState<string[]>([]);
 
   const totalDays = weeksToShow * 7;
   const days = eachDayOfInterval({
@@ -97,6 +99,55 @@ export default function AdminClientCalendar() {
     } catch {
       toast({ title: "Failed to delete", variant: "destructive" });
     }
+  };
+
+  const handleCopyWorkout = async (workoutId: string, targetDate: string) => {
+    try {
+      await supabase.functions.invoke("admin-workout-builder", {
+        body: { action: "copy_workout_to_user", sourceWorkoutId: workoutId, targetUserId: userId, targetDate },
+      });
+      toast({ title: "Workout copied" });
+      fetchWeek(weekStart, totalDays);
+    } catch {
+      toast({ title: "Failed to copy", variant: "destructive" });
+    }
+  };
+
+  const handleMoveWorkout = async (workoutId: string, targetDate: string) => {
+    try {
+      await supabase.functions.invoke("admin-workout-builder", {
+        body: { action: "reschedule_workout", workoutId, newDate: targetDate },
+      });
+      toast({ title: "Workout moved" });
+      fetchWeek(weekStart, totalDays);
+    } catch {
+      toast({ title: "Failed to move", variant: "destructive" });
+    }
+  };
+
+  const handleToggleSelect = (workoutId: string) => {
+    setSelectedWorkoutIds((prev) =>
+      prev.includes(workoutId) ? prev.filter((id) => id !== workoutId) : [...prev, workoutId]
+    );
+  };
+
+  const handleBulkCopy = async () => {
+    const targetDate = prompt("Copy selected workouts to date (YYYY-MM-DD):");
+    if (!targetDate || !selectedWorkoutIds.length) return;
+    for (const id of selectedWorkoutIds) {
+      await handleCopyWorkout(id, targetDate);
+    }
+    setSelectedWorkoutIds([]);
+    setSelectMode(false);
+  };
+
+  const handleBulkDelete = async () => {
+    if (!selectedWorkoutIds.length) return;
+    for (const id of selectedWorkoutIds) {
+      await handleDeleteWorkout(id);
+    }
+    setSelectedWorkoutIds([]);
+    setSelectMode(false);
   };
 
   if (adminLoading) {
@@ -227,13 +278,38 @@ export default function AdminClientCalendar() {
             </div>
           </div>
         ) : (
-          <WeeklyCalendarGrid
-            days={days}
-            workoutsByDate={workoutsByDate}
-            onAddNew={handleAddNew}
-            onCardClick={handleCardClick}
-            onDeleteWorkout={handleDeleteWorkout}
-          />
+          <>
+            {/* Select mode toolbar */}
+            {selectMode && (
+              <div className="flex items-center gap-2 bg-secondary border border-border rounded-lg px-3 py-2">
+                <span className="text-xs font-medium flex-1">
+                  {selectedWorkoutIds.length} selected
+                </span>
+                <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={handleBulkCopy}>
+                  <Copy className="h-3 w-3" /> Copy Selected
+                </Button>
+                <Button size="sm" variant="destructive" className="h-7 text-xs gap-1" onClick={handleBulkDelete}>
+                  <Trash2 className="h-3 w-3" /> Delete Selected
+                </Button>
+                <Button size="sm" variant="ghost" className="h-7 text-xs gap-1" onClick={() => { setSelectMode(false); setSelectedWorkoutIds([]); }}>
+                  <X className="h-3 w-3" /> Cancel
+                </Button>
+              </div>
+            )}
+            <WeeklyCalendarGrid
+              days={days}
+              workoutsByDate={workoutsByDate}
+              onAddNew={handleAddNew}
+              onCardClick={handleCardClick}
+              onDeleteWorkout={handleDeleteWorkout}
+              onCopyWorkout={handleCopyWorkout}
+              onMoveWorkout={handleMoveWorkout}
+              selectedWorkoutIds={selectedWorkoutIds}
+              onToggleSelect={handleToggleSelect}
+              selectMode={selectMode}
+              onToggleSelectMode={() => setSelectMode(!selectMode)}
+            />
+          </>
         )}
 
         {/* Load More / Less */}
