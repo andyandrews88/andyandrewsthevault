@@ -51,6 +51,7 @@ interface ExerciseActionSheetProps {
   onUnlinkSuperset: () => void;
   onReplace: () => void;
   onRemove: () => void;
+  onMetadataChange?: (field: string, value: any) => void;
 }
 
 function SheetItem({
@@ -106,7 +107,7 @@ function ExpandableSection({
 export function ExerciseActionSheet({
   open, onOpenChange, exercise, isAdmin, isSupersetted,
   linkableExercises, onLoadLastSession, isLoadingPrevious,
-  onLinkSuperset, onUnlinkSuperset, onReplace, onRemove,
+  onLinkSuperset, onUnlinkSuperset, onReplace, onRemove, onMetadataChange,
 }: ExerciseActionSheetProps) {
   const [showVideoDialog, setShowVideoDialog] = useState(false);
   const [videoUrlInput, setVideoUrlInput] = useState("");
@@ -117,9 +118,11 @@ export function ExerciseActionSheet({
   };
 
   const handleSaveVideo = async () => {
+    const url = videoUrlInput.trim() || null;
     await upsertExerciseLibraryField(exercise.exercise_name, {
-      video_url: videoUrlInput.trim() || null,
+      video_url: url,
     });
+    onMetadataChange?.("videoUrl", url);
     setShowVideoDialog(false);
     setVideoUrlInput("");
   };
@@ -184,11 +187,12 @@ export function ExerciseActionSheet({
                     <button
                       key={key}
                       onClick={() =>
-                        handleAction(() =>
+                        handleAction(() => {
                           upsertExerciseLibraryField(exercise.exercise_name, {
                             movement_pattern: key,
-                          })
-                        )
+                          });
+                          onMetadataChange?.("movementPattern", key);
+                        })
                       }
                       className="w-full rounded-md px-3 py-2.5 text-left text-sm text-foreground hover:bg-accent active:bg-accent/60"
                     >
@@ -202,11 +206,12 @@ export function ExerciseActionSheet({
                     <button
                       key={key}
                       onClick={() =>
-                        handleAction(() =>
+                        handleAction(() => {
                           upsertExerciseLibraryField(exercise.exercise_name, {
                             equipment_type: key,
-                          })
-                        )
+                          });
+                          onMetadataChange?.("equipmentType", key);
+                        })
                       }
                       className="w-full rounded-md px-3 py-2.5 text-left text-sm text-foreground hover:bg-accent active:bg-accent/60"
                     >
@@ -218,11 +223,12 @@ export function ExerciseActionSheet({
                 <ExpandableSection icon={Timer} label="Time-Based">
                   <button
                     onClick={() =>
-                      handleAction(() =>
+                      handleAction(() => {
                         upsertExerciseLibraryField(exercise.exercise_name, {
                           is_timed: true,
-                        })
-                      )
+                        });
+                        onMetadataChange?.("isTimed", true);
+                      })
                     }
                     className="w-full rounded-md px-3 py-2.5 text-left text-sm text-foreground hover:bg-accent active:bg-accent/60"
                   >
@@ -230,11 +236,12 @@ export function ExerciseActionSheet({
                   </button>
                   <button
                     onClick={() =>
-                      handleAction(() =>
+                      handleAction(() => {
                         upsertExerciseLibraryField(exercise.exercise_name, {
                           is_timed: false,
-                        })
-                      )
+                        });
+                        onMetadataChange?.("isTimed", false);
+                      })
                     }
                     className="w-full rounded-md px-3 py-2.5 text-left text-sm text-foreground hover:bg-accent active:bg-accent/60"
                   >
@@ -245,11 +252,12 @@ export function ExerciseActionSheet({
                 <ExpandableSection icon={ArrowLeftRight} label="Unilateral (L/R)">
                   <button
                     onClick={() =>
-                      handleAction(() =>
+                      handleAction(() => {
                         upsertExerciseLibraryField(exercise.exercise_name, {
                           is_unilateral: true,
-                        })
-                      )
+                        });
+                        onMetadataChange?.("isUnilateral", true);
+                      })
                     }
                     className="w-full rounded-md px-3 py-2.5 text-left text-sm text-foreground hover:bg-accent active:bg-accent/60"
                   >
@@ -257,11 +265,12 @@ export function ExerciseActionSheet({
                   </button>
                   <button
                     onClick={() =>
-                      handleAction(() =>
+                      handleAction(() => {
                         upsertExerciseLibraryField(exercise.exercise_name, {
                           is_unilateral: false,
-                        })
-                      )
+                        });
+                        onMetadataChange?.("isUnilateral", false);
+                      })
                     }
                     className="w-full rounded-md px-3 py-2.5 text-left text-sm text-foreground hover:bg-accent active:bg-accent/60"
                   >
