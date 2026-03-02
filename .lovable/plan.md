@@ -1,73 +1,111 @@
 
 
-# Plan: Add Plyometric & Rotational Movement Patterns with Speed Tracking
+# Plan: PT Session Tracker with Invoice Management & PDF Report Generator
 
-## Database Migration
+## Overview
 
-Add 3 columns to `exercise_sets`:
-- `distance_m numeric` (for broad jumps, sprints)
-- `height_cm numeric` (for box jumps, depth jumps)  
-- `speed_mps numeric` (for sprints — meters per second)
+Build a complete Personal Training session management system on each client's admin dashboard. This includes session logging, package tracking, invoice linking, and a customizable PDF report generator — modeled after best practices from platforms like PTminder, My PT Hub, TrueCoach, and TrainHeroic.
 
-Add `is_plyometric boolean default false` to `exercise_library`.
+## Database Changes
 
-## Movement Patterns (`src/lib/movementPatterns.ts`)
+### New table: `pt_packages`
+Tracks purchased PT session packages per client.
 
-Add `plyometric` and `rotational` to `MovementPattern` type and all related maps:
-- **Labels:** Plyometric, Rotational
-- **Short codes:** PLY, ROT
-- **Difficulty coefficients:** plyometric: 0.80, rotational: 0.55
-- **Colors:** new HSL values
-- Add to `ALL_PATTERNS` array
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid PK | |
+| coach_id | uuid | Admin who created it |
+| client_user_id | uuid | The client |
+| sessions_purchased | integer | Total sessions bought |
+| sessions_used | integer | Default 0 |
+| package_name | text | e.g. "10-Pack Jan 2026" |
+| purchase_date | date | |
+| status | text | 'active' / 'completed' / 'expired' |
+| notes | text | Optional |
+| created_at | timestamptz | |
 
-Add plyo intensity tiers for volume calculation:
-- **Low** (jumping jacks, skipping): 0.5x
-- **Moderate** (box jumps, broad jumps): 1.0x
-- **High** (depth jumps, bounding, single-leg hops): 1.5x
+RLS: Admin-only (full access via `has_role`).
 
-**Plyometric volume formula:** `contacts × intensity_multiplier × (1 + height_cm/100)`. For sprints: `distance_m × speed_mps × 0.1` (power-output proxy).
+### New table: `pt_sessions`
+Logs individual PT session dates, linked to a package.
 
-**Rotational volume:** Standard weight × reps (same as existing).
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid PK | |
+| package_id | uuid FK → pt_packages | |
+| client_user_id | uuid | |
+| session_date | date | |
+| workout_id | uuid | Optional link to actual workout |
+| notes | text | |
+| created_at | timestamptz | |
 
-Move exercises from `core` pattern map: Woodchop, Landmine Rotation, Medicine Ball Slam/Throw → `rotational`. Add new plyo exercises to pattern map: Box Jump, Broad Jump, Depth Jump, Squat Jump, Tuck Jump, Split Squat Jump, Bounding, Single-Leg Hop, Lateral Bound, Skater Jump, Plyo Push-Up, Sprint, Sprints (Hill), Sprints (Track), Shuttle Run.
+RLS: Admin-only.
 
-## Exercise Categories (`src/types/workout.ts`)
+### New table: `pt_invoices`
+Stores Stripe invoice URLs and payment status.
 
-Add `plyometrics` category with exercises: Box Jump, Broad Jump, Depth Jump, Drop Jump, Tuck Jump, Squat Jump, Split Squat Jump, Bounding, Single-Leg Hop, Lateral Bound, Skater Jump, Hurdle Hop, Plyo Push-Up, Sprint, Sprints (Hill), Sprints (Track), Shuttle Run.
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid PK | |
+| package_id | uuid FK → pt_packages | Optional link |
+| client_user_id | uuid | |
+| invoice_url | text | Stripe invoice link |
+| amount | numeric | Invoice amount |
+| currency | text | Default 'AUD' |
+| status | text | 'paid' / 'pending' / 'overdue' |
+| invoice_date | date | |
+| notes | text | |
+| created_at | timestamptz | |
 
-Move Box Jump, Broad Jump, Sprint, Sprints (Hill), Sprints (Track), Shuttle Run from `conditioning`.
+RLS: Admin-only.
 
-Add `plyometrics` to `CATEGORY_LABELS`.
+## New Component: `PTSessionTracker`
 
-## UI: SetRow (`src/components/workout/SetRow.tsx`)
+Location: `src/components/admin/PTSessionTracker.tsx`
 
-When exercise `is_plyometric`:
-- Show **height** input (small number field, placeholder "ht") 
-- Show **distance** input (placeholder "dist m")
-- Show **speed** input (placeholder "m/s") — for sprints
-- These replace the weight column (most plyos are bodyweight)
+A self-contained panel added to `AdminUserProfile.tsx` containing:
 
-## UI: ExerciseCard
+1. **Package Summary Card** — Shows active package name, sessions remaining (purchased - used), progress bar, purchase date
+2. **Log Session Button** — Date picker (defaults to today), optional link to existing workout, notes field. On save, increments `sessions_used` on the package
+3. **Session History Table** — Date, linked workout name, notes. Sorted newest first
+4. **Package Management** — Create new package (name, # sessions, purchase date), dropdown or input for session count. View past/completed packages
+5. **Invoice Section** — Add invoice URL + amount + status. Table of all invoices for this client. Status badges (green=paid, yellow=pending, red=overdue)
+6. **Generate Report Button** — Opens the PDF customization dialog
 
-Pass `isPlyometric` flag from exercise library lookup to `SetRow`.
+## New Component: `PTReportGenerator`
 
-## Admin Menu (`src/components/workout/AdminExerciseMenu.tsx`)
+Location: `src/components/admin/PTReportGenerator.tsx`
 
-Add a **Plyometric** toggle (like the existing Time-Based and Unilateral toggles) that sets `is_plyometric` on the exercise library.
+A dialog that asks the coach what to include before generating, with checkboxes:
 
-## Exercise Library Upsert (`src/lib/exerciseLibraryUpsert.ts`)
+- **Package Summary** (sessions remaining, package name, dates) — default on
+- **Session Log** (list of all PT dates with workout details) — default on
+- **Workout Details** (full exercise breakdowns for each session) — default off
+- **Invoice Summary** (all invoices, amounts, statuses) — default on
+- **Pending Invoices Highlight** — default on
+- **Client Profile Info** (name, stats) — default on
 
-Add `is_plyometric` to the allowed fields.
+Uses browser-native PDF generation approach: renders a hidden styled HTML document and calls `window.print()` with `@media print` styles, or uses a lightweight library. The report will be professionally styled with:
+- Coach branding header (The Vault logo)
+- Client name and date range
+- Clean table layouts for sessions and invoices
+- Color-coded status indicators
+- Summary statistics at the top
+- Footer with generation date
 
-## Files to modify
+**Industry best practices incorporated:**
+- Session countdown prominently displayed (like PTminder)
+- Package expiry tracking (like My PT Hub)
+- Invoice-to-package linking for financial reconciliation
+- Customizable report content (like TrueCoach's client exports)
+- Professional formatting suitable for client communication
+
+## Files to Create/Modify
 
 | File | Change |
 |------|--------|
-| **DB migration** | Add `distance_m`, `height_cm`, `speed_mps` to `exercise_sets`; `is_plyometric` to `exercise_library` |
-| `src/lib/movementPatterns.ts` | Add `plyometric` + `rotational` to types, coefficients, colors, labels, pattern maps, volume calc, `ALL_PATTERNS` |
-| `src/types/workout.ts` | Add `plyometrics` category, update labels, move sprint exercises |
-| `src/components/workout/SetRow.tsx` | Conditionally render height/distance/speed inputs for plyo exercises |
-| `src/components/workout/ExerciseCard.tsx` | Pass `isPlyometric` to SetRow |
-| `src/components/workout/AdminExerciseMenu.tsx` | Add Plyometric toggle |
-| `src/lib/exerciseLibraryUpsert.ts` | Add `is_plyometric` to field type |
+| **DB migration** | Create `pt_packages`, `pt_sessions`, `pt_invoices` tables with admin-only RLS |
+| `src/components/admin/PTSessionTracker.tsx` | **New** — Full PT management panel |
+| `src/components/admin/PTReportGenerator.tsx` | **New** — PDF customization dialog + generation |
+| `src/pages/AdminUserProfile.tsx` | Add PTSessionTracker section between Training and Check-ins |
 
