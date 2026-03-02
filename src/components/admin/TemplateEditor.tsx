@@ -190,7 +190,18 @@ export function TemplateEditor({ template, onBack }: Props) {
           },
         });
       }
-      toast({ title: "Saved!" });
+      // Propagate changes to all assigned clients
+      const { data: propagateResult } = await supabase.functions.invoke("admin-workout-builder", {
+        body: { action: "propagate_template", templateId: template.id },
+      });
+      const updatedCount = propagateResult?.updated || 0;
+      const clientCount = propagateResult?.clients || 0;
+      toast({ 
+        title: "Saved & Synced!", 
+        description: clientCount > 0 
+          ? `Updated ${updatedCount} future workouts across ${clientCount} client(s)` 
+          : "No active assignments to sync"
+      });
       fetchWorkouts();
     } catch (e: any) {
       toast({ title: "Error saving", description: e.message, variant: "destructive" });
