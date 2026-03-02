@@ -1,6 +1,6 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Menu, X, User, LogOut, Shield, Settings } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import logo from "@/assets/logo.png";
 import { useAuthStore } from "@/stores/authStore";
 import { useAdminCheck } from "@/hooks/useAdminCheck";
@@ -17,6 +17,8 @@ import { toast } from "sonner";
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [displayName, setDisplayName] = useState<string | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const profileFetchedRef = useRef<string | null>(null);
   const location = useLocation();
   const navigate = useNavigate();
   const { isAuthenticated, user, signOut, isLoading } = useAuthStore();
@@ -25,17 +27,23 @@ export function Navbar() {
   useEffect(() => {
     if (!user) {
       setDisplayName(null);
+      setAvatarUrl(null);
+      profileFetchedRef.current = null;
       return;
     }
-    const fetchName = async () => {
+    // Only fetch once per user id
+    if (profileFetchedRef.current === user.id) return;
+    profileFetchedRef.current = user.id;
+    const fetchProfile = async () => {
       const { data } = await supabase
         .from("user_profiles")
-        .select("display_name")
+        .select("display_name, avatar_url")
         .eq("id", user.id)
         .single();
       setDisplayName(data?.display_name || user.email?.split("@")[0] || "Account");
+      setAvatarUrl(data?.avatar_url || null);
     };
-    fetchName();
+    fetchProfile();
   }, [user]);
 
   const navLinks = [
@@ -84,7 +92,11 @@ export function Navbar() {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="gap-2">
-                  <User className="w-4 h-4" />
+                  {avatarUrl ? (
+                    <img src={avatarUrl} alt="" className="w-5 h-5 rounded-full object-cover" />
+                  ) : (
+                    <User className="w-4 h-4" />
+                  )}
                   <span className="max-w-[120px] truncate">
                     {displayName || 'Account'}
                   </span>

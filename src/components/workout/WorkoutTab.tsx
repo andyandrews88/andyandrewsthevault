@@ -13,10 +13,12 @@ import { MovementBalanceChart } from "./MovementBalanceChart";
 import { IntensityTrendChart } from "./IntensityTrendChart";
 import { ComplianceDonut } from "./ComplianceDonut";
 import { useWorkoutStore } from "@/stores/workoutStore";
+import { useWorkoutRealtime } from "@/hooks/useWorkoutRealtime";
 
 export function WorkoutTab() {
   const [activeTab, setActiveTab] = useState("logger");
   const { loadWorkoutIntoActive, editWorkout } = useWorkoutStore();
+  useWorkoutRealtime();
 
   const handleOpenWorkout = async (workoutId: string) => {
     await loadWorkoutIntoActive(workoutId);
