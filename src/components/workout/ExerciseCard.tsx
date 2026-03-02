@@ -23,7 +23,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toEmbedUrl } from "@/lib/vaultService";
 import { cn } from "@/lib/utils";
 import { AdminExerciseMenu } from "./AdminExerciseMenu";
-import { isTimedExercise, isBodyweightExercise, isUnilateralExercise, isPlyometricExercise } from "@/lib/movementPatterns";
+import { isTimedExercise, isBodyweightExercise, isUnilateralExercise, isPlyometricExercise, getPlyoMetric, type PlyoMetric } from "@/lib/movementPatterns";
 import { useAdminCheck } from "@/hooks/useAdminCheck";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
@@ -94,6 +94,7 @@ export function ExerciseCard({ exercise, onRemove, allExercises = [], onMoveUp, 
   const [isTimed, setIsTimed] = useState(false);
   const [isUnilateral, setIsUnilateral] = useState(false);
   const [isPlyometric, setIsPlyometric] = useState(false);
+  const [plyoMetric, setPlyoMetric] = useState<PlyoMetric>('standard');
   const isBW = isBodyweightExercise(exercise.exercise_name);
   const [showVideo, setShowVideo] = useState(false);
   const [showAddMenu, setShowAddMenu] = useState(false);
@@ -108,7 +109,7 @@ export function ExerciseCard({ exercise, onRemove, allExercises = [], onMoveUp, 
     const fetchLibrary = async () => {
       const { data } = await supabase
         .from('exercise_library')
-        .select('video_url, is_timed, is_unilateral, is_plyometric')
+        .select('video_url, is_timed, is_unilateral, is_plyometric, plyo_metric')
         .ilike('name', exercise.exercise_name)
         .maybeSingle();
       if (!cancelled) {
@@ -116,6 +117,7 @@ export function ExerciseCard({ exercise, onRemove, allExercises = [], onMoveUp, 
         setIsTimed(isTimedExercise(exercise.exercise_name, (data as any)?.is_timed));
         setIsUnilateral(isUnilateralExercise(exercise.exercise_name, (data as any)?.is_unilateral));
         setIsPlyometric(isPlyometricExercise(exercise.exercise_name, (data as any)?.is_plyometric));
+        setPlyoMetric(getPlyoMetric((data as any)?.plyo_metric));
       }
     };
     fetchLibrary();
@@ -228,6 +230,7 @@ export function ExerciseCard({ exercise, onRemove, allExercises = [], onMoveUp, 
                     if (field === 'isUnilateral') setIsUnilateral(value);
                     if (field === 'videoUrl') setVideoUrl(value);
                     if (field === 'isPlyometric') setIsPlyometric(value);
+                    if (field === 'plyoMetric') setPlyoMetric(value);
                   }}
                 />
               </>
@@ -273,6 +276,7 @@ export function ExerciseCard({ exercise, onRemove, allExercises = [], onMoveUp, 
                     if (field === 'isUnilateral') setIsUnilateral(value);
                     if (field === 'videoUrl') setVideoUrl(value);
                     if (field === 'isPlyometric') setIsPlyometric(value);
+                    if (field === 'plyoMetric') setPlyoMetric(value);
                   }} />
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={onRemove} className="text-destructive">
@@ -303,13 +307,14 @@ export function ExerciseCard({ exercise, onRemove, allExercises = [], onMoveUp, 
       
       <CardContent className="p-0">
         {/* Header Row */}
-        {isPlyometric ? (
-          <div className="grid grid-cols-[28px_1fr_1fr_1fr_1fr_36px_24px] gap-1 sm:gap-1.5 items-center py-2 px-4 border-b border-border bg-muted/30 text-xs font-medium text-muted-foreground">
+        {isPlyometric && plyoMetric !== 'standard' ? (
+          <div className="grid grid-cols-[28px_1fr_1fr_1fr_36px_24px] gap-1 sm:gap-1.5 items-center py-2 px-4 border-b border-border bg-muted/30 text-xs font-medium text-muted-foreground">
             <span className="text-center">Set</span>
             <span className="text-center">Reps</span>
-            <span className="text-center">Ht</span>
-            <span className="text-center">Dist</span>
-            <span className="text-center">m/s</span>
+            <span className="text-center">
+              {plyoMetric === 'height' ? 'Ht (cm)' : plyoMetric === 'distance' ? 'Dist (m)' : 'Speed (m/s)'}
+            </span>
+            <span className="text-center">RIR</span>
             <span className="text-center">✓</span>
             <span></span>
           </div>
@@ -343,6 +348,7 @@ export function ExerciseCard({ exercise, onRemove, allExercises = [], onMoveUp, 
                 isTimed={isTimed}
                 isBodyweight={isBW}
                 isPlyometric={isPlyometric}
+                plyoMetric={plyoMetric}
                 side={set.side}
               />
             );

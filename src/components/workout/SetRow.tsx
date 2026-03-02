@@ -2,6 +2,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
 import { ExerciseSet } from "@/types/workout";
+import type { PlyoMetric } from "@/lib/movementPatterns";
 import { useState, useEffect } from "react";
 import { useWorkoutStore } from "@/stores/workoutStore";
 import { convertWeight } from "@/lib/weightConversion";
@@ -18,6 +19,7 @@ interface SetRowProps {
   isTimed?: boolean;
   isBodyweight?: boolean;
   isPlyometric?: boolean;
+  plyoMetric?: PlyoMetric;
   side?: 'left' | 'right' | null;
 }
 
@@ -31,6 +33,7 @@ export function SetRow({
   isTimed = false,
   isBodyweight = false,
   isPlyometric = false,
+  plyoMetric = 'standard',
   side = null,
 }: SetRowProps) {
   const { preferredUnit } = useWorkoutStore();
@@ -176,10 +179,10 @@ export function SetRow({
 
   return (
     <>
-      {isPlyometric ? (
-        /* ── Plyometric Grid: Set | Reps | Height | Distance | Speed | ✓ | × ── */
+      {isPlyometric && plyoMetric !== 'standard' ? (
+        /* ── Plyometric Grid: Set | Reps | Metric | RIR | ✓ | × ── */
         <div className={cn(
-          "grid grid-cols-[28px_1fr_1fr_1fr_1fr_36px_24px] gap-1 sm:gap-1.5 items-center py-2 border-b border-border/50 last:border-0",
+          "grid grid-cols-[28px_1fr_1fr_1fr_36px_24px] gap-1 sm:gap-1.5 items-center py-2 border-b border-border/50 last:border-0",
           isWarmup && "opacity-60 bg-muted/20"
         )}>
           <button
@@ -199,27 +202,34 @@ export function SetRow({
             disabled={set.is_completed || disabled}
             className="h-9 w-full text-center text-sm rounded-md border border-input bg-background px-1"
           />
-          <input
-            type="number" inputMode="decimal" placeholder="ht"
-            value={heightCm}
-            onChange={(e) => handleHeightChange(e.target.value)}
-            disabled={set.is_completed || disabled}
-            className="h-9 w-full text-center text-sm rounded-md border border-input bg-background px-1"
-          />
-          <input
-            type="number" inputMode="decimal" placeholder="dist"
-            value={distanceM}
-            onChange={(e) => handleDistanceChange(e.target.value)}
-            disabled={set.is_completed || disabled}
-            className="h-9 w-full text-center text-sm rounded-md border border-input bg-background px-1"
-          />
-          <input
-            type="number" inputMode="decimal" placeholder="m/s"
-            value={speedMps}
-            onChange={(e) => handleSpeedChange(e.target.value)}
-            disabled={set.is_completed || disabled}
-            className="h-9 w-full text-center text-sm rounded-md border border-input bg-background px-1"
-          />
+          {plyoMetric === 'height' && (
+            <input
+              type="number" inputMode="decimal" placeholder="cm"
+              value={heightCm}
+              onChange={(e) => handleHeightChange(e.target.value)}
+              disabled={set.is_completed || disabled}
+              className="h-9 w-full text-center text-sm rounded-md border border-input bg-background px-1"
+            />
+          )}
+          {plyoMetric === 'distance' && (
+            <input
+              type="number" inputMode="decimal" placeholder="m"
+              value={distanceM}
+              onChange={(e) => handleDistanceChange(e.target.value)}
+              disabled={set.is_completed || disabled}
+              className="h-9 w-full text-center text-sm rounded-md border border-input bg-background px-1"
+            />
+          )}
+          {plyoMetric === 'speed' && (
+            <input
+              type="number" inputMode="decimal" placeholder="m/s"
+              value={speedMps}
+              onChange={(e) => handleSpeedChange(e.target.value)}
+              disabled={set.is_completed || disabled}
+              className="h-9 w-full text-center text-sm rounded-md border border-input bg-background px-1"
+            />
+          )}
+          <input type="number" inputMode="numeric" min="0" max="5" placeholder="RIR" value={rir} onChange={(e) => handleRirChange(e.target.value)} disabled={set.is_completed || disabled} className="h-9 w-full text-center text-xs rounded-md border border-input bg-background px-1" />
           <div className="flex justify-center">
             <Checkbox
               checked={set.is_completed}
@@ -272,7 +282,7 @@ export function SetRow({
         </div>
       )}
 
-      {!isPlyometric && (
+      {!(isPlyometric && plyoMetric !== 'standard') && (
         <WeightInputPopup
           open={showWeightPopup}
           onOpenChange={setShowWeightPopup}

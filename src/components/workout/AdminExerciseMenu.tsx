@@ -16,10 +16,11 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Dumbbell, Wrench, Video, Timer, ArrowLeftRight, Zap } from "lucide-react";
-import { MOVEMENT_PATTERN_LABELS, type MovementPattern, EQUIPMENT_MODIFIER_VALUES, type EquipmentType } from "@/lib/movementPatterns";
+import { MOVEMENT_PATTERN_LABELS, type MovementPattern, EQUIPMENT_MODIFIER_VALUES, type EquipmentType, PLYO_METRIC_LABELS, type PlyoMetric } from "@/lib/movementPatterns";
 import { upsertExerciseLibraryField } from "@/lib/exerciseLibraryUpsert";
 
-const PATTERNS = Object.entries(MOVEMENT_PATTERN_LABELS) as [MovementPattern, string][];
+const PATTERNS = Object.entries(MOVEMENT_PATTERN_LABELS).filter(([k]) => k !== 'plyometric') as [MovementPattern, string][];
+const PLYO_METRICS = Object.entries(PLYO_METRIC_LABELS) as [PlyoMetric, string][];
 const EQUIPMENT_LABELS: Record<EquipmentType, string> = {
   barbell: 'Barbell',
   dumbbell: 'Dumbbell',
@@ -62,9 +63,16 @@ export function AdminExerciseMenu({ exerciseName, isAdmin, onMetadataChange }: A
     onMetadataChange?.("isUnilateral", isUnilateral);
   };
 
-  const handleTogglePlyometric = async (isPlyometric: boolean) => {
-    await upsertExerciseLibraryField(exerciseName, { is_plyometric: isPlyometric });
+  const handleSetPlyoMetric = async (metric: PlyoMetric) => {
+    const isPlyometric = metric !== 'standard';
+    await upsertExerciseLibraryField(exerciseName, { 
+      movement_pattern: 'plyometric', 
+      is_plyometric: isPlyometric, 
+      plyo_metric: metric 
+    });
+    onMetadataChange?.("movementPattern", "plyometric");
     onMetadataChange?.("isPlyometric", isPlyometric);
+    onMetadataChange?.("plyoMetric", metric);
   };
 
   return (
@@ -77,15 +85,34 @@ export function AdminExerciseMenu({ exerciseName, isAdmin, onMetadataChange }: A
           <Dumbbell className="h-4 w-4 mr-2" />
           Movement Pattern
         </DropdownMenuSubTrigger>
-        <DropdownMenuSubContent>
+      <DropdownMenuSubContent>
           {PATTERNS.map(([key, label]) => (
             <DropdownMenuItem
               key={key}
-              onClick={() => { upsertExerciseLibraryField(exerciseName, { movement_pattern: key }); onMetadataChange?.("movementPattern", key); }}
+              onClick={() => { 
+                upsertExerciseLibraryField(exerciseName, { movement_pattern: key, is_plyometric: false, plyo_metric: 'standard' }); 
+                onMetadataChange?.("movementPattern", key); 
+                onMetadataChange?.("isPlyometric", false);
+                onMetadataChange?.("plyoMetric", "standard");
+              }}
             >
               {label}
             </DropdownMenuItem>
           ))}
+          <DropdownMenuSeparator />
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              <Zap className="h-4 w-4 mr-2" />
+              Plyometric
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent>
+              {PLYO_METRICS.map(([key, label]) => (
+                <DropdownMenuItem key={key} onClick={() => handleSetPlyoMetric(key)}>
+                  {label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
         </DropdownMenuSubContent>
       </DropdownMenuSub>
 
@@ -132,21 +159,6 @@ export function AdminExerciseMenu({ exerciseName, isAdmin, onMetadataChange }: A
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => handleToggleUnilateral(false)}>
             ✗ No (bilateral)
-          </DropdownMenuItem>
-        </DropdownMenuSubContent>
-      </DropdownMenuSub>
-
-      <DropdownMenuSub>
-        <DropdownMenuSubTrigger>
-          <Zap className="h-4 w-4 mr-2" />
-          Plyometric
-        </DropdownMenuSubTrigger>
-        <DropdownMenuSubContent>
-          <DropdownMenuItem onClick={() => handleTogglePlyometric(true)}>
-            ✓ Yes (height/distance/speed)
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => handleTogglePlyometric(false)}>
-            ✗ No (standard)
           </DropdownMenuItem>
         </DropdownMenuSubContent>
       </DropdownMenuSub>
