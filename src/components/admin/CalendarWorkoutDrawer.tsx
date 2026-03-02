@@ -1,23 +1,47 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Plus, Trash2, Save, X, Loader2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import {
+  Plus, Trash2, Save, X, Loader2, Maximize2, Minimize2,
+  MoreVertical, History, RefreshCw,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import type { WorkoutWithExercises } from "./CalendarWorkoutCard";
 import { ExerciseSearch } from "@/components/workout/ExerciseSearch";
+import { AdminExerciseMenu } from "@/components/workout/AdminExerciseMenu";
+import { cn } from "@/lib/utils";
+
+interface DrawerSet {
+  id?: string;
+  set_number: number;
+  weight: string;
+  reps: string;
+  rir: string;
+  is_completed: boolean;
+  set_type: string;
+  isNew?: boolean;
+}
 
 interface DrawerExercise {
   id?: string;
   exercise_name: string;
-  sets: number;
-  reps: string;
-  weight: string;
   notes: string;
+  sets: DrawerSet[];
   isNew?: boolean;
+  previousSets?: { weight: number; reps: number }[];
 }
 
 interface Props {
@@ -29,6 +53,10 @@ interface Props {
   onSaved: () => void;
 }
 
+function makeDefaultSet(setNumber: number): DrawerSet {
+  return { set_number: setNumber, weight: "", reps: "", rir: "", is_completed: false, set_type: "working", isNew: true };
+}
+
 export function CalendarWorkoutDrawer({ open, onOpenChange, workout, userId, date, onSaved }: Props) {
   const [title, setTitle] = useState("New Workout");
   const [warmup, setWarmup] = useState("");
@@ -36,10 +64,13 @@ export function CalendarWorkoutDrawer({ open, onOpenChange, workout, userId, dat
   const [exercises, setExercises] = useState<DrawerExercise[]>([]);
   const [saving, setSaving] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [replaceIdx, setReplaceIdx] = useState<number | null>(null);
+  const [maximized, setMaximized] = useState(false);
 
   const isEdit = !!workout;
 
   useEffect(() => {
+    if (!open) return;
     if (workout) {
       setTitle(workout.workout_name);
       setWarmup(workout.notes || "");
@@ -48,10 +79,16 @@ export function CalendarWorkoutDrawer({ open, onOpenChange, workout, userId, dat
         workout.exercises.map((ex) => ({
           id: ex.id,
           exercise_name: ex.exercise_name,
-          sets: ex.sets.length || 1,
-          reps: ex.sets[0]?.reps?.toString() || "",
-          weight: ex.sets[0]?.weight?.toString() || "",
           notes: ex.notes || "",
+          sets: ex.sets.map((s) => ({
+            id: s.id,
+            set_number: s.set_number,
+            weight: s.weight?.toString() || "",
+            reps: s.reps?.toString() || "",
+            rir: (s as any).rir?.toString() || "",
+            is_completed: !!s.is_completed,
+            set_type: (s as any).set_type || "working",
+          })),
         }))
       );
     } else {
@@ -62,10 +99,15 @@ export function CalendarWorkoutDrawer({ open, onOpenChange, workout, userId, dat
     }
   }, [workout, open]);
 
-  const addExercise = (name?: string) => {
+  const addExercise = (name: string) => {
     setExercises((prev) => [
       ...prev,
-      { exercise_name: name || "", sets: 3, reps: "", weight: "", notes: "", isNew: true },
+      {
+        exercise_name: name,
+        notes: "",
+        sets: [makeDefaultSet(1), makeDefaultSet(2), makeDefaultSet(3)],
+        isNew: true,
+      },
     ]);
   };
 
@@ -73,8 +115,91 @@ export function CalendarWorkoutDrawer({ open, onOpenChange, workout, userId, dat
     setExercises((prev) => prev.filter((_, i) => i !== idx));
   };
 
-  const updateExercise = (idx: number, field: keyof DrawerExercise, value: string | number) => {
+  const updateExerciseField = (idx: number, field: keyof DrawerExercise, value: any) => {
     setExercises((prev) => prev.map((ex, i) => (i === idx ? { ...ex, [field]: value } : ex)));
+  };
+
+  const addSet = (exIdx: number, type: string = "working") => {
+    setExercises((prev) =>
+      prev.map((ex, i) => {
+        if (i !== exIdx) return ex;
+        const nextNum = ex.sets.length + 1;
+        return { ...ex, sets: [...ex.sets, { ...makeDefaultSet(nextNum), set_type: type }] };
+      })
+    );
+  };
+
+  const removeSet = (exIdx: number, setIdx: number) => {
+    setExercises((prev) =>
+      prev.map((ex, i) => {
+        if (i !== exIdx) return ex;
+        const newSets = ex.sets.filter((_, si) => si !== setIdx).map((s, si) => ({ ...s, set_number: si + 1 }));
+        return { ...ex, sets: newSets };
+      })
+    );
+  };
+
+  const updateSet = (exIdx: number, setIdx: number, field: keyof DrawerSet, value: any) => {
+    setExercises((prev) =>
+      prev.map((ex, i) => {
+        if (i !== exIdx) return ex;
+        const newSets = ex.sets.map((s, si) => (si === setIdx ? { ...s, [field]: value } : s));
+        return { ...ex, sets: newSets };
+      })
+    );
+  };
+
+  const toggleSetType = (exIdx: number, setIdx: number) => {
+    setExercises((prev) =>
+      prev.map((ex, i) => {
+        if (i !== exIdx) return ex;
+        const newSets = ex.sets.map((s, si) =>
+          si === setIdx ? { ...s, set_type: s.set_type === "warmup" ? "working" : "warmup" } : s
+        );
+        return { ...ex, sets: newSets };
+      })
+    );
+  };
+
+  const loadLastSession = useCallback(async (exIdx: number) => {
+    const ex = exercises[exIdx];
+    if (!ex) return;
+    try {
+      const { data } = await supabase.functions.invoke("admin-workout-builder", {
+        body: { action: "get_last_session", userId, exerciseName: ex.exercise_name },
+      });
+      if (data?.sets?.length) {
+        const prevSets = data.sets.map((s: any) => ({ weight: s.weight || 0, reps: s.reps || 0 }));
+        updateExerciseField(exIdx, "previousSets", prevSets);
+        // Also pre-fill sets if current ones are empty
+        setExercises((prev) =>
+          prev.map((e, i) => {
+            if (i !== exIdx) return e;
+            const newSets = data.sets.map((s: any, si: number) => ({
+              ...(e.sets[si] || makeDefaultSet(si + 1)),
+              weight: s.weight?.toString() || "",
+              reps: s.reps?.toString() || "",
+              rir: s.rir?.toString() || "",
+              set_type: s.set_type || "working",
+              isNew: e.sets[si]?.isNew ?? true,
+            }));
+            return { ...e, sets: newSets, previousSets: prevSets };
+          })
+        );
+        toast({ title: "Last session loaded" });
+      } else {
+        toast({ title: "No previous session found", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Failed to load", variant: "destructive" });
+    }
+  }, [exercises, userId]);
+
+  const handleReplaceExercise = (name: string) => {
+    if (replaceIdx !== null) {
+      updateExerciseField(replaceIdx, "exercise_name", name);
+      setReplaceIdx(null);
+    }
   };
 
   const handleSave = async () => {
@@ -87,27 +212,24 @@ export function CalendarWorkoutDrawer({ open, onOpenChange, workout, userId, dat
       let workoutId = workout?.id;
 
       if (!workoutId) {
-        // Create workout
         const { data } = await supabase.functions.invoke("admin-workout-builder", {
           body: { action: "create_workout", userId, workoutName: title, date },
         });
         workoutId = data?.id;
         if (!workoutId) throw new Error("Failed to create workout");
       } else {
-        // Update name + notes
         await supabase.functions.invoke("admin-workout-builder", {
           body: { action: "update_workout_name", workoutId, workoutName: title },
         });
       }
 
-      // Update notes
       if (warmup || workout?.notes) {
         await supabase.functions.invoke("admin-workout-builder", {
           body: { action: "update_notes", workoutId, notes: warmup },
         });
       }
 
-      // Remove old exercises that were deleted
+      // Remove deleted exercises
       if (workout) {
         const keptIds = exercises.filter((e) => e.id).map((e) => e.id);
         for (const oldEx of workout.exercises) {
@@ -119,43 +241,77 @@ export function CalendarWorkoutDrawer({ open, onOpenChange, workout, userId, dat
         }
       }
 
-      // Add new exercises
+      // Process exercises
       for (let i = 0; i < exercises.length; i++) {
         const ex = exercises[i];
+        let exerciseId = ex.id;
+
         if (ex.isNew || !ex.id) {
           if (!ex.exercise_name.trim()) continue;
           const { data: newEx } = await supabase.functions.invoke("admin-workout-builder", {
-            body: {
-              action: "add_exercise",
-              workoutId,
-              exerciseName: ex.exercise_name,
-              orderIndex: i,
-            },
+            body: { action: "add_exercise", workoutId, exerciseName: ex.exercise_name, orderIndex: i },
           });
-          // Add additional sets if needed
-          if (newEx && ex.sets > 1) {
-            for (let s = 2; s <= ex.sets; s++) {
+          exerciseId = newEx?.id;
+          if (!exerciseId) continue;
+
+          // Remove auto-created first set, we'll add our own
+          if (newEx?.sets?.[0]) {
+            await supabase.functions.invoke("admin-workout-builder", {
+              body: { action: "remove_set", setId: newEx.sets[0].id },
+            });
+          }
+        }
+
+        // Update exercise notes
+        if (exerciseId && ex.notes) {
+          await supabase.functions.invoke("admin-workout-builder", {
+            body: { action: "update_exercise_notes", exerciseId, notes: ex.notes },
+          });
+        }
+
+        // Handle sets
+        if (exerciseId) {
+          // Remove old sets that were deleted (for existing exercises)
+          if (ex.id && workout) {
+            const oldEx = workout.exercises.find((e) => e.id === ex.id);
+            if (oldEx) {
+              const keptSetIds = ex.sets.filter((s) => s.id).map((s) => s.id);
+              for (const oldSet of oldEx.sets) {
+                if (!keptSetIds.includes(oldSet.id)) {
+                  await supabase.functions.invoke("admin-workout-builder", {
+                    body: { action: "remove_set", setId: oldSet.id },
+                  });
+                }
+              }
+            }
+          }
+
+          // Add/update sets
+          for (const s of ex.sets) {
+            if (s.id && !s.isNew) {
+              // Update existing set
+              await supabase.functions.invoke("admin-workout-builder", {
+                body: {
+                  action: "update_set",
+                  setId: s.id,
+                  weight: s.weight ? parseFloat(s.weight) : null,
+                  reps: s.reps ? parseInt(s.reps) : null,
+                  rir: s.rir ? parseInt(s.rir) : null,
+                  isCompleted: s.is_completed,
+                },
+              });
+            } else {
+              // Add new set
               await supabase.functions.invoke("admin-workout-builder", {
                 body: {
                   action: "add_set",
-                  exerciseId: newEx.id,
-                  setNumber: s,
-                  weight: ex.weight ? parseFloat(ex.weight) : null,
-                  reps: ex.reps ? parseInt(ex.reps) : null,
+                  exerciseId,
+                  setNumber: s.set_number,
+                  weight: s.weight ? parseFloat(s.weight) : null,
+                  reps: s.reps ? parseInt(s.reps) : null,
                 },
               });
             }
-          }
-          // Update first set with weight/reps
-          if (newEx?.sets?.[0] && (ex.weight || ex.reps)) {
-            await supabase.functions.invoke("admin-workout-builder", {
-              body: {
-                action: "update_set",
-                setId: newEx.sets[0].id,
-                weight: ex.weight ? parseFloat(ex.weight) : null,
-                reps: ex.reps ? parseInt(ex.reps) : null,
-              },
-            });
           }
         }
       }
@@ -173,9 +329,23 @@ export function CalendarWorkoutDrawer({ open, onOpenChange, workout, userId, dat
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto p-0">
-          <SheetHeader className="p-4 border-b border-border">
+        <SheetContent
+          side="right"
+          className={cn(
+            "overflow-y-auto p-0 transition-all duration-200",
+            maximized ? "w-full sm:max-w-4xl" : "w-full sm:max-w-md"
+          )}
+        >
+          <SheetHeader className="p-4 border-b border-border flex flex-row items-center justify-between">
             <SheetTitle className="text-base">{isEdit ? "Edit Workout" : "New Workout"}</SheetTitle>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => setMaximized(!maximized)}
+            >
+              {maximized ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+            </Button>
           </SheetHeader>
 
           <div className="p-4 space-y-4">
@@ -197,69 +367,176 @@ export function CalendarWorkoutDrawer({ open, onOpenChange, workout, userId, dat
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <Label className="text-xs font-semibold">Exercises</Label>
-                <Button size="sm" variant="outline" onClick={() => setSearchOpen(true)} className="h-7 text-xs">
+                <Button size="sm" variant="outline" onClick={() => { setReplaceIdx(null); setSearchOpen(true); }} className="h-7 text-xs">
                   <Plus className="h-3 w-3 mr-1" /> Exercise
                 </Button>
               </div>
 
-              {exercises.map((ex, idx) => (
-                <div key={idx} className="border border-border rounded-md p-3 space-y-2 bg-muted/20">
-                  <div className="flex items-center gap-2">
+              {exercises.map((ex, exIdx) => (
+                <div key={exIdx} className="border border-border rounded-md bg-muted/20 overflow-hidden">
+                  {/* Exercise Header */}
+                  <div className="flex items-center gap-2 px-3 py-2 bg-secondary/30 border-b border-border">
                     <span className="text-xs font-bold text-muted-foreground w-5">
-                      {String.fromCharCode(65 + idx)})
+                      {String.fromCharCode(65 + exIdx)})
                     </span>
-                    <Input
-                      value={ex.exercise_name}
-                      onChange={(e) => updateExercise(idx, "exercise_name", e.target.value)}
-                      placeholder="Exercise name"
-                      className="h-8 text-xs flex-1"
-                    />
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-7 w-7"
-                      onClick={() => removeExercise(idx)}
-                    >
-                      <Trash2 className="h-3 w-3 text-destructive" />
+                    <span className="text-xs font-semibold flex-1 uppercase tracking-wide truncate">
+                      {ex.exercise_name || "Untitled"}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {ex.sets.filter((s) => s.is_completed && s.set_type !== "warmup").length}/
+                      {ex.sets.filter((s) => s.set_type !== "warmup").length} sets
+                    </span>
+
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-7 w-7">
+                          <MoreVertical className="h-3.5 w-3.5" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => loadLastSession(exIdx)}>
+                          <History className="h-4 w-4 mr-2" /> Load Last Session
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => { setReplaceIdx(exIdx); setSearchOpen(true); }}>
+                          <RefreshCw className="h-4 w-4 mr-2" /> Replace Exercise
+                        </DropdownMenuItem>
+                        <AdminExerciseMenu exerciseName={ex.exercise_name} isAdmin={true} />
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => removeExercise(exIdx)} className="text-destructive">
+                          <Trash2 className="h-4 w-4 mr-2" /> Remove Exercise
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+
+                  {/* Set Header Row */}
+                  <div className={cn(
+                    "grid gap-1 items-center py-1.5 px-3 text-[10px] font-medium text-muted-foreground border-b border-border/50",
+                    maximized
+                      ? "grid-cols-[28px_1fr_1fr_1fr_44px_36px_24px]"
+                      : "grid-cols-[24px_1fr_1fr_40px_28px_20px]"
+                  )}>
+                    <span className="text-center">Set</span>
+                    {maximized && <span className="text-center">Prev</span>}
+                    <span className="text-center">Kg</span>
+                    <span className="text-center">Reps</span>
+                    <span className="text-center">RIR</span>
+                    <span className="text-center">✓</span>
+                    <span></span>
+                  </div>
+
+                  {/* Set Rows */}
+                  <div className="px-3">
+                    {ex.sets.map((s, sIdx) => {
+                      const isWarmup = s.set_type === "warmup";
+                      const prev = ex.previousSets?.[sIdx];
+                      return (
+                        <div
+                          key={sIdx}
+                          className={cn(
+                            "grid gap-1 items-center py-1.5 border-b border-border/30 last:border-0",
+                            maximized
+                              ? "grid-cols-[28px_1fr_1fr_1fr_44px_36px_24px]"
+                              : "grid-cols-[24px_1fr_1fr_40px_28px_20px]",
+                            isWarmup && "opacity-60"
+                          )}
+                        >
+                          {/* Set number / warmup toggle */}
+                          <button
+                            onClick={() => toggleSetType(exIdx, sIdx)}
+                            className={cn(
+                              "text-center text-[11px] font-medium cursor-pointer select-none",
+                              isWarmup ? "text-yellow-500 font-bold" : "text-muted-foreground"
+                            )}
+                            title={isWarmup ? "Warmup (tap for working)" : "Working (tap for warmup)"}
+                          >
+                            {isWarmup ? "W" : s.set_number}
+                          </button>
+
+                          {/* Previous */}
+                          {maximized && (
+                            <div className="text-center text-[10px] text-muted-foreground">
+                              {prev ? `${prev.weight}×${prev.reps}` : "—"}
+                            </div>
+                          )}
+
+                          {/* Weight */}
+                          <input
+                            type="number"
+                            inputMode="decimal"
+                            value={s.weight}
+                            onChange={(e) => updateSet(exIdx, sIdx, "weight", e.target.value)}
+                            placeholder="kg"
+                            className="h-7 w-full text-center text-xs rounded-md border border-input bg-background px-1"
+                          />
+
+                          {/* Reps */}
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            value={s.reps}
+                            onChange={(e) => updateSet(exIdx, sIdx, "reps", e.target.value)}
+                            placeholder="reps"
+                            className="h-7 w-full text-center text-xs rounded-md border border-input bg-background px-1"
+                          />
+
+                          {/* RIR */}
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            min="0"
+                            max="5"
+                            value={s.rir}
+                            onChange={(e) => updateSet(exIdx, sIdx, "rir", e.target.value)}
+                            placeholder="RIR"
+                            className={cn(
+                              "h-7 w-full text-center text-[10px] rounded-md border border-input bg-background px-0.5",
+                              maximized ? "" : "text-[9px]"
+                            )}
+                          />
+
+                          {/* Complete */}
+                          <div className="flex justify-center">
+                            <Checkbox
+                              checked={s.is_completed}
+                              onCheckedChange={(checked) => updateSet(exIdx, sIdx, "is_completed", !!checked)}
+                              className="h-5 w-5"
+                            />
+                          </div>
+
+                          {/* Remove */}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-5 w-5 text-muted-foreground hover:text-destructive"
+                            onClick={() => removeSet(exIdx, sIdx)}
+                          >
+                            <Trash2 className="h-2.5 w-2.5" />
+                          </Button>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Add Set / Warmup */}
+                  <div className="px-3 py-2 border-t border-border/50 flex gap-2">
+                    <Button variant="outline" size="sm" onClick={() => addSet(exIdx)} className="flex-1 h-7 text-xs">
+                      <Plus className="h-3 w-3 mr-1" /> Add Set
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => addSet(exIdx, "warmup")} className="text-muted-foreground text-[10px] h-7">
+                      + Warmup
                     </Button>
                   </div>
-                  <div className="grid grid-cols-3 gap-2">
-                    <div>
-                      <Label className="text-[10px] text-muted-foreground">Sets</Label>
-                      <Input
-                        type="number"
-                        inputMode="numeric"
-                        value={ex.sets}
-                        onChange={(e) => updateExercise(idx, "sets", parseInt(e.target.value) || 1)}
-                        className="h-7 text-xs"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-[10px] text-muted-foreground">Reps</Label>
-                      <Input
-                        value={ex.reps}
-                        onChange={(e) => updateExercise(idx, "reps", e.target.value)}
-                        placeholder="8-12"
-                        className="h-7 text-xs"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-[10px] text-muted-foreground">Weight</Label>
-                      <Input
-                        value={ex.weight}
-                        onChange={(e) => updateExercise(idx, "weight", e.target.value)}
-                        placeholder="kg"
-                        className="h-7 text-xs"
-                        inputMode="decimal"
-                      />
-                    </div>
+
+                  {/* Coach Cues / Notes */}
+                  <div className="px-3 pb-2">
+                    <Input
+                      value={ex.notes}
+                      onChange={(e) => updateExerciseField(exIdx, "notes", e.target.value)}
+                      placeholder="Coach cues, tempo, rest..."
+                      className="h-7 text-[10px]"
+                    />
                   </div>
-                  <Input
-                    value={ex.notes}
-                    onChange={(e) => updateExercise(idx, "notes", e.target.value)}
-                    placeholder="Notes (tempo, rest, cues...)"
-                    className="h-7 text-[10px]"
-                  />
                 </div>
               ))}
 
@@ -298,9 +575,14 @@ export function CalendarWorkoutDrawer({ open, onOpenChange, workout, userId, dat
           open={searchOpen}
           onOpenChange={setSearchOpen}
           onSelectExercise={(name) => {
-            addExercise(name);
+            if (replaceIdx !== null) {
+              handleReplaceExercise(name);
+            } else {
+              addExercise(name);
+            }
             setSearchOpen(false);
           }}
+          mode={replaceIdx !== null ? "replace" : "add"}
         />
       )}
     </>

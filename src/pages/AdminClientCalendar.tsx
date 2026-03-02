@@ -5,7 +5,7 @@ import { useAdminCheck } from "@/hooks/useAdminCheck";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { format, addWeeks, subWeeks, startOfWeek, addDays, eachDayOfInterval } from "date-fns";
 import { toast } from "@/hooks/use-toast";
 import { WeeklyCalendarGrid } from "@/components/admin/WeeklyCalendarGrid";
@@ -22,27 +22,27 @@ export default function AdminClientCalendar() {
   const isMobile = useIsMobile();
 
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
+  const [weeksToShow, setWeeksToShow] = useState(4);
   const [workouts, setWorkouts] = useState<WorkoutWithExercises[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Drawer state
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedWorkout, setSelectedWorkout] = useState<WorkoutWithExercises | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [mobileDay, setMobileDay] = useState(0);
 
-  // 2 weeks of days (Mon-Sun × 2)
+  const totalDays = weeksToShow * 7;
   const days = eachDayOfInterval({
     start: weekStart,
-    end: addDays(weekStart, 13),
+    end: addDays(weekStart, totalDays - 1),
   });
 
-  const fetchWeek = useCallback(async (start: Date) => {
+  const fetchWeek = useCallback(async (start: Date, numDays: number) => {
     if (!userId) return;
     setLoading(true);
     try {
       const startDate = format(start, "yyyy-MM-dd");
-      const endDate = format(addDays(start, 13), "yyyy-MM-dd");
+      const endDate = format(addDays(start, numDays - 1), "yyyy-MM-dd");
       const { data, error } = await supabase.functions.invoke("admin-workout-builder", {
         body: { action: "get_client_week", userId, startDate, endDate },
       });
@@ -59,14 +59,15 @@ export default function AdminClientCalendar() {
   useEffect(() => {
     if (adminLoading) return;
     if (!isAdmin) { navigate("/"); return; }
-    fetchWeek(weekStart);
-  }, [isAdmin, adminLoading, weekStart, userId, fetchWeek]);
+    fetchWeek(weekStart, totalDays);
+  }, [isAdmin, adminLoading, weekStart, totalDays, userId, fetchWeek]);
 
   const handlePrev = () => setWeekStart((prev) => subWeeks(prev, 1));
   const handleNext = () => setWeekStart((prev) => addWeeks(prev, 1));
   const handleToday = () => setWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }));
+  const handleLoadMore = () => setWeeksToShow((prev) => prev + 2);
+  const handleLoadLess = () => setWeeksToShow((prev) => Math.max(2, prev - 2));
 
-  // Group workouts by date
   const workoutsByDate = new Map<string, WorkoutWithExercises[]>();
   for (const w of workouts) {
     const key = w.date;
@@ -92,7 +93,7 @@ export default function AdminClientCalendar() {
         body: { action: "delete_workout", workoutId },
       });
       toast({ title: "Workout deleted" });
-      fetchWeek(weekStart);
+      fetchWeek(weekStart, totalDays);
     } catch {
       toast({ title: "Failed to delete", variant: "destructive" });
     }
@@ -130,7 +131,7 @@ export default function AdminClientCalendar() {
           </Button>
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold">
-              {format(weekStart, "MMM d")} – {format(addDays(weekStart, 13), "MMM d, yyyy")}
+              {format(weekStart, "MMM d")} – {format(addDays(weekStart, totalDays - 1), "MMM d, yyyy")}
             </span>
             <Button variant="outline" size="sm" className="h-7 text-xs" onClick={handleToday}>
               <CalendarIcon className="h-3 w-3 mr-1" /> Today
@@ -149,7 +150,6 @@ export default function AdminClientCalendar() {
             ))}
           </div>
         ) : isMobile ? (
-          /* Mobile: week strip + day detail */
           <div className="space-y-3">
             <div className="flex gap-1 overflow-x-auto pb-1">
               {mobileWeekDays.map((d, i) => {
@@ -175,7 +175,6 @@ export default function AdminClientCalendar() {
               })}
             </div>
 
-            {/* Selected day workouts */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-semibold">
@@ -237,6 +236,18 @@ export default function AdminClientCalendar() {
           />
         )}
 
+        {/* Load More / Less */}
+        <div className="flex justify-center gap-2">
+          {weeksToShow > 2 && (
+            <Button variant="outline" size="sm" className="text-xs gap-1" onClick={handleLoadLess}>
+              <ChevronUp className="h-3 w-3" /> Show Less
+            </Button>
+          )}
+          <Button variant="outline" size="sm" className="text-xs gap-1" onClick={handleLoadMore}>
+            <ChevronDown className="h-3 w-3" /> Load More Weeks
+          </Button>
+        </div>
+
         {/* Legend */}
         <div className="flex gap-4 text-xs text-muted-foreground">
           <span className="flex items-center gap-1"><div className="w-2.5 h-2.5 rounded-full bg-green-500" /> Completed</span>
@@ -251,7 +262,7 @@ export default function AdminClientCalendar() {
         workout={selectedWorkout}
         userId={userId || ""}
         date={selectedDate}
-        onSaved={() => fetchWeek(weekStart)}
+        onSaved={() => fetchWeek(weekStart, totalDays)}
       />
     </div>
   );

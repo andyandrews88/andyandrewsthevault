@@ -764,6 +764,33 @@ Deno.serve(async (req) => {
         }), { headers: corsHeaders });
       }
 
+      // ==================== GET LAST SESSION FOR EXERCISE ====================
+      case "get_last_session": {
+        const { userId, exerciseName } = body;
+        if (!userId || !exerciseName) throw new Error("userId and exerciseName required");
+        // Find most recent completed workout with this exercise
+        const { data: recentExercises } = await serviceClient
+          .from("workout_exercises")
+          .select("id, workout_id, sets:exercise_sets(*)")
+          .ilike("exercise_name", exerciseName)
+          .order("created_at", { ascending: false })
+          .limit(10);
+        // Filter to ones belonging to this user's completed workouts
+        for (const ex of (recentExercises || [])) {
+          const { data: w } = await serviceClient
+            .from("workouts")
+            .select("id, is_completed, user_id")
+            .eq("id", ex.workout_id)
+            .eq("user_id", userId)
+            .eq("is_completed", true)
+            .maybeSingle();
+          if (w) {
+            return new Response(JSON.stringify({ sets: ex.sets || [] }), { headers: corsHeaders });
+          }
+        }
+        return new Response(JSON.stringify({ sets: [] }), { headers: corsHeaders });
+      }
+
       default:
         return new Response(
           JSON.stringify({ error: `Unknown action: ${action}` }),
