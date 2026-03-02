@@ -25,7 +25,7 @@ import { useCommunityStore } from "@/stores/communityStore";
 
 export function VaultDashboard() {
   const { isAdmin } = useAdminCheck();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const defaultTab = searchParams.get('tab') || 'dashboard';
   const [activeTab, setActiveTab] = useState(defaultTab);
   const { hasNewAnnouncement, markCommunityVisited } = useNotificationStore();
@@ -35,6 +35,7 @@ export function VaultDashboard() {
 
   const handleTabChange = (value: string) => {
     setActiveTab(value);
+    setSearchParams({ tab: value }, { replace: true });
     if (value === 'community') {
       markCommunityVisited();
     }

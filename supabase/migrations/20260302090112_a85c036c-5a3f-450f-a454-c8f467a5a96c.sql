@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX IF NOT EXISTS exercise_library_name_unique ON public.exercise_library (name);

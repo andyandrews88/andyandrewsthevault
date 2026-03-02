@@ -221,6 +221,11 @@ export function ExerciseCard({ exercise, onRemove, allExercises = [], onMoveUp, 
                   onUnlinkSuperset={() => unlinkSuperset(exercise.id)}
                   onReplace={() => setShowReplaceSearch(true)}
                   onRemove={onRemove}
+                  onMetadataChange={(field, value) => {
+                    if (field === 'isTimed') setIsTimed(value);
+                    if (field === 'isUnilateral') setIsUnilateral(value);
+                    if (field === 'videoUrl') setVideoUrl(value);
+                  }}
                 />
               </>
             ) : (
@@ -260,7 +265,11 @@ export function ExerciseCard({ exercise, onRemove, allExercises = [], onMoveUp, 
                     <RefreshCw className="h-4 w-4 mr-2" />
                     Replace Exercise
                   </DropdownMenuItem>
-                  <AdminExerciseMenu exerciseName={exercise.exercise_name} isAdmin={isAdmin} />
+                  <AdminExerciseMenu exerciseName={exercise.exercise_name} isAdmin={isAdmin} onMetadataChange={(field, value) => {
+                    if (field === 'isTimed') setIsTimed(value);
+                    if (field === 'isUnilateral') setIsUnilateral(value);
+                    if (field === 'videoUrl') setVideoUrl(value);
+                  }} />
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={onRemove} className="text-destructive">
                     <Trash2 className="h-4 w-4 mr-2" />

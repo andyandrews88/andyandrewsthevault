@@ -45,7 +45,9 @@ export function AdminExerciseMenu({ exerciseName, isAdmin, onMetadataChange }: A
   if (!isAdmin) return null;
 
   const handleSaveVideo = async () => {
-    await upsertExerciseLibraryField(exerciseName, { video_url: videoUrlInput.trim() || null });
+    const url = videoUrlInput.trim() || null;
+    await upsertExerciseLibraryField(exerciseName, { video_url: url });
+    onMetadataChange?.("videoUrl", url);
     setShowVideoDialog(false);
     setVideoUrlInput("");
   };
@@ -74,7 +76,7 @@ export function AdminExerciseMenu({ exerciseName, isAdmin, onMetadataChange }: A
           {PATTERNS.map(([key, label]) => (
             <DropdownMenuItem
               key={key}
-              onClick={() => upsertExerciseLibraryField(exerciseName, { movement_pattern: key })}
+              onClick={() => { upsertExerciseLibraryField(exerciseName, { movement_pattern: key }); onMetadataChange?.("movementPattern", key); }}
             >
               {label}
             </DropdownMenuItem>
@@ -91,7 +93,7 @@ export function AdminExerciseMenu({ exerciseName, isAdmin, onMetadataChange }: A
           {EQUIPMENT.map(([key, label]) => (
             <DropdownMenuItem
               key={key}
-              onClick={() => upsertExerciseLibraryField(exerciseName, { equipment_type: key })}
+              onClick={() => { upsertExerciseLibraryField(exerciseName, { equipment_type: key }); onMetadataChange?.("equipmentType", key); }}
             >
               {label}
             </DropdownMenuItem>
