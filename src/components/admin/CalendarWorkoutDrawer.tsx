@@ -528,13 +528,14 @@ export function CalendarWorkoutDrawer({ open, onOpenChange, workout, userId, dat
                     </Button>
                   </div>
 
-                  {/* Coach Cues / Notes */}
+                  {/* Coach Cues / Notes — expandable */}
                   <div className="px-3 pb-2">
-                    <Input
+                    <Textarea
                       value={ex.notes}
                       onChange={(e) => updateExerciseField(exIdx, "notes", e.target.value)}
-                      placeholder="Coach cues, tempo, rest..."
-                      className="h-7 text-[10px]"
+                      placeholder="Coach cues, tempo, rest, instructions..."
+                      className="text-[11px] min-h-[32px] resize-y"
+                      rows={ex.notes ? Math.min(6, Math.max(2, ex.notes.split('\n').length + 1)) : 1}
                     />
                   </div>
                 </div>
