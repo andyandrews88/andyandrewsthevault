@@ -96,6 +96,7 @@ export function PTSessionTracker({ clientUserId, clientDisplayName }: PTSessionT
   const [invDate, setInvDate] = useState<Date>(new Date());
   const [invPkgId, setInvPkgId] = useState("");
   const [invNotes, setInvNotes] = useState("");
+  const [invCurrency, setInvCurrency] = useState("AUD");
 
   const activePackage = packages.find(p => p.status === "active");
 
@@ -166,6 +167,7 @@ export function PTSessionTracker({ clientUserId, clientDisplayName }: PTSessionT
       package_id: invPkgId || null,
       invoice_url: invUrl.trim(),
       amount: parseFloat(invAmount) || 0,
+      currency: invCurrency,
       status: invStatus,
       invoice_date: format(invDate, "yyyy-MM-dd"),
       notes: invNotes || null,
@@ -173,7 +175,7 @@ export function PTSessionTracker({ clientUserId, clientDisplayName }: PTSessionT
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
     toast({ title: "Invoice added" });
     setAddInvoiceOpen(false);
-    setInvUrl(""); setInvAmount(""); setInvNotes(""); setInvStatus("pending");
+    setInvUrl(""); setInvAmount(""); setInvNotes(""); setInvStatus("pending"); setInvCurrency("AUD");
     fetchAll();
   };
 
@@ -351,7 +353,7 @@ export function PTSessionTracker({ clientUserId, clientDisplayName }: PTSessionT
                 {invoices.map(inv => (
                   <TableRow key={inv.id}>
                     <TableCell className="text-sm">{format(new Date(inv.invoice_date), "MMM d, yyyy")}</TableCell>
-                    <TableCell className="text-sm font-mono">${Number(inv.amount).toFixed(2)} {inv.currency}</TableCell>
+                    <TableCell className="text-sm font-mono">{inv.currency === "LKR" ? "Rs" : "$"}{Number(inv.amount).toFixed(2)} {inv.currency}</TableCell>
                     <TableCell>
                       <Badge className={cn("text-[10px] capitalize", statusColor(inv.status))}>
                         <span className="flex items-center gap-1">{statusIcon(inv.status)}{inv.status}</span>
@@ -391,14 +393,7 @@ export function PTSessionTracker({ clientUserId, clientDisplayName }: PTSessionT
             </div>
             <div>
               <Label>Number of Sessions</Label>
-              <Select value={pkgSessions} onValueChange={setPkgSessions}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {[1,3,5,8,10,15,20,25,30,40,50].map(n => (
-                    <SelectItem key={n} value={String(n)}>{n} sessions</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Input type="number" min={1} value={pkgSessions} onChange={e => setPkgSessions(e.target.value)} placeholder="e.g. 12" />
             </div>
             <div>
               <Label>Purchase Date</Label>
@@ -491,10 +486,21 @@ export function PTSessionTracker({ clientUserId, clientDisplayName }: PTSessionT
               <Label>Invoice URL (Stripe)</Label>
               <Input value={invUrl} onChange={e => setInvUrl(e.target.value)} placeholder="https://invoice.stripe.com/..." />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <div>
-                <Label>Amount (AUD)</Label>
+                <Label>Amount</Label>
                 <Input type="number" value={invAmount} onChange={e => setInvAmount(e.target.value)} placeholder="0.00" />
+              </div>
+              <div>
+                <Label>Currency</Label>
+                <Select value={invCurrency} onValueChange={setInvCurrency}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="AUD">AUD ($)</SelectItem>
+                    <SelectItem value="USD">USD ($)</SelectItem>
+                    <SelectItem value="LKR">LKR (Rs)</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <Label>Status</Label>
