@@ -17,7 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import {
   History, Trash2, Link, Unlink, RefreshCw,
-  Dumbbell, Wrench, Video, Timer, ArrowLeftRight,
+  Dumbbell, Wrench, Video, Timer, ArrowLeftRight, Zap,
   ChevronRight, ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -275,6 +275,35 @@ export function ExerciseActionSheet({
                     className="w-full rounded-md px-3 py-2.5 text-left text-sm text-foreground hover:bg-accent active:bg-accent/60"
                   >
                     ✗ No (bilateral)
+                  </button>
+                </ExpandableSection>
+
+                <ExpandableSection icon={Zap} label="Plyometric">
+                  <button
+                    onClick={() =>
+                      handleAction(() => {
+                        upsertExerciseLibraryField(exercise.exercise_name, {
+                          is_plyometric: true,
+                        });
+                        onMetadataChange?.("isPlyometric", true);
+                      })
+                    }
+                    className="w-full rounded-md px-3 py-2.5 text-left text-sm text-foreground hover:bg-accent active:bg-accent/60"
+                  >
+                    ✓ Yes (height/distance/speed)
+                  </button>
+                  <button
+                    onClick={() =>
+                      handleAction(() => {
+                        upsertExerciseLibraryField(exercise.exercise_name, {
+                          is_plyometric: false,
+                        });
+                        onMetadataChange?.("isPlyometric", false);
+                      })
+                    }
+                    className="w-full rounded-md px-3 py-2.5 text-left text-sm text-foreground hover:bg-accent active:bg-accent/60"
+                  >
+                    ✗ No (standard)
                   </button>
                 </ExpandableSection>
 

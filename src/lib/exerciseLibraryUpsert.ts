@@ -7,7 +7,7 @@ import { toast } from "sonner";
  */
 export async function upsertExerciseLibraryField(
   exerciseName: string,
-  field: Partial<{ movement_pattern: string | null; equipment_type: string | null; video_url: string | null; is_timed: boolean; is_unilateral: boolean }>
+  field: Partial<{ movement_pattern: string | null; equipment_type: string | null; video_url: string | null; is_timed: boolean; is_unilateral: boolean; is_plyometric: boolean }>
 ) {
   const name = exerciseName.trim();
   if (!name) return;
@@ -39,6 +39,7 @@ export async function upsertExerciseLibraryField(
     video_url: 'Video URL',
     is_timed: 'Time-based mode',
     is_unilateral: 'Unilateral mode',
+    is_plyometric: 'Plyometric mode',
   };
   toast.success(`${labels[fieldName] || fieldName} saved for ${name}`);
 }

@@ -411,6 +411,7 @@ export type Database = {
           created_at: string
           equipment_type: string | null
           id: string
+          is_plyometric: boolean
           is_timed: boolean
           is_unilateral: boolean
           movement_pattern: string | null
@@ -425,6 +426,7 @@ export type Database = {
           created_at?: string
           equipment_type?: string | null
           id?: string
+          is_plyometric?: boolean
           is_timed?: boolean
           is_unilateral?: boolean
           movement_pattern?: string | null
@@ -439,6 +441,7 @@ export type Database = {
           created_at?: string
           equipment_type?: string | null
           id?: string
+          is_plyometric?: boolean
           is_timed?: boolean
           is_unilateral?: boolean
           movement_pattern?: string | null
@@ -453,8 +456,10 @@ export type Database = {
       exercise_sets: {
         Row: {
           created_at: string
+          distance_m: number | null
           duration_seconds: number | null
           exercise_id: string
+          height_cm: number | null
           id: string
           is_completed: boolean | null
           reps: number | null
@@ -463,12 +468,15 @@ export type Database = {
           set_number: number
           set_type: string
           side: string | null
+          speed_mps: number | null
           weight: number | null
         }
         Insert: {
           created_at?: string
+          distance_m?: number | null
           duration_seconds?: number | null
           exercise_id: string
+          height_cm?: number | null
           id?: string
           is_completed?: boolean | null
           reps?: number | null
@@ -477,12 +485,15 @@ export type Database = {
           set_number?: number
           set_type?: string
           side?: string | null
+          speed_mps?: number | null
           weight?: number | null
         }
         Update: {
           created_at?: string
+          distance_m?: number | null
           duration_seconds?: number | null
           exercise_id?: string
+          height_cm?: number | null
           id?: string
           is_completed?: boolean | null
           reps?: number | null
@@ -491,6 +502,7 @@ export type Database = {
           set_number?: number
           set_type?: string
           side?: string | null
+          speed_mps?: number | null
           weight?: number | null
         }
         Relationships: [

@@ -4,7 +4,7 @@ import { EXERCISE_CATEGORIES } from '@/types/workout';
 export type MovementPattern = 
   | 'hinge' | 'squat' | 'push' | 'pull' 
   | 'single_leg' | 'core' | 'carry' 
-  | 'olympic' | 'isolation';
+  | 'olympic' | 'isolation' | 'plyometric' | 'rotational';
 
 export const MOVEMENT_PATTERN_LABELS: Record<MovementPattern, string> = {
   hinge: 'Hinge',
@@ -16,6 +16,8 @@ export const MOVEMENT_PATTERN_LABELS: Record<MovementPattern, string> = {
   carry: 'Carry',
   olympic: 'Olympic',
   isolation: 'Isolation',
+  plyometric: 'Plyometric',
+  rotational: 'Rotational',
 };
 
 export const MOVEMENT_PATTERN_SHORT: Record<MovementPattern, string> = {
@@ -28,6 +30,8 @@ export const MOVEMENT_PATTERN_SHORT: Record<MovementPattern, string> = {
   carry: 'CRY',
   olympic: 'OLY',
   isolation: 'ISO',
+  plyometric: 'PLY',
+  rotational: 'ROT',
 };
 
 // ─── Difficulty Coefficients ──────────────────────────────────────────
@@ -35,9 +39,11 @@ export const DIFFICULTY_COEFFICIENTS: Record<MovementPattern, number> = {
   hinge: 1.0,
   squat: 0.95,
   olympic: 0.90,
+  plyometric: 0.80,
   push: 0.65,
   pull: 0.60,
   single_leg: 0.55,
+  rotational: 0.55,
   carry: 0.50,
   isolation: 0.40,
   core: 0.35,
@@ -181,6 +187,12 @@ tagEquipment([
   'Dragon Flag', 'Bear Crawl', 'Crab Walk',
   'Glute Bridge', 'Single-Leg Glute Bridge',
   'Donkey Kick', 'Fire Hydrant', 'Clamshell',
+  // Plyometric bodyweight exercises
+  'Box Jump', 'Broad Jump', 'Depth Jump', 'Drop Jump',
+  'Tuck Jump', 'Squat Jump', 'Split Squat Jump',
+  'Bounding', 'Single-Leg Hop', 'Lateral Bound', 'Skater Jump',
+  'Hurdle Hop', 'Plyo Push-Up',
+  'Sprint', 'Sprints (Hill)', 'Sprints (Track)', 'Shuttle Run',
 ], 'bodyweight');
 
 /**
@@ -209,6 +221,8 @@ export const PATTERN_COLORS: Record<MovementPattern, string> = {
   carry: 'hsl(280, 60%, 55%)',
   olympic: 'hsl(330, 70%, 55%)',
   isolation: 'hsl(215, 14%, 50%)',
+  plyometric: 'hsl(16, 85%, 55%)',
+  rotational: 'hsl(170, 65%, 45%)',
 };
 
 // ─── Bodyweight Exercise Multipliers ──────────────────────────────────
@@ -321,10 +335,24 @@ addAll([
   'Cable Crunch', 'Ab Rollout', 'Ab Wheel',
   'Hanging Leg Raise', 'Hanging Knee Raise', "Captain's Chair Leg Raise",
   'Toe Touch', 'Heel Touch', 'Mountain Climber', 'Flutter Kick',
-  'Pallof Press', 'Woodchop (Cable)', 'Woodchop (Dumbbell)',
-  'Landmine Rotation', 'Dragon Flag',
-  'Wall Balls', 'Medicine Ball Slam', 'Medicine Ball Throw',
+  'Pallof Press', 'Dragon Flag',
 ], 'core');
+
+// ROTATIONAL
+addAll([
+  'Woodchop (Cable)', 'Woodchop (Dumbbell)',
+  'Landmine Rotation',
+  'Wall Balls', 'Medicine Ball Slam', 'Medicine Ball Throw',
+], 'rotational');
+
+// PLYOMETRIC
+addAll([
+  'Box Jump', 'Broad Jump', 'Depth Jump', 'Drop Jump',
+  'Tuck Jump', 'Squat Jump', 'Split Squat Jump',
+  'Bounding', 'Single-Leg Hop', 'Lateral Bound', 'Skater Jump',
+  'Hurdle Hop', 'Plyo Push-Up',
+  'Sprint', 'Sprints (Hill)', 'Sprints (Track)', 'Shuttle Run',
+], 'plyometric');
 
 // CARRY
 addAll([
@@ -381,7 +409,9 @@ export function classifyExercise(name: string): MovementPattern {
   if (/press|push|dip|fly|pec|chest/i.test(key)) return 'push';
   if (/pull|row|lat|chin|pulldown/i.test(key)) return 'pull';
   if (/lunge|split\s?squat|step.?up|single.?leg|pistol/i.test(key)) return 'single_leg';
-  if (/plank|crunch|sit.?up|ab\s|core|pallof|rollout|leg\s?raise|woodchop/i.test(key)) return 'core';
+  if (/plank|crunch|sit.?up|ab\s|core|pallof|rollout|leg\s?raise/i.test(key)) return 'core';
+  if (/woodchop|landmine\s?rot|med(icine)?\s?ball\s?(slam|throw|rotat)/i.test(key)) return 'rotational';
+  if (/box\s?jump|broad\s?jump|depth\s?jump|tuck\s?jump|squat\s?jump|bound|plyo|hurdle|skater|lateral\s?bound|sprint|shuttle/i.test(key)) return 'plyometric';
   if (/carry|walk|farmer/i.test(key)) return 'carry';
   if (/clean|snatch|jerk|thruster/i.test(key)) return 'olympic';
   if (/curl|raise|extension|kickback|fly|shrug|calf/i.test(key)) return 'isolation';
@@ -436,7 +466,24 @@ export function isUnilateralExercise(name: string, dbIsUnilateral?: boolean | nu
   return UNILATERAL_EXERCISES.has(name.toLowerCase().trim());
 }
 
-// ─── Volume Calculation ───────────────────────────────────────────────
+// ─── Plyometric Exercises ─────────────────────────────────────────────
+export const PLYOMETRIC_EXERCISES = new Set([
+  'box jump', 'broad jump', 'depth jump', 'drop jump',
+  'tuck jump', 'squat jump', 'split squat jump',
+  'bounding', 'single-leg hop', 'lateral bound', 'skater jump',
+  'hurdle hop', 'plyo push-up',
+  'sprint', 'sprints (hill)', 'sprints (track)', 'shuttle run',
+]);
+
+/**
+ * Check if an exercise should use plyometric inputs (height/distance/speed).
+ * Checks DB flag first, then falls back to hardcoded set.
+ */
+export function isPlyometricExercise(name: string, dbIsPlyometric?: boolean | null): boolean {
+  if (dbIsPlyometric != null) return dbIsPlyometric;
+  return PLYOMETRIC_EXERCISES.has(name.toLowerCase().trim());
+}
+
 const DEFAULT_BODYWEIGHT_KG = 77;
 
 export function isBodyweightExercise(name: string): boolean {
@@ -541,5 +588,70 @@ export interface WeeklyPatternVolume {
 }
 
 export const ALL_PATTERNS: MovementPattern[] = [
-  'hinge', 'squat', 'push', 'pull', 'single_leg', 'core', 'carry', 'olympic', 'isolation'
+  'hinge', 'squat', 'push', 'pull', 'single_leg', 'core', 'carry', 'olympic', 'isolation', 'plyometric', 'rotational'
 ];
+
+// ─── Plyometric Intensity Tiers ───────────────────────────────────────
+export type PlyoIntensity = 'low' | 'moderate' | 'high';
+
+export const PLYO_INTENSITY_MULTIPLIERS: Record<PlyoIntensity, number> = {
+  low: 0.5,
+  moderate: 1.0,
+  high: 1.5,
+};
+
+const PLYO_INTENSITY_MAP: Record<string, PlyoIntensity> = {};
+
+function tagPlyoIntensity(exercises: string[], tier: PlyoIntensity) {
+  for (const e of exercises) {
+    PLYO_INTENSITY_MAP[e.toLowerCase()] = tier;
+  }
+}
+
+tagPlyoIntensity([
+  'Jumping Jack', 'Skipping', 'Plyo Push-Up',
+], 'low');
+
+tagPlyoIntensity([
+  'Box Jump', 'Broad Jump', 'Squat Jump', 'Tuck Jump',
+  'Split Squat Jump', 'Hurdle Hop', 'Skater Jump', 'Lateral Bound',
+  'Wall Balls',
+], 'moderate');
+
+tagPlyoIntensity([
+  'Depth Jump', 'Drop Jump', 'Bounding', 'Single-Leg Hop',
+  'Sprint', 'Sprints (Hill)', 'Sprints (Track)', 'Shuttle Run',
+], 'high');
+
+export function getPlyoIntensity(exerciseName: string): PlyoIntensity {
+  return PLYO_INTENSITY_MAP[exerciseName.toLowerCase().trim()] || 'moderate';
+}
+
+/**
+ * Calculate plyometric volume using Ground Contact Volume (GCV).
+ * For jump-based plyos: contacts × intensity_multiplier × (1 + height_cm/100)
+ * For sprints: distance_m × speed_mps × 0.1 (power-output proxy)
+ */
+export function calculatePlyoSetVolume(
+  exerciseName: string,
+  reps: number | null,
+  heightCm: number | null,
+  distanceM: number | null,
+  speedMps: number | null,
+): number {
+  const name = exerciseName.toLowerCase().trim();
+  const isSprint = /sprint|shuttle/i.test(name);
+
+  if (isSprint && distanceM && distanceM > 0) {
+    const speed = speedMps && speedMps > 0 ? speedMps : 5; // default ~5 m/s
+    return distanceM * speed * 0.1;
+  }
+
+  // Jump-based plyometric
+  const contacts = reps && reps > 0 ? reps : 0;
+  if (contacts === 0) return 0;
+  const intensity = getPlyoIntensity(exerciseName);
+  const multiplier = PLYO_INTENSITY_MULTIPLIERS[intensity];
+  const heightBonus = heightCm && heightCm > 0 ? heightCm / 100 : 0;
+  return contacts * multiplier * (1 + heightBonus);
+}
