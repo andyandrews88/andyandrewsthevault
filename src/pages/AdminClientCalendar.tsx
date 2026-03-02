@@ -1,23 +1,17 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { Navbar } from "@/components/layout/Navbar";
 import { useAdminCheck } from "@/hooks/useAdminCheck";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ChevronLeft, ChevronRight, Dumbbell, Plus } from "lucide-react";
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, addMonths, subMonths, isSameDay, isAfter, isBefore } from "date-fns";
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Trash2 } from "lucide-react";
+import { format, addWeeks, subWeeks, startOfWeek, addDays, eachDayOfInterval } from "date-fns";
 import { toast } from "@/hooks/use-toast";
-
-interface CalendarWorkout {
-  id: string;
-  workout_name: string;
-  date: string;
-  is_completed: boolean;
-  total_volume: number;
-}
+import { WeeklyCalendarGrid } from "@/components/admin/WeeklyCalendarGrid";
+import { CalendarWorkoutDrawer } from "@/components/admin/CalendarWorkoutDrawer";
+import type { WorkoutWithExercises } from "@/components/admin/CalendarWorkoutCard";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function AdminClientCalendar() {
   const { userId } = useParams<{ userId: string }>();
@@ -25,60 +19,82 @@ export default function AdminClientCalendar() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const clientName = searchParams.get("client") || "Client";
+  const isMobile = useIsMobile();
 
-  const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [workouts, setWorkouts] = useState<CalendarWorkout[]>([]);
+  const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
+  const [workouts, setWorkouts] = useState<WorkoutWithExercises[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchCalendar = async (date: Date) => {
+  // Drawer state
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [selectedWorkout, setSelectedWorkout] = useState<WorkoutWithExercises | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string>("");
+  const [mobileDay, setMobileDay] = useState(0);
+
+  // 2 weeks of days (Mon-Sun × 2)
+  const days = eachDayOfInterval({
+    start: weekStart,
+    end: addDays(weekStart, 13),
+  });
+
+  const fetchWeek = useCallback(async (start: Date) => {
     if (!userId) return;
     setLoading(true);
     try {
+      const startDate = format(start, "yyyy-MM-dd");
+      const endDate = format(addDays(start, 13), "yyyy-MM-dd");
       const { data, error } = await supabase.functions.invoke("admin-workout-builder", {
-        body: { action: "get_client_calendar", userId, month: date.getMonth() + 1, year: date.getFullYear() },
+        body: { action: "get_client_week", userId, startDate, endDate },
       });
       if (error) throw error;
-      setWorkouts(typeof data === "string" ? JSON.parse(data) : data || []);
-    } catch { setWorkouts([]); }
-    finally { setLoading(false); }
-  };
+      const parsed = typeof data === "string" ? JSON.parse(data) : data || [];
+      setWorkouts(parsed);
+    } catch {
+      setWorkouts([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [userId]);
 
   useEffect(() => {
     if (adminLoading) return;
     if (!isAdmin) { navigate("/"); return; }
-    fetchCalendar(currentMonth);
-  }, [isAdmin, adminLoading, currentMonth, userId]);
+    fetchWeek(weekStart);
+  }, [isAdmin, adminLoading, weekStart, userId, fetchWeek]);
 
-  const handlePrev = () => setCurrentMonth(prev => subMonths(prev, 1));
-  const handleNext = () => setCurrentMonth(prev => addMonths(prev, 1));
+  const handlePrev = () => setWeekStart((prev) => subWeeks(prev, 1));
+  const handleNext = () => setWeekStart((prev) => addWeeks(prev, 1));
+  const handleToday = () => setWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }));
 
-  const monthStart = startOfMonth(currentMonth);
-  const monthEnd = endOfMonth(currentMonth);
-  const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
-  const startPadding = getDay(monthStart); // 0=Sun
+  // Group workouts by date
+  const workoutsByDate = new Map<string, WorkoutWithExercises[]>();
+  for (const w of workouts) {
+    const key = w.date;
+    if (!workoutsByDate.has(key)) workoutsByDate.set(key, []);
+    workoutsByDate.get(key)!.push(w);
+  }
 
-  const today = new Date();
-
-  const getWorkoutsForDate = (date: Date) =>
-    workouts.filter(w => isSameDay(new Date(w.date + "T12:00:00"), date));
-
-  const getStatusColor = (w: CalendarWorkout) => {
-    if (w.is_completed) return "bg-green-600/80";
-    const wDate = new Date(w.date + "T12:00:00");
-    if (isBefore(wDate, today) && !w.is_completed) return "bg-red-500/80";
-    return "bg-blue-500/80";
+  const handleAddNew = (date: Date) => {
+    setSelectedWorkout(null);
+    setSelectedDate(format(date, "yyyy-MM-dd"));
+    setDrawerOpen(true);
   };
 
-  const handleDateClick = (date: Date) => {
-    const dateStr = format(date, "yyyy-MM-dd");
-    const dayWorkouts = getWorkoutsForDate(date);
-    if (dayWorkouts.length > 0) {
-      // Navigate to first workout
-      const w = dayWorkouts[0];
-      navigate(`/admin/user/${userId}/build-workout?edit=${w.id}&name=${encodeURIComponent(w.workout_name)}&client=${encodeURIComponent(clientName)}`);
-    } else {
-      // Quick-add - navigate to build workout with date pre-set
-      navigate(`/admin/user/${userId}/build-workout?name=New+Workout&date=${dateStr}&client=${encodeURIComponent(clientName)}`);
+  const handleCardClick = (workout: WorkoutWithExercises) => {
+    setSelectedWorkout(workout);
+    setSelectedDate(workout.date);
+    setDrawerOpen(true);
+  };
+
+  const handleDeleteWorkout = async (workoutId: string) => {
+    try {
+      await supabase.functions.invoke("admin-workout-builder", {
+        body: { action: "delete_workout", workoutId },
+      });
+      toast({ title: "Workout deleted" });
+      fetchWeek(weekStart);
+    } catch {
+      toast({ title: "Failed to delete", variant: "destructive" });
     }
   };
 
@@ -91,67 +107,152 @@ export default function AdminClientCalendar() {
     );
   }
 
+  const mobileWeekDays = days.slice(0, 7);
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <main className="container mx-auto px-4 pt-24 pb-12 space-y-6">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate(`/admin/user/${userId}`)}>
-            <ChevronLeft className="h-5 w-5" />
+      <main className="container mx-auto px-2 sm:px-4 pt-20 pb-12 space-y-4">
+        {/* Header */}
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(`/admin/user/${userId}`)}>
+            <ChevronLeft className="h-4 w-4" />
           </Button>
-          <div>
-            <h1 className="text-xl font-bold">{clientName}'s Calendar</h1>
-            <p className="text-xs text-muted-foreground">Click a date to add or edit workouts</p>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-lg font-bold truncate">{clientName}'s Calendar</h1>
           </div>
         </div>
 
-        {/* Month navigation */}
-        <div className="flex items-center justify-between">
-          <Button variant="ghost" size="icon" onClick={handlePrev}><ChevronLeft className="h-5 w-5" /></Button>
-          <h2 className="text-lg font-semibold">{format(currentMonth, "MMMM yyyy")}</h2>
-          <Button variant="ghost" size="icon" onClick={handleNext}><ChevronRight className="h-5 w-5" /></Button>
+        {/* Week navigation */}
+        <div className="flex items-center justify-between bg-card border border-border rounded-lg px-3 py-2">
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handlePrev}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold">
+              {format(weekStart, "MMM d")} – {format(addDays(weekStart, 13), "MMM d, yyyy")}
+            </span>
+            <Button variant="outline" size="sm" className="h-7 text-xs" onClick={handleToday}>
+              <CalendarIcon className="h-3 w-3 mr-1" /> Today
+            </Button>
+          </div>
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleNext}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
         </div>
 
-        {/* Calendar grid */}
-        <div className="grid grid-cols-7 gap-1">
-          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(d => (
-            <div key={d} className="text-center text-xs font-medium text-muted-foreground py-2">{d}</div>
-          ))}
-          {/* Padding for start of month */}
-          {Array.from({ length: startPadding }).map((_, i) => (
-            <div key={`pad-${i}`} className="min-h-[80px]" />
-          ))}
-          {days.map(day => {
-            const dayWorkouts = getWorkoutsForDate(day);
-            const isToday = isSameDay(day, today);
-            return (
-              <div
-                key={day.toISOString()}
-                className={`min-h-[80px] border border-border/30 rounded-md p-1 cursor-pointer hover:bg-muted/30 transition-colors ${isToday ? "ring-1 ring-primary" : ""}`}
-                onClick={() => handleDateClick(day)}
-              >
-                <span className={`text-xs ${isToday ? "text-primary font-bold" : "text-muted-foreground"}`}>
-                  {format(day, "d")}
-                </span>
-                <div className="space-y-0.5 mt-0.5">
-                  {dayWorkouts.map(w => (
-                    <div key={w.id} className={`text-[9px] px-1 py-0.5 rounded text-white truncate ${getStatusColor(w)}`}>
-                      {w.workout_name}
-                    </div>
-                  ))}
-                </div>
+        {/* Grid */}
+        {loading ? (
+          <div className="grid grid-cols-7 gap-1">
+            {Array.from({ length: 14 }).map((_, i) => (
+              <Skeleton key={i} className="h-[220px] rounded-md" />
+            ))}
+          </div>
+        ) : isMobile ? (
+          /* Mobile: week strip + day detail */
+          <div className="space-y-3">
+            <div className="flex gap-1 overflow-x-auto pb-1">
+              {mobileWeekDays.map((d, i) => {
+                const key = format(d, "yyyy-MM-dd");
+                const count = workoutsByDate.get(key)?.length || 0;
+                return (
+                  <button
+                    key={key}
+                    onClick={() => setMobileDay(i)}
+                    className={`flex-shrink-0 w-12 rounded-lg py-2 text-center border transition-colors ${
+                      mobileDay === i
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-card border-border text-foreground"
+                    }`}
+                  >
+                    <div className="text-[10px] font-medium">{format(d, "EEE")}</div>
+                    <div className="text-sm font-bold">{format(d, "d")}</div>
+                    {count > 0 && (
+                      <div className="mx-auto mt-0.5 w-1.5 h-1.5 rounded-full bg-primary" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Selected day workouts */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold">
+                  {format(mobileWeekDays[mobileDay], "EEEE, MMM d")}
+                </h3>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs"
+                  onClick={() => handleAddNew(mobileWeekDays[mobileDay])}
+                >
+                  <CalendarIcon className="h-3 w-3 mr-1" /> Add
+                </Button>
               </div>
-            );
-          })}
-        </div>
+              {(workoutsByDate.get(format(mobileWeekDays[mobileDay], "yyyy-MM-dd")) || []).map((w) => (
+                <div key={w.id} className="relative group">
+                  <div onClick={() => handleCardClick(w)}>
+                    <div className="border border-border rounded-lg p-3 bg-card space-y-2 cursor-pointer">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2.5 h-2.5 rounded-full ${w.is_completed ? "bg-green-500" : "bg-blue-500"}`} />
+                        <span className="font-semibold text-sm">{w.workout_name}</span>
+                      </div>
+                      {w.exercises.map((ex, i) => (
+                        <div key={ex.id} className="text-xs text-muted-foreground">
+                          <span className="font-medium text-foreground/70">{String.fromCharCode(65 + i)})</span>{" "}
+                          {ex.exercise_name}
+                          {ex.sets.length > 0 && (
+                            <span className="ml-1 text-muted-foreground/60">
+                              {ex.sets.length}×{ex.sets[0]?.reps || "—"}
+                              {ex.sets[0]?.weight ? ` @${ex.sets[0].weight}` : ""}
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="absolute top-2 right-2 h-6 w-6 opacity-60"
+                    onClick={() => handleDeleteWorkout(w.id)}
+                  >
+                    <Trash2 className="h-3 w-3 text-destructive" />
+                  </Button>
+                </div>
+              ))}
+              {!(workoutsByDate.get(format(mobileWeekDays[mobileDay], "yyyy-MM-dd")) || []).length && (
+                <p className="text-xs text-muted-foreground text-center py-8 italic">Rest day</p>
+              )}
+            </div>
+          </div>
+        ) : (
+          <WeeklyCalendarGrid
+            days={days}
+            workoutsByDate={workoutsByDate}
+            onAddNew={handleAddNew}
+            onCardClick={handleCardClick}
+            onDeleteWorkout={handleDeleteWorkout}
+          />
+        )}
 
         {/* Legend */}
         <div className="flex gap-4 text-xs text-muted-foreground">
-          <span className="flex items-center gap-1"><div className="w-3 h-3 rounded bg-green-600/80" /> Completed</span>
-          <span className="flex items-center gap-1"><div className="w-3 h-3 rounded bg-blue-500/80" /> Upcoming</span>
-          <span className="flex items-center gap-1"><div className="w-3 h-3 rounded bg-red-500/80" /> Missed</span>
+          <span className="flex items-center gap-1"><div className="w-2.5 h-2.5 rounded-full bg-green-500" /> Completed</span>
+          <span className="flex items-center gap-1"><div className="w-2.5 h-2.5 rounded-full bg-blue-500" /> Upcoming</span>
+          <span className="flex items-center gap-1"><div className="w-2.5 h-2.5 rounded-full bg-red-500" /> Missed</span>
         </div>
       </main>
+
+      <CalendarWorkoutDrawer
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+        workout={selectedWorkout}
+        userId={userId || ""}
+        date={selectedDate}
+        onSaved={() => fetchWeek(weekStart)}
+      />
     </div>
   );
 }

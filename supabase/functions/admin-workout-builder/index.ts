@@ -458,6 +458,59 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify({ success: true, assignmentId: assignment?.id }), { headers: corsHeaders });
       }
 
+      // ==================== CLIENT WEEK (full exercises + sets) ====================
+      case "get_client_week": {
+        const { userId, startDate, endDate } = body;
+        if (!userId || !startDate || !endDate) throw new Error("userId, startDate, endDate required");
+        const { data: weekWorkouts, error: wwErr } = await serviceClient
+          .from("workouts")
+          .select("id, workout_name, date, is_completed, total_volume, notes")
+          .eq("user_id", userId)
+          .gte("date", startDate)
+          .lte("date", endDate)
+          .order("date");
+        if (wwErr) throw wwErr;
+        // Fetch exercises + sets for all workouts in one go
+        const workoutIds = (weekWorkouts || []).map((w: any) => w.id);
+        let exercises: any[] = [];
+        if (workoutIds.length > 0) {
+          const { data: exData } = await serviceClient
+            .from("workout_exercises")
+            .select("*, sets:exercise_sets(*), conditioning_sets:conditioning_sets(*)")
+            .in("workout_id", workoutIds)
+            .order("order_index");
+          exercises = exData || [];
+        }
+        // Group exercises by workout_id
+        const exByWorkout: Record<string, any[]> = {};
+        for (const ex of exercises) {
+          if (!exByWorkout[ex.workout_id]) exByWorkout[ex.workout_id] = [];
+          exByWorkout[ex.workout_id].push(ex);
+        }
+        const result = (weekWorkouts || []).map((w: any) => ({
+          ...w,
+          exercises: exByWorkout[w.id] || [],
+        }));
+        return new Response(JSON.stringify(result), { headers: corsHeaders });
+      }
+
+      // ==================== DELETE WORKOUT ====================
+      case "delete_workout": {
+        const { workoutId } = body;
+        if (!workoutId) throw new Error("workoutId required");
+        const { error } = await serviceClient.from("workouts").delete().eq("id", workoutId);
+        if (error) throw error;
+        return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
+      }
+
+      // ==================== UPDATE WORKOUT NAME ====================
+      case "update_workout_name": {
+        const { workoutId, workoutName } = body;
+        const { error } = await serviceClient.from("workouts").update({ workout_name: workoutName }).eq("id", workoutId);
+        if (error) throw error;
+        return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
+      }
+
       // ==================== CLIENT CALENDAR ====================
       case "get_client_calendar": {
         const { userId, month, year } = body;
