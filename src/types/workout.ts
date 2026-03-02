@@ -338,7 +338,6 @@ export const EXERCISE_CATEGORIES = {
   conditioning: [
     "Running (Treadmill)",
     "Running (Outdoor)",
-    "Sprint",
     "Incline Walk (Treadmill)",
     "Rowing Machine",
     "Assault Bike",
@@ -348,8 +347,6 @@ export const EXERCISE_CATEGORIES = {
     "Stair Climber",
     "StairMaster",
     "Jump Rope",
-    "Box Jump",
-    "Broad Jump",
     "Burpee",
     "Mountain Climbers (Cardio)",
     "Jumping Jack",
@@ -371,14 +368,30 @@ export const EXERCISE_CATEGORIES = {
     "VersaClimber",
     "Bear Crawl",
     "Crab Walk",
-    "Shuttle Run",
     "Ruck March",
     "Kettlebell Swings (Cardio)",
     "Circuit Training",
-    "Sprints (Hill)",
-    "Sprints (Track)",
     "Tire Flips",
     "Rope Climb"
+  ],
+  plyometrics: [
+    "Box Jump",
+    "Broad Jump",
+    "Depth Jump",
+    "Drop Jump",
+    "Tuck Jump",
+    "Squat Jump",
+    "Split Squat Jump",
+    "Bounding",
+    "Single-Leg Hop",
+    "Lateral Bound",
+    "Skater Jump",
+    "Hurdle Hop",
+    "Plyo Push-Up",
+    "Sprint",
+    "Sprints (Hill)",
+    "Sprints (Track)",
+    "Shuttle Run"
   ],
   functional: [
     "Face Pull",
@@ -444,6 +457,7 @@ export const CATEGORY_LABELS: Record<keyof typeof EXERCISE_CATEGORIES, string> =
   core: 'Core',
   olympic: 'Olympic',
   conditioning: 'Conditioning',
+  plyometrics: 'Plyometrics',
   functional: 'Functional'
 };
 

@@ -23,7 +23,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toEmbedUrl } from "@/lib/vaultService";
 import { cn } from "@/lib/utils";
 import { AdminExerciseMenu } from "./AdminExerciseMenu";
-import { isTimedExercise, isBodyweightExercise, isUnilateralExercise } from "@/lib/movementPatterns";
+import { isTimedExercise, isBodyweightExercise, isUnilateralExercise, isPlyometricExercise } from "@/lib/movementPatterns";
 import { useAdminCheck } from "@/hooks/useAdminCheck";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
@@ -93,6 +93,7 @@ export function ExerciseCard({ exercise, onRemove, allExercises = [], onMoveUp, 
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [isTimed, setIsTimed] = useState(false);
   const [isUnilateral, setIsUnilateral] = useState(false);
+  const [isPlyometric, setIsPlyometric] = useState(false);
   const isBW = isBodyweightExercise(exercise.exercise_name);
   const [showVideo, setShowVideo] = useState(false);
   const [showAddMenu, setShowAddMenu] = useState(false);
@@ -107,13 +108,14 @@ export function ExerciseCard({ exercise, onRemove, allExercises = [], onMoveUp, 
     const fetchLibrary = async () => {
       const { data } = await supabase
         .from('exercise_library')
-        .select('video_url, is_timed, is_unilateral')
+        .select('video_url, is_timed, is_unilateral, is_plyometric')
         .ilike('name', exercise.exercise_name)
         .maybeSingle();
       if (!cancelled) {
         if (data?.video_url) setVideoUrl(data.video_url);
         setIsTimed(isTimedExercise(exercise.exercise_name, (data as any)?.is_timed));
         setIsUnilateral(isUnilateralExercise(exercise.exercise_name, (data as any)?.is_unilateral));
+        setIsPlyometric(isPlyometricExercise(exercise.exercise_name, (data as any)?.is_plyometric));
       }
     };
     fetchLibrary();
@@ -221,10 +223,11 @@ export function ExerciseCard({ exercise, onRemove, allExercises = [], onMoveUp, 
                   onUnlinkSuperset={() => unlinkSuperset(exercise.id)}
                   onReplace={() => setShowReplaceSearch(true)}
                   onRemove={onRemove}
-                  onMetadataChange={(field, value) => {
+                   onMetadataChange={(field, value) => {
                     if (field === 'isTimed') setIsTimed(value);
                     if (field === 'isUnilateral') setIsUnilateral(value);
                     if (field === 'videoUrl') setVideoUrl(value);
+                    if (field === 'isPlyometric') setIsPlyometric(value);
                   }}
                 />
               </>
@@ -269,6 +272,7 @@ export function ExerciseCard({ exercise, onRemove, allExercises = [], onMoveUp, 
                     if (field === 'isTimed') setIsTimed(value);
                     if (field === 'isUnilateral') setIsUnilateral(value);
                     if (field === 'videoUrl') setVideoUrl(value);
+                    if (field === 'isPlyometric') setIsPlyometric(value);
                   }} />
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={onRemove} className="text-destructive">
@@ -299,15 +303,27 @@ export function ExerciseCard({ exercise, onRemove, allExercises = [], onMoveUp, 
       
       <CardContent className="p-0">
         {/* Header Row */}
-        <div className="grid grid-cols-[28px_1fr_1fr_1fr_44px_36px_24px] gap-1 sm:gap-1.5 items-center py-2 px-4 border-b border-border bg-muted/30 text-xs font-medium text-muted-foreground">
-          <span className="text-center">Set</span>
-          <span className="text-center">Prev</span>
-          <span className="text-center">{isBW ? '+Load' : (preferredUnit === 'kg' ? 'Kg' : 'Lbs')}</span>
-          <span className="text-center">{isTimed ? 'Sec' : 'Reps'}</span>
-          <span className="text-center">RIR</span>
-          <span className="text-center">✓</span>
-          <span></span>
-        </div>
+        {isPlyometric ? (
+          <div className="grid grid-cols-[28px_1fr_1fr_1fr_1fr_36px_24px] gap-1 sm:gap-1.5 items-center py-2 px-4 border-b border-border bg-muted/30 text-xs font-medium text-muted-foreground">
+            <span className="text-center">Set</span>
+            <span className="text-center">Reps</span>
+            <span className="text-center">Ht</span>
+            <span className="text-center">Dist</span>
+            <span className="text-center">m/s</span>
+            <span className="text-center">✓</span>
+            <span></span>
+          </div>
+        ) : (
+          <div className="grid grid-cols-[28px_1fr_1fr_1fr_44px_36px_24px] gap-1 sm:gap-1.5 items-center py-2 px-4 border-b border-border bg-muted/30 text-xs font-medium text-muted-foreground">
+            <span className="text-center">Set</span>
+            <span className="text-center">Prev</span>
+            <span className="text-center">{isBW ? '+Load' : (preferredUnit === 'kg' ? 'Kg' : 'Lbs')}</span>
+            <span className="text-center">{isTimed ? 'Sec' : 'Reps'}</span>
+            <span className="text-center">RIR</span>
+            <span className="text-center">✓</span>
+            <span></span>
+          </div>
+        )}
         
         {/* Sets */}
         <div className="px-4">
@@ -326,6 +342,7 @@ export function ExerciseCard({ exercise, onRemove, allExercises = [], onMoveUp, 
                 onRemove={() => removeSet(set.id)}
                 isTimed={isTimed}
                 isBodyweight={isBW}
+                isPlyometric={isPlyometric}
                 side={set.side}
               />
             );

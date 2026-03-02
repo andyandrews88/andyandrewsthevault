@@ -15,7 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Dumbbell, Wrench, Video, Timer, ArrowLeftRight } from "lucide-react";
+import { Dumbbell, Wrench, Video, Timer, ArrowLeftRight, Zap } from "lucide-react";
 import { MOVEMENT_PATTERN_LABELS, type MovementPattern, EQUIPMENT_MODIFIER_VALUES, type EquipmentType } from "@/lib/movementPatterns";
 import { upsertExerciseLibraryField } from "@/lib/exerciseLibraryUpsert";
 
@@ -60,6 +60,11 @@ export function AdminExerciseMenu({ exerciseName, isAdmin, onMetadataChange }: A
   const handleToggleUnilateral = async (isUnilateral: boolean) => {
     await upsertExerciseLibraryField(exerciseName, { is_unilateral: isUnilateral });
     onMetadataChange?.("isUnilateral", isUnilateral);
+  };
+
+  const handleTogglePlyometric = async (isPlyometric: boolean) => {
+    await upsertExerciseLibraryField(exerciseName, { is_plyometric: isPlyometric });
+    onMetadataChange?.("isPlyometric", isPlyometric);
   };
 
   return (
@@ -127,6 +132,21 @@ export function AdminExerciseMenu({ exerciseName, isAdmin, onMetadataChange }: A
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => handleToggleUnilateral(false)}>
             ✗ No (bilateral)
+          </DropdownMenuItem>
+        </DropdownMenuSubContent>
+      </DropdownMenuSub>
+
+      <DropdownMenuSub>
+        <DropdownMenuSubTrigger>
+          <Zap className="h-4 w-4 mr-2" />
+          Plyometric
+        </DropdownMenuSubTrigger>
+        <DropdownMenuSubContent>
+          <DropdownMenuItem onClick={() => handleTogglePlyometric(true)}>
+            ✓ Yes (height/distance/speed)
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => handleTogglePlyometric(false)}>
+            ✗ No (standard)
           </DropdownMenuItem>
         </DropdownMenuSubContent>
       </DropdownMenuSub>
