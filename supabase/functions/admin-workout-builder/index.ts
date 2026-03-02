@@ -791,6 +791,116 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify({ sets: [] }), { headers: corsHeaders });
       }
 
+      // ==================== PROPAGATE TEMPLATE CHANGES TO ASSIGNED CLIENTS ====================
+      case "propagate_template": {
+        const { templateId } = body;
+        if (!templateId) throw new Error("templateId required");
+
+        // Get template
+        const { data: template } = await serviceClient.from("coach_program_templates").select("*").eq("id", templateId).single();
+        if (!template) throw new Error("Template not found");
+
+        // Get updated template workouts
+        const { data: templateWorkouts } = await serviceClient.from("coach_template_workouts").select("*").eq("template_id", templateId).order("week_number").order("day_number");
+        if (!templateWorkouts?.length) throw new Error("Template has no workouts");
+
+        // Find all active assignments for this template
+        const { data: assignments } = await serviceClient.from("coach_client_assignments").select("*").eq("template_id", templateId).eq("status", "active");
+        if (!assignments?.length) {
+          return new Response(JSON.stringify({ success: true, message: "No active assignments", updated: 0 }), { headers: corsHeaders });
+        }
+
+        const today = new Date().toISOString().split("T")[0];
+        let totalUpdated = 0;
+
+        for (const assignment of assignments) {
+          const targetUserId = assignment.client_user_id;
+          const startDate = assignment.start_date;
+
+          // Get client PRs
+          const { data: clientPRs } = await serviceClient.from("personal_records").select("exercise_name, max_weight").eq("user_id", targetUserId);
+          const prMap: Record<string, number> = {};
+          for (const pr of (clientPRs || [])) {
+            const key = pr.exercise_name.toLowerCase();
+            if (!prMap[key] || pr.max_weight > prMap[key]) prMap[key] = pr.max_weight;
+          }
+
+          // Delete future incomplete workouts for this user that were created after assignment start date
+          // Only delete workouts scheduled from today onwards that are not completed
+          const { data: futureWorkouts } = await serviceClient
+            .from("workouts")
+            .select("id, date")
+            .eq("user_id", targetUserId)
+            .eq("is_completed", false)
+            .gte("date", today);
+
+          if (futureWorkouts?.length) {
+            const futureIds = futureWorkouts.map(w => w.id);
+            await serviceClient.from("workouts").delete().in("id", futureIds);
+          }
+
+          // Recalculate training days from assignment or default
+          const days = [1, 3, 5]; // default Mon/Wed/Fri
+          const start = new Date(startDate + "T12:00:00");
+          const currentDate = new Date(start);
+
+          // Group template workouts by week
+          const weekMap: Record<number, any[]> = {};
+          for (const tw of templateWorkouts) {
+            if (!weekMap[tw.week_number]) weekMap[tw.week_number] = [];
+            weekMap[tw.week_number].push(tw);
+          }
+
+          for (let week = 1; week <= template.duration_weeks; week++) {
+            const weekWorkouts = weekMap[week] || [];
+            for (const tw of weekWorkouts) {
+              while (currentDate.getDay() === 0 || !days.includes(currentDate.getDay())) {
+                currentDate.setDate(currentDate.getDate() + 1);
+              }
+              const dateStr = currentDate.toISOString().split("T")[0];
+              
+              // Only create workouts from today onwards (skip past dates)
+              if (dateStr >= today) {
+                const resolvedExercises = (tw.exercises as any[]).map((ex: any) => {
+                  if (ex.percentage && ex.name) {
+                    const pr = prMap[ex.name.toLowerCase()];
+                    if (pr) return { ...ex, resolvedWeight: Math.round((pr * ex.percentage / 100) / 2.5) * 2.5 };
+                  }
+                  return ex;
+                });
+
+                const { data: newWorkout } = await serviceClient.from("workouts").insert({
+                  user_id: targetUserId, workout_name: tw.workout_name, date: dateStr, is_completed: false, notes: tw.notes || "",
+                }).select().single();
+
+                if (newWorkout) {
+                  for (let i = 0; i < resolvedExercises.length; i++) {
+                    const ex = resolvedExercises[i];
+                    const { data: newEx } = await serviceClient.from("workout_exercises").insert({
+                      workout_id: newWorkout.id, exercise_name: ex.name, order_index: i,
+                      exercise_type: ex.exercise_type || "strength", notes: ex.notes || "",
+                    }).select().single();
+                    if (newEx) {
+                      for (let s = 1; s <= (ex.sets || 3); s++) {
+                        await serviceClient.from("exercise_sets").insert({
+                          exercise_id: newEx.id, set_number: s, weight: ex.resolvedWeight || null,
+                          reps: ex.reps ? parseInt(ex.reps) || null : null,
+                          rpe: ex.rpe || null, rir: ex.rir ?? null, set_type: ex.set_type || "working",
+                        });
+                      }
+                    }
+                  }
+                  totalUpdated++;
+                }
+              }
+              currentDate.setDate(currentDate.getDate() + 1);
+            }
+          }
+        }
+
+        return new Response(JSON.stringify({ success: true, updated: totalUpdated, clients: assignments.length }), { headers: corsHeaders });
+      }
+
       default:
         return new Response(
           JSON.stringify({ error: `Unknown action: ${action}` }),
