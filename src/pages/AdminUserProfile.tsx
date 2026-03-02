@@ -25,6 +25,7 @@ import { TouchpointLog } from "@/components/admin/TouchpointLog";
 import { ClientPerformanceReport } from "@/components/admin/ClientPerformanceReport";
 import { CoachingAnalyticsDashboard } from "@/components/admin/CoachingAnalyticsDashboard";
 import { ClientAIReport } from "@/components/admin/ClientAIReport";
+import { PTSessionTracker } from "@/components/admin/PTSessionTracker";
 
 export default function AdminUserProfile() {
   const { userId } = useParams<{ userId: string }>();
@@ -345,6 +346,9 @@ export default function AdminUserProfile() {
             </Card>
           )}
         </section>
+
+        {/* PT Session Tracker */}
+        <PTSessionTracker clientUserId={userId!} clientDisplayName={p?.display_name || "User"} />
 
         {/* Check-ins */}
         {data.checkins.totalCount > 0 && (
