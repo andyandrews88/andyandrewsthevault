@@ -27,10 +27,13 @@ import {
   type MovementPattern,
   EQUIPMENT_MODIFIER_VALUES,
   type EquipmentType,
+  PLYO_METRIC_LABELS,
+  type PlyoMetric,
 } from "@/lib/movementPatterns";
 import { upsertExerciseLibraryField } from "@/lib/exerciseLibraryUpsert";
 
-const PATTERNS = Object.entries(MOVEMENT_PATTERN_LABELS) as [MovementPattern, string][];
+const PATTERNS = Object.entries(MOVEMENT_PATTERN_LABELS).filter(([k]) => k !== 'plyometric') as [MovementPattern, string][];
+const PLYO_METRICS = Object.entries(PLYO_METRIC_LABELS) as [PlyoMetric, string][];
 const EQUIPMENT_LABELS: Record<EquipmentType, string> = {
   barbell: "Barbell", dumbbell: "Dumbbell", kettlebell: "Kettlebell",
   machine: "Machine", cable: "Cable", sandbag: "Sandbag",
@@ -190,8 +193,12 @@ export function ExerciseActionSheet({
                         handleAction(() => {
                           upsertExerciseLibraryField(exercise.exercise_name, {
                             movement_pattern: key,
+                            is_plyometric: false,
+                            plyo_metric: 'standard',
                           });
                           onMetadataChange?.("movementPattern", key);
+                          onMetadataChange?.("isPlyometric", false);
+                          onMetadataChange?.("plyoMetric", "standard");
                         })
                       }
                       className="w-full rounded-md px-3 py-2.5 text-left text-sm text-foreground hover:bg-accent active:bg-accent/60"
@@ -199,6 +206,30 @@ export function ExerciseActionSheet({
                       {label}
                     </button>
                   ))}
+                  {/* Plyometric with metric sub-options */}
+                  <ExpandableSection icon={Zap} label="Plyometric">
+                    {PLYO_METRICS.map(([key, label]) => (
+                      <button
+                        key={key}
+                        onClick={() =>
+                          handleAction(() => {
+                            const isPlyometric = key !== 'standard';
+                            upsertExerciseLibraryField(exercise.exercise_name, {
+                              movement_pattern: 'plyometric',
+                              is_plyometric: isPlyometric,
+                              plyo_metric: key,
+                            });
+                            onMetadataChange?.("movementPattern", "plyometric");
+                            onMetadataChange?.("isPlyometric", isPlyometric);
+                            onMetadataChange?.("plyoMetric", key);
+                          })
+                        }
+                        className="w-full rounded-md px-3 py-2.5 text-left text-sm text-foreground hover:bg-accent active:bg-accent/60"
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </ExpandableSection>
                 </ExpandableSection>
 
                 <ExpandableSection icon={Wrench} label="Equipment Type">
@@ -278,34 +309,7 @@ export function ExerciseActionSheet({
                   </button>
                 </ExpandableSection>
 
-                <ExpandableSection icon={Zap} label="Plyometric">
-                  <button
-                    onClick={() =>
-                      handleAction(() => {
-                        upsertExerciseLibraryField(exercise.exercise_name, {
-                          is_plyometric: true,
-                        });
-                        onMetadataChange?.("isPlyometric", true);
-                      })
-                    }
-                    className="w-full rounded-md px-3 py-2.5 text-left text-sm text-foreground hover:bg-accent active:bg-accent/60"
-                  >
-                    ✓ Yes (height/distance/speed)
-                  </button>
-                  <button
-                    onClick={() =>
-                      handleAction(() => {
-                        upsertExerciseLibraryField(exercise.exercise_name, {
-                          is_plyometric: false,
-                        });
-                        onMetadataChange?.("isPlyometric", false);
-                      })
-                    }
-                    className="w-full rounded-md px-3 py-2.5 text-left text-sm text-foreground hover:bg-accent active:bg-accent/60"
-                  >
-                    ✗ No (standard)
-                  </button>
-                </ExpandableSection>
+                
 
                 <SheetItem
                   icon={Video}

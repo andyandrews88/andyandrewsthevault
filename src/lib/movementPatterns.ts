@@ -484,6 +484,23 @@ export function isPlyometricExercise(name: string, dbIsPlyometric?: boolean | nu
   return PLYOMETRIC_EXERCISES.has(name.toLowerCase().trim());
 }
 
+// ─── Plyometric Metric Types ──────────────────────────────────────────
+export type PlyoMetric = 'standard' | 'height' | 'distance' | 'speed';
+
+export const PLYO_METRIC_LABELS: Record<PlyoMetric, string> = {
+  standard: 'Standard (Reps only)',
+  height: 'Height (cm/in)',
+  distance: 'Distance (m/ft)',
+  speed: 'Speed (m/s)',
+};
+
+export function getPlyoMetric(dbPlyoMetric?: string | null): PlyoMetric {
+  if (dbPlyoMetric && ['standard', 'height', 'distance', 'speed'].includes(dbPlyoMetric)) {
+    return dbPlyoMetric as PlyoMetric;
+  }
+  return 'standard';
+}
+
 const DEFAULT_BODYWEIGHT_KG = 77;
 
 export function isBodyweightExercise(name: string): boolean {

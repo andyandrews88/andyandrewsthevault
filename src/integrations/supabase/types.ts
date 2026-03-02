@@ -418,6 +418,7 @@ export type Database = {
           muscle_group: string | null
           name: string
           notes: string | null
+          plyo_metric: string | null
           updated_at: string
           video_url: string | null
         }
@@ -433,6 +434,7 @@ export type Database = {
           muscle_group?: string | null
           name: string
           notes?: string | null
+          plyo_metric?: string | null
           updated_at?: string
           video_url?: string | null
         }
@@ -448,6 +450,7 @@ export type Database = {
           muscle_group?: string | null
           name?: string
           notes?: string | null
+          plyo_metric?: string | null
           updated_at?: string
           video_url?: string | null
         }

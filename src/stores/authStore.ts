@@ -26,6 +26,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   initialize: async () => {
     if (get().isInitialized) return;
 
+    // Get the current session immediately to avoid flash-redirect
+    const { data: { session } } = await supabase.auth.getSession();
+    set({
+      session,
+      user: session?.user ?? null,
+      isAuthenticated: !!session?.user,
+      isInitialized: true,
+      isLoading: false,
+    });
+
+    // Listen for future auth changes
     supabase.auth.onAuthStateChange((event, session) => {
       set({
         session,
