@@ -1,94 +1,54 @@
 
 
-# CoachRx-Style Weekly Calendar for Admin Coaching
+# Complete Admin Workout Builder & Calendar Refinements
 
-## Current State
-The admin calendar (`AdminClientCalendar.tsx`) is a basic monthly grid showing colored dots for workouts. Clicking navigates away to the full workout builder page. This is far from CoachRx's dense, inline weekly workflow.
+## Issues Identified
 
-## What CoachRx Does (from the screenshot)
-1. **Weekly column layout** (Mon-Sun) showing 2 weeks at a time with date headers
-2. **Inline workout cards** per day showing exercise names, sets/reps, weights, coach notes, and client feedback with green/red completion dots
-3. **"Add New" button** on each day for quick workout creation
-4. **Side drawer/panel** for building workouts inline without navigating away -- includes title, warmup section, exercise list, cooldown, and Save/Cancel buttons
-5. **Week navigation** with arrows, "Today" button, and month/year header
-6. **Rest day labels** on empty days
-7. **Comments** on workout cards
-8. **Exercise/Lifestyle toggle** for switching views
+1. **Calendar limited to 2 weeks** — needs continuous scrolling (show 4+ weeks, load more as you scroll)
+2. **Drawer doesn't maximize** — `SheetContent` is fixed at `sm:max-w-md`, needs a maximize toggle to expand to full width
+3. **Drawer missing frontend features** — The `CalendarWorkoutDrawer` has basic sets/reps/weight inputs but is missing: RIR input, set completion checkboxes, Load Last Session, Replace Exercise, exercise notes/coach cues, Add Set/Remove Set per exercise, Warmup set toggle, Admin metadata menu (Movement Pattern, Equipment Type, Time-Based, Unilateral, Set Video URL), video embed, previous session data column, warmup/working set type toggle
+4. **Exercise library sync** — When exercises are added from the admin builder, they should auto-register in `exercise_library` (insert-if-not-exists). The `upsertExerciseLibraryField` utility already exists but the `CalendarWorkoutDrawer` doesn't use it. The admin edge function's `add_exercise` action should also auto-register exercise names.
 
-## Implementation Plan
+## Plan
 
-### Phase 1: New Weekly Calendar Page (`AdminClientCalendar.tsx` rewrite)
+### 1. Calendar: Expand to 4 weeks + load more
+**File:** `src/pages/AdminClientCalendar.tsx`
+- Change from 14 days to 28 days (4 weeks)
+- Add "Load More" buttons at top/bottom to extend the range by another 2 weeks
+- Update the date range header and fetch call accordingly
+- Adjust `WeeklyCalendarGrid` to handle variable-length `days` arrays
 
-**Layout:**
-- Replace monthly grid with a 7-column weekly grid (Mon-Sun)
-- Show 2 weeks at a time (like CoachRx)
-- Each column has a day header with date number, and "Add New" + delete buttons
-- Empty days show "rest" label
+### 2. Drawer maximize toggle
+**File:** `src/components/admin/CalendarWorkoutDrawer.tsx`
+- Add a `maximized` state toggle
+- When maximized: `SheetContent` class changes from `sm:max-w-md` to `sm:max-w-4xl` (matching the pattern used in `AdminDetailDrawer`)
+- Add a maximize/minimize button in the drawer header
 
-**Navigation:**
-- `< Feb 2026 >` with arrows to shift by 1 week
-- "Today" button to jump to current week
-- Back button to client profile
+### 3. Full-feature drawer (match frontend ExerciseCard)
+**File:** `src/components/admin/CalendarWorkoutDrawer.tsx` — major rewrite
 
-**Workout Cards in each day column:**
-- Dark card with workout name as colored header (matching CoachRx green/red/orange for status)
-- Exercise list: `A) Exercise Name` with sets/reps/weight details
-- Coach notes inline
-- Client comments section
-- Green dot = completed, red dot = missed/incomplete
-- Click card to open side drawer for editing
+The drawer exercise cards need to match what the frontend `ExerciseCard` + `SetRow` + `ExerciseActionSheet` provide. This means each exercise in the drawer gets:
 
-### Phase 2: Inline Workout Builder Drawer
+- **Per-set rows** with: Set number, Weight (kg), Reps/Sec, RIR, Complete checkbox, Remove button
+- **Add Set / Add Warmup** buttons
+- **Previous session column** (via Load Last Session)
+- **Coach cue / notes input** per exercise
+- **Kebab menu** with: Load Last Session, Replace Exercise, Admin metadata (Movement Pattern, Equipment Type, Time-Based, Unilateral, Set Video URL), Remove Exercise
+- **Warmup/Working set type toggle** (tap set number)
 
-**Right-side panel (Sheet/Drawer)** that opens when clicking a workout card or "Add New":
-- Title input
-- Warmup text area
-- Exercise list with: Name, Tempo, Reps, Sets, Rest fields
-- `+ Exercise` and `+ Conditioning` buttons
-- Cooldown text area
-- Save Workout / Cancel buttons
-- Reuses existing edge function actions (`create_workout`, `add_exercise`, `update_set`, etc.)
+This effectively makes the drawer a mini version of `AdminWorkoutBuilderPage`, embedded in a Sheet.
 
-### Phase 3: Edge Function Updates
+### 4. Exercise library auto-sync
+**File:** `supabase/functions/admin-workout-builder/index.ts`
+- In the `add_exercise` action, after inserting into `workout_exercises`, also do an insert-if-not-exists into `exercise_library` (same pattern as frontend)
+- This ensures any exercise name entered from the admin calendar drawer or builder page is registered globally
 
-**New action: `get_client_week`**
-- Accepts `userId`, `startDate`, `endDate`
-- Returns workouts with full exercise + set details for the date range (not just workout summaries)
-- Avoids N+1 queries by fetching all at once
+### Files Modified
 
-### Files to Create/Modify
-
-| File | Action |
-|------|--------|
-| `src/pages/AdminClientCalendar.tsx` | Full rewrite -- weekly grid with inline cards |
-| `src/components/admin/WeeklyCalendarGrid.tsx` | New -- the 7-column grid component |
-| `src/components/admin/CalendarWorkoutCard.tsx` | New -- individual workout card with exercises |
-| `src/components/admin/CalendarWorkoutDrawer.tsx` | New -- side drawer for inline editing/creating |
-| `supabase/functions/admin-workout-builder/index.ts` | Add `get_client_week` action |
-
-### Technical Details
-
-**Weekly date calculation:**
-```text
-getStartOfWeek(date) → Monday
-Show 2 weeks: [Monday ... Sunday, Monday+7 ... Sunday+7]
-Grid: CSS grid-cols-7 with scrollable columns
-```
-
-**Data flow:**
-1. On mount/week change: call `get_client_week` with date range
-2. Group workouts by date into a `Map<string, WorkoutWithExercises[]>`
-3. Each column renders cards from its date bucket
-4. "Add New" creates workout via existing `create_workout` action, then opens drawer
-5. Drawer saves use existing `add_exercise`, `update_set`, `finish_workout` actions
-6. On save/close drawer, refresh the week data
-
-**Drawer workout builder (simplified version of AdminWorkoutBuilderPage):**
-- Exercise name + search
-- Sets/reps/weight inline inputs
-- Notes per exercise
-- Warmup/cooldown text fields
-- Save persists to DB, Cancel discards unsaved changes
-
-**Mobile:** On screens < 768px, show a scrollable horizontal week strip (like current WeekStrip component) with a single-day detail view below, since 7 columns won't fit.
+| File | Changes |
+|------|---------|
+| `src/pages/AdminClientCalendar.tsx` | 4-week grid, load-more buttons |
+| `src/components/admin/WeeklyCalendarGrid.tsx` | Support variable week count |
+| `src/components/admin/CalendarWorkoutDrawer.tsx` | Full rewrite: maximize toggle, full exercise card with per-set rows, RIR, coach cues, admin metadata menu, Load Last Session, Replace Exercise |
+| `supabase/functions/admin-workout-builder/index.ts` | Auto-register exercises in exercise_library on add_exercise |
 
