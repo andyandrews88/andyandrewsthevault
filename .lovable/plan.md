@@ -1,99 +1,94 @@
 
 
-# UI Refinement & Audit Fix Schedule
+# CoachRx-Style Weekly Calendar for Admin Coaching
 
-All work organized into 5 sequential phases. Each phase is independent and testable.
+## Current State
+The admin calendar (`AdminClientCalendar.tsx`) is a basic monthly grid showing colored dots for workouts. Clicking navigates away to the full workout builder page. This is far from CoachRx's dense, inline weekly workflow.
 
----
+## What CoachRx Does (from the screenshot)
+1. **Weekly column layout** (Mon-Sun) showing 2 weeks at a time with date headers
+2. **Inline workout cards** per day showing exercise names, sets/reps, weights, coach notes, and client feedback with green/red completion dots
+3. **"Add New" button** on each day for quick workout creation
+4. **Side drawer/panel** for building workouts inline without navigating away -- includes title, warmup section, exercise list, cooldown, and Save/Cancel buttons
+5. **Week navigation** with arrows, "Today" button, and month/year header
+6. **Rest day labels** on empty days
+7. **Comments** on workout cards
+8. **Exercise/Lifestyle toggle** for switching views
 
-## Phase 1: Mobile UX Polish (AuditForm + ResultsPage)
+## Implementation Plan
 
-### 1A. Add `inputMode="decimal"` to all numeric movement inputs
-**File:** `src/components/audit/AuditForm.tsx`
-- Broad Jump input (~line 477): add `inputMode="decimal"`
-- Dead Hang seconds input (~line 500): add `inputMode="decimal"`
-- Pull-ups input (~line 570): add `inputMode="numeric"`
-- Push-ups input (~line 582): add `inputMode="numeric"`
-- L-Sit seconds input (~line 594): add `inputMode="decimal"`
-- Biometrics inputs (weight, age, height): verify they have proper inputMode
+### Phase 1: New Weekly Calendar Page (`AdminClientCalendar.tsx` rewrite)
 
-### 1B. Radar chart mobile fix
-**File:** `src/components/audit/ResultsPage.tsx`
-- Reduce `PolarAngleAxis` font size on mobile (use `useIsMobile()` hook)
-- Shrink chart height from 400px to 300px on mobile
-- Reduce `PolarRadiusAxis` tick count on mobile
+**Layout:**
+- Replace monthly grid with a 7-column weekly grid (Mon-Sun)
+- Show 2 weeks at a time (like CoachRx)
+- Each column has a day header with date number, and "Add New" + delete buttons
+- Empty days show "rest" label
 
-### 1C. AI recap overflow fix
-**File:** `src/components/audit/ResultsPage.tsx`
-- Add `overflow-x-auto` to the prose container wrapping `renderMarkdown`
-- Add `break-words` to prevent long text overflow
+**Navigation:**
+- `< Feb 2026 >` with arrows to shift by 1 week
+- "Today" button to jump to current week
+- Back button to client profile
 
-### 1D. Movement screen layout on 375px
-**File:** `src/components/audit/AuditForm.tsx`
-- Ensure broad jump toggle group wraps properly on small screens (add `flex-wrap`)
-- Pistol squat grid: change to `grid-cols-1` on mobile via responsive class
+**Workout Cards in each day column:**
+- Dark card with workout name as colored header (matching CoachRx green/red/orange for status)
+- Exercise list: `A) Exercise Name` with sets/reps/weight details
+- Coach notes inline
+- Client comments section
+- Green dot = completed, red dot = missed/incomplete
+- Click card to open side drawer for editing
 
----
+### Phase 2: Inline Workout Builder Drawer
 
-## Phase 2: Edge Cases — Audit Logic
+**Right-side panel (Sheet/Drawer)** that opens when clicking a workout card or "Add New":
+- Title input
+- Warmup text area
+- Exercise list with: Name, Tempo, Reps, Sets, Rest fields
+- `+ Exercise` and `+ Conditioning` buttons
+- Cooldown text area
+- Save Workout / Cancel buttons
+- Reuses existing edge function actions (`create_workout`, `add_exercise`, `update_set`, etc.)
 
-### 2A. Cardio "none" + time guard
-**File:** `src/components/audit/AuditForm.tsx`
-- When `cardioTest` is set to `'none'`, clear `cardioTime` and `mileRunTime` in the `onValueChange` handler (already partially done at line 422, verify it works)
+### Phase 3: Edge Function Updates
 
-### 2B. Stress slider explicit interaction
-**File:** `src/components/audit/AuditForm.tsx`
-- Track whether stress slider has been touched via a local state `stressTouched`
-- On validation, if `!stressTouched` and stress is still default 5, show a soft prompt: "Please confirm your life stress level"
-- Not a hard block — just a nudge
+**New action: `get_client_week`**
+- Accepts `userId`, `startDate`, `endDate`
+- Returns workouts with full exercise + set details for the date range (not just workout summaries)
+- Avoids N+1 queries by fetching all at once
 
-### 2C. Partial movement screen scoring fairness
-**File:** `src/stores/auditStore.ts`
-- Currently, skipped movement tests default to neutral (score 50) which is fair
-- Add logic: if fewer than 3 movement tests are completed, add a note to `skippedAreas` saying "Limited movement data — scores reflect partial assessment"
-- No score penalty change needed — the additive bonus system already handles this correctly
+### Files to Create/Modify
 
-### 2D. Audit re-take data cleanup
-**File:** `src/stores/auditStore.ts`
-- The `reset()` function already clears `data`, `results`, and `currentStep`
-- Verify the database sync (in `useUserDataSync`) overwrites the existing row on re-submission rather than inserting duplicates
-**File:** `src/hooks/useUserDataSync.ts` — check upsert logic
+| File | Action |
+|------|--------|
+| `src/pages/AdminClientCalendar.tsx` | Full rewrite -- weekly grid with inline cards |
+| `src/components/admin/WeeklyCalendarGrid.tsx` | New -- the 7-column grid component |
+| `src/components/admin/CalendarWorkoutCard.tsx` | New -- individual workout card with exercises |
+| `src/components/admin/CalendarWorkoutDrawer.tsx` | New -- side drawer for inline editing/creating |
+| `supabase/functions/admin-workout-builder/index.ts` | Add `get_client_week` action |
 
----
+### Technical Details
 
-## Phase 3: Audit-to-Results Flow
+**Weekly date calculation:**
+```text
+getStartOfWeek(date) → Monday
+Show 2 weeks: [Monday ... Sunday, Monday+7 ... Sunday+7]
+Grid: CSS grid-cols-7 with scrollable columns
+```
 
-### 3A. AI recap error resilience
-**File:** `src/components/audit/ResultsPage.tsx`
-- Already has: skeleton loading, error state with retry button, and non-AI content renders independently
-- Add a timeout: if recap takes >30s, show a "Taking longer than expected..." message with option to retry
-- Add specific handling for 429/402 errors with user-friendly messages
+**Data flow:**
+1. On mount/week change: call `get_client_week` with date range
+2. Group workouts by date into a `Map<string, WorkoutWithExercises[]>`
+3. Each column renders cards from its date bucket
+4. "Add New" creates workout via existing `create_workout` action, then opens drawer
+5. Drawer saves use existing `add_exercise`, `update_set`, `finish_workout` actions
+6. On save/close drawer, refresh the week data
 
-### 3B. Results persistence
-- Already handled by Zustand `persist` middleware (localStorage)
-- Verify: navigate away and back — results should still be there
-- This is a test-only item, no code change expected
+**Drawer workout builder (simplified version of AdminWorkoutBuilderPage):**
+- Exercise name + search
+- Sets/reps/weight inline inputs
+- Notes per exercise
+- Warmup/cooldown text fields
+- Save persists to DB, Cancel discards unsaved changes
 
----
-
-## Phase 4: Verify & Test
-
-- Test audit form on 375px mobile viewport end-to-end
-- Test with only biometrics + lifestyle filled (skip strength, engine, movement)
-- Test retake flow: complete audit, view results, retake, verify clean state
-- Test AI recap failure: verify scores/leaks/radar still render without AI
-
----
-
-## Technical Details
-
-### Files Modified
-| File | Changes |
-|------|---------|
-| `src/components/audit/AuditForm.tsx` | inputMode attrs, flex-wrap fixes, stress nudge, responsive pistol grid |
-| `src/components/audit/ResultsPage.tsx` | Radar chart mobile sizing, prose overflow, recap timeout |
-| `src/stores/auditStore.ts` | Partial movement note in skippedAreas |
-| `src/hooks/useUserDataSync.ts` | Verify upsert (read-only check, may not need changes) |
-
-### No new dependencies needed
+**Mobile:** On screens < 768px, show a scrollable horizontal week strip (like current WeekStrip component) with a single-day detail view below, since 7 columns won't fit.
 
