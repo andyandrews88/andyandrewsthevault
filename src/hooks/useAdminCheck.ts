@@ -36,11 +36,10 @@ export function useAdminCheck() {
       }
     }
 
-    const timeoutId = setTimeout(() => checkAdminRole(), 300);
+    checkAdminRole();
 
     return () => {
       isCancelled = true;
-      clearTimeout(timeoutId);
     };
   }, [user?.id, session?.access_token, isAuthenticated, isInitialized]);
 

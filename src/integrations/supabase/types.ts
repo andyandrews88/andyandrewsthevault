@@ -1024,30 +1024,57 @@ export type Database = {
       user_profiles: {
         Row: {
           avatar_url: string | null
+          birthday: string | null
           created_at: string
           display_name: string
+          first_name: string | null
+          height_cm: number | null
           id: string
           is_coach: boolean
+          last_name: string | null
+          location: string | null
           notification_preferences: Json
+          sex: string | null
+          timezone: string | null
+          unit_preference: string | null
           updated_at: string
+          weight_kg: number | null
         }
         Insert: {
           avatar_url?: string | null
+          birthday?: string | null
           created_at?: string
           display_name?: string
+          first_name?: string | null
+          height_cm?: number | null
           id: string
           is_coach?: boolean
+          last_name?: string | null
+          location?: string | null
           notification_preferences?: Json
+          sex?: string | null
+          timezone?: string | null
+          unit_preference?: string | null
           updated_at?: string
+          weight_kg?: number | null
         }
         Update: {
           avatar_url?: string | null
+          birthday?: string | null
           created_at?: string
           display_name?: string
+          first_name?: string | null
+          height_cm?: number | null
           id?: string
           is_coach?: boolean
+          last_name?: string | null
+          location?: string | null
           notification_preferences?: Json
+          sex?: string | null
+          timezone?: string | null
+          unit_preference?: string | null
           updated_at?: string
+          weight_kg?: number | null
         }
         Relationships: []
       }

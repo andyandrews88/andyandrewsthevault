@@ -123,17 +123,27 @@ export default function AdminUserProfile() {
       <Navbar />
       <main className="container mx-auto px-4 pt-24 pb-12 space-y-6">
         {/* Header */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => navigate("/admin")}>
             <ChevronLeft className="h-5 w-5" />
           </Button>
+          <Avatar className="h-16 w-16">
+            <AvatarImage src={p?.avatar_url} />
+            <AvatarFallback className="text-xl bg-primary/20 text-primary">
+              {((p?.first_name?.[0] || '') + (p?.last_name?.[0] || '')).toUpperCase() || (p?.display_name?.[0] || 'U')}
+            </AvatarFallback>
+          </Avatar>
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2">
-              <User className="h-6 w-6" />
               {p?.display_name || "Unknown User"}
             </h1>
-            <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
+            <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1 flex-wrap">
               {data.email && <span className="flex items-center gap-1"><Mail className="h-3.5 w-3.5" />{data.email}</span>}
+              {p?.sex && <Badge variant="outline" className="text-[10px] capitalize">{p.sex}</Badge>}
+              {p?.birthday && <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" />{(() => { const b = new Date(p.birthday); const age = new Date().getFullYear() - b.getFullYear(); return `${age} yrs`; })()}</span>}
+              {p?.height_cm && <span>{p.height_cm} cm</span>}
+              {p?.weight_kg && <span className="flex items-center gap-1"><Scale className="h-3.5 w-3.5" />{p.weight_kg} kg</span>}
+              {p?.location && <span>{p.location}</span>}
               <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" />Joined {data.joinDate ? formatDistanceToNow(new Date(data.joinDate), { addSuffix: true }) : "unknown"}</span>
               <span>{daysSince} days on platform</span>
             </div>
