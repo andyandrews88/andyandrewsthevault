@@ -457,10 +457,10 @@ export function PTSessionTracker({ clientUserId, clientDisplayName }: PTSessionT
             </div>
             <div>
               <Label>Link to Workout (optional)</Label>
-              <Select value={sessionWorkoutId} onValueChange={setSessionWorkoutId}>
+              <Select value={sessionWorkoutId || "none"} onValueChange={v => setSessionWorkoutId(v === "none" ? "" : v)}>
                 <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="none">None</SelectItem>
                   {workouts.map(w => (
                     <SelectItem key={w.id} value={w.id}>{w.workout_name} — {format(new Date(w.date), "MMM d")}</SelectItem>
                   ))}
@@ -510,10 +510,10 @@ export function PTSessionTracker({ clientUserId, clientDisplayName }: PTSessionT
             </div>
             <div>
               <Label>Link to Package (optional)</Label>
-              <Select value={invPkgId} onValueChange={setInvPkgId}>
+              <Select value={invPkgId || "none"} onValueChange={v => setInvPkgId(v === "none" ? "" : v)}>
                 <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="none">None</SelectItem>
                   {packages.map(p => (
                     <SelectItem key={p.id} value={p.id}>{p.package_name}</SelectItem>
                   ))}
