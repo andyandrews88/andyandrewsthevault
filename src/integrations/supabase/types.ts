@@ -655,6 +655,130 @@ export type Database = {
         }
         Relationships: []
       }
+      pt_invoices: {
+        Row: {
+          amount: number
+          client_user_id: string
+          created_at: string
+          currency: string
+          id: string
+          invoice_date: string
+          invoice_url: string
+          notes: string | null
+          package_id: string | null
+          status: string
+        }
+        Insert: {
+          amount?: number
+          client_user_id: string
+          created_at?: string
+          currency?: string
+          id?: string
+          invoice_date?: string
+          invoice_url?: string
+          notes?: string | null
+          package_id?: string | null
+          status?: string
+        }
+        Update: {
+          amount?: number
+          client_user_id?: string
+          created_at?: string
+          currency?: string
+          id?: string
+          invoice_date?: string
+          invoice_url?: string
+          notes?: string | null
+          package_id?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pt_invoices_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "pt_packages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pt_packages: {
+        Row: {
+          client_user_id: string
+          coach_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          package_name: string
+          purchase_date: string
+          sessions_purchased: number
+          sessions_used: number
+          status: string
+        }
+        Insert: {
+          client_user_id: string
+          coach_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          package_name?: string
+          purchase_date?: string
+          sessions_purchased?: number
+          sessions_used?: number
+          status?: string
+        }
+        Update: {
+          client_user_id?: string
+          coach_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          package_name?: string
+          purchase_date?: string
+          sessions_purchased?: number
+          sessions_used?: number
+          status?: string
+        }
+        Relationships: []
+      }
+      pt_sessions: {
+        Row: {
+          client_user_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          package_id: string
+          session_date: string
+          workout_id: string | null
+        }
+        Insert: {
+          client_user_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          package_id: string
+          session_date?: string
+          workout_id?: string | null
+        }
+        Update: {
+          client_user_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          package_id?: string
+          session_date?: string
+          workout_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pt_sessions_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "pt_packages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_audit_data: {
         Row: {
           created_at: string
