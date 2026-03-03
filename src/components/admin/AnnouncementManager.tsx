@@ -7,8 +7,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Megaphone, Plus, Trash2, Edit2, X } from "lucide-react";
+import { Megaphone, Plus, Trash2, Edit2, X, Send } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface Announcement {
@@ -28,14 +29,11 @@ export function AnnouncementManager() {
   const [message, setMessage] = useState("");
   const [type, setType] = useState("info");
   const [isActive, setIsActive] = useState(true);
+  const [sendPush, setSendPush] = useState(true);
+  const [sending, setSending] = useState(false);
   const { toast } = useToast();
 
   const fetchAnnouncements = async () => {
-    // Use edge function to bypass the "active only" RLS filter
-    const { data, error } = await supabase.functions.invoke("admin-detail", {
-      body: { section: "announcements" },
-    });
-    // Fallback to direct query if edge function doesn't support it yet
     const { data: directData } = await supabase.from("announcements").select("*").order("created_at", { ascending: false });
     setAnnouncements((directData as Announcement[]) || []);
   };
@@ -43,8 +41,22 @@ export function AnnouncementManager() {
   useEffect(() => { fetchAnnouncements(); }, []);
 
   const resetForm = () => {
-    setTitle(""); setMessage(""); setType("info"); setIsActive(true);
+    setTitle(""); setMessage(""); setType("info"); setIsActive(true); setSendPush(true);
     setEditingId(null); setShowForm(false);
+  };
+
+  const triggerPush = async (pushTitle: string, pushMessage: string) => {
+    setSending(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("send-push", {
+        body: { title: pushTitle, message: pushMessage },
+      });
+      if (error) throw error;
+      toast({ title: "Push sent", description: `Delivered to ${data?.sent || 0} subscriber(s)` });
+    } catch (err: any) {
+      toast({ title: "Push failed", description: err.message, variant: "destructive" });
+    }
+    setSending(false);
   };
 
   const handleSave = async () => {
@@ -63,6 +75,9 @@ export function AnnouncementManager() {
       const { error } = await supabase.from("announcements").insert(payload);
       if (error) { toast({ title: "Create failed", description: error.message, variant: "destructive" }); return; }
       toast({ title: "Announcement created" });
+      if (sendPush && isActive) {
+        await triggerPush(title.trim(), message.trim());
+      }
     }
     resetForm();
     fetchAnnouncements();
@@ -77,7 +92,7 @@ export function AnnouncementManager() {
 
   const handleEdit = (a: Announcement) => {
     setEditingId(a.id); setTitle(a.title); setMessage(a.message);
-    setType(a.type); setIsActive(a.is_active); setShowForm(true);
+    setType(a.type); setIsActive(a.is_active); setSendPush(false); setShowForm(true);
   };
 
   const toggleActive = async (a: Announcement) => {
@@ -108,7 +123,7 @@ export function AnnouncementManager() {
           <div className="space-y-3 p-4 border rounded-lg bg-muted/30">
             <Input placeholder="Title" value={title} onChange={e => setTitle(e.target.value)} />
             <Textarea placeholder="Message" value={message} onChange={e => setMessage(e.target.value)} rows={3} />
-            <div className="flex gap-4 items-center">
+            <div className="flex gap-4 items-center flex-wrap">
               <Select value={type} onValueChange={setType}>
                 <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -121,7 +136,19 @@ export function AnnouncementManager() {
                 <Switch checked={isActive} onCheckedChange={setIsActive} />
                 <Label className="text-sm">Active</Label>
               </div>
-              <Button size="sm" onClick={handleSave}>{editingId ? "Update" : "Create"}</Button>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="send-push"
+                  checked={sendPush}
+                  onCheckedChange={(v) => setSendPush(v === true)}
+                />
+                <Label htmlFor="send-push" className="text-sm cursor-pointer flex items-center gap-1">
+                  <Send className="h-3 w-3" /> Push
+                </Label>
+              </div>
+              <Button size="sm" onClick={handleSave} disabled={sending}>
+                {sending ? 'Sending…' : editingId ? "Update" : "Create"}
+              </Button>
             </div>
           </div>
         )}
@@ -141,6 +168,16 @@ export function AnnouncementManager() {
                   <p className="text-xs text-muted-foreground line-clamp-2">{a.message}</p>
                 </div>
                 <div className="flex gap-1 ml-2 shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    title="Send push notification"
+                    disabled={sending}
+                    onClick={() => triggerPush(a.title, a.message)}
+                  >
+                    <Send className="h-3.5 w-3.5" />
+                  </Button>
                   <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => toggleActive(a)}>
                     <Switch checked={a.is_active} className="scale-75" />
                   </Button>
