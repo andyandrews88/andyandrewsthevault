@@ -429,10 +429,6 @@ export default function AdminUserProfile() {
               {p?.display_name || "Unknown User"}
               {privateCoaching && <Badge variant="elite" className="gap-1 text-[10px]"><Shield className="h-3 w-3" />Private Coaching</Badge>}
             </h1>
-            <div className="flex items-center gap-2 mt-1">
-              <Switch checked={privateCoaching} onCheckedChange={togglePrivateCoaching} />
-              <span className="text-xs text-muted-foreground">Private Coaching Access</span>
-            </div>
             <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1 flex-wrap">
               {data.email && <span className="flex items-center gap-1"><Mail className="h-3.5 w-3.5" />{data.email}</span>}
               {p?.sex && <Badge variant="outline" className="text-[10px] capitalize">{p.sex}</Badge>}
@@ -455,6 +451,22 @@ export default function AdminUserProfile() {
             )}
           </div>
         </div>
+
+        {/* Private Coaching Toggle Card */}
+        <Card className="border-2 border-primary/30 bg-gradient-to-r from-primary/5 to-transparent">
+          <CardContent className="p-4 flex items-center gap-4">
+            <div className="p-3 rounded-full bg-primary/10 shrink-0">
+              <Shield className="h-6 w-6 text-primary" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-sm font-bold">Private Coaching Access</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Enable 1-on-1 coaching dashboard, session tracking & direct messaging for this client
+              </p>
+            </div>
+            <Switch checked={privateCoaching} onCheckedChange={togglePrivateCoaching} />
+          </CardContent>
+        </Card>
 
         {/* Reorderable sections */}
         {order.map((id, idx) => {

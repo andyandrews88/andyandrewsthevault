@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
+
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Brain, RefreshCw, Sparkles, ChevronDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -151,25 +151,23 @@ export function ClientAIReport({ userId, displayName }: ClientAIReportProps) {
         </div>
       </CardHeader>
       <CardContent className="p-0">
-        <ScrollArea className="max-h-[600px]">
-          <div className="p-4 space-y-3">
-            {sections.map((section, idx) => (
-              <Collapsible key={idx} open={openSections.has(idx)} onOpenChange={() => toggleSection(idx)}>
-                <CollapsibleTrigger className={`w-full flex items-center justify-between p-3 rounded-lg border-l-4 ${getSectionColor(section.title)} bg-secondary/30 hover:bg-secondary/50 transition-colors`}>
-                  <span className="text-sm font-semibold text-left">{section.title}</span>
-                  <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${openSections.has(idx) ? "rotate-180" : ""}`} />
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <div className={`pl-5 pr-3 py-3 border-l-4 ${getSectionColor(section.title)} border-l-opacity-30 ml-0`}>
-                    <div className="prose prose-sm dark:prose-invert max-w-none prose-headings:text-foreground prose-p:text-muted-foreground prose-strong:text-foreground prose-li:text-muted-foreground">
-                      <ReactMarkdown>{section.content}</ReactMarkdown>
-                    </div>
+        <div className="p-4 space-y-3">
+          {sections.map((section, idx) => (
+            <Collapsible key={idx} open={openSections.has(idx)} onOpenChange={() => toggleSection(idx)}>
+              <CollapsibleTrigger className={`w-full flex items-center justify-between p-3 rounded-lg border-l-4 ${getSectionColor(section.title)} bg-secondary/30 hover:bg-secondary/50 transition-colors`}>
+                <span className="text-sm font-semibold text-left">{section.title}</span>
+                <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${openSections.has(idx) ? "rotate-180" : ""}`} />
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className={`pl-5 pr-3 py-3 border-l-4 ${getSectionColor(section.title)} border-l-opacity-30 ml-0`}>
+                  <div className="prose prose-sm dark:prose-invert max-w-none prose-headings:text-foreground prose-p:text-muted-foreground prose-strong:text-foreground prose-li:text-muted-foreground">
+                    <ReactMarkdown>{section.content}</ReactMarkdown>
                   </div>
-                </CollapsibleContent>
-              </Collapsible>
-            ))}
-          </div>
-        </ScrollArea>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+          ))}
+        </div>
       </CardContent>
     </Card>
   );

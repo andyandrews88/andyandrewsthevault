@@ -308,7 +308,7 @@ export function PTSessionTracker({ clientUserId, clientDisplayName }: PTSessionT
                   <TableHead>Date</TableHead>
                   <TableHead>Workout</TableHead>
                   <TableHead>Notes</TableHead>
-                  <TableHead className="w-10"></TableHead>
+                   <TableHead className="w-20"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
