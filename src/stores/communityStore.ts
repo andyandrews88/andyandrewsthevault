@@ -43,6 +43,13 @@ export interface DirectMessage {
   from_profile?: UserProfile;
 }
 
+export interface DmConversation {
+  partnerId: string;
+  partnerProfile: UserProfile | null;
+  lastMessage: DirectMessage | null;
+  unreadCount: number;
+}
+
 interface CommunityState {
   posts: CommunityMessage[];
   channels: CommunityChannel[];
@@ -55,8 +62,9 @@ interface CommunityState {
   threadDrawerOpen: boolean;
   profileCache: Map<string, UserProfile>;
   directMessages: DirectMessage[];
+  dmConversations: DmConversation[];
   unreadDmCount: number;
-  activeDmUserId: string | null;
+  activeDmUserId: string | null; // now means "active conversation partner ID"
 
   // Actions
   fetchChannels: () => Promise<void>;
@@ -89,6 +97,37 @@ interface CommunityState {
   addRealtimeDm: (dm: DirectMessage) => void;
 }
 
+function buildConversations(dms: DirectMessage[], currentUserId: string, profileCache: Map<string, UserProfile>): DmConversation[] {
+  const convMap = new Map<string, DirectMessage[]>();
+
+  for (const dm of dms) {
+    const partnerId = dm.from_user_id === currentUserId ? dm.to_user_id : dm.from_user_id;
+    if (!convMap.has(partnerId)) convMap.set(partnerId, []);
+    convMap.get(partnerId)!.push(dm);
+  }
+
+  const conversations: DmConversation[] = [];
+  for (const [partnerId, msgs] of convMap) {
+    const sorted = msgs.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    const unreadCount = msgs.filter(m => m.to_user_id === currentUserId && !m.is_read).length;
+    conversations.push({
+      partnerId,
+      partnerProfile: profileCache.get(partnerId) || null,
+      lastMessage: sorted[sorted.length - 1],
+      unreadCount,
+    });
+  }
+
+  // Sort by last message time descending
+  conversations.sort((a, b) => {
+    const aTime = a.lastMessage ? new Date(a.lastMessage.created_at).getTime() : 0;
+    const bTime = b.lastMessage ? new Date(b.lastMessage.created_at).getTime() : 0;
+    return bTime - aTime;
+  });
+
+  return conversations;
+}
+
 export const useCommunityStore = create<CommunityState>((set, get) => ({
   posts: [],
   channels: [],
@@ -101,6 +140,7 @@ export const useCommunityStore = create<CommunityState>((set, get) => ({
   threadDrawerOpen: false,
   profileCache: new Map(),
   directMessages: [],
+  dmConversations: [],
   unreadDmCount: 0,
   activeDmUserId: null,
 
@@ -147,7 +187,6 @@ export const useCommunityStore = create<CommunityState>((set, get) => ({
       const channels = (data || []) as CommunityChannel[];
       set({ channels, isChannelsLoading: false });
 
-      // Auto-select 'general' if no active channel
       const { activeChannelId } = get();
       if (!activeChannelId && channels.length > 0) {
         const general = channels.find(c => c.name === 'general') || channels[0];
@@ -185,7 +224,6 @@ export const useCommunityStore = create<CommunityState>((set, get) => ({
         return;
       }
 
-      // Get reply counts
       const postIds = posts.map(p => p.id);
       const { data: replyCounts } = await supabase
         .from('community_messages')
@@ -277,7 +315,6 @@ export const useCommunityStore = create<CommunityState>((set, get) => ({
     const { activeChannelId, fetchProfile } = get();
     if (!activeChannelId) return;
 
-    // Optimistic update
     const optimisticId = `optimistic-${Date.now()}`;
     const profile = await fetchProfile(userId);
 
@@ -309,9 +346,7 @@ export const useCommunityStore = create<CommunityState>((set, get) => ({
         });
 
       if (error) throw error;
-      // Realtime will replace the optimistic post
     } catch (error) {
-      // Rollback optimistic update
       set((state) => ({ posts: state.posts.filter(p => p.id !== optimisticId) }));
       console.error('Error creating post:', error);
     }
@@ -349,7 +384,6 @@ export const useCommunityStore = create<CommunityState>((set, get) => ({
     }
     set({ userLikes: newLikes });
 
-    // Optimistic like count update
     set((state) => ({
       posts: state.posts.map(p =>
         p.id === messageId
@@ -375,7 +409,6 @@ export const useCommunityStore = create<CommunityState>((set, get) => ({
         if (error) throw error;
       }
     } catch (error) {
-      // Rollback
       set({ userLikes });
       set((state) => ({
         posts: state.posts.map(p =>
@@ -467,7 +500,6 @@ export const useCommunityStore = create<CommunityState>((set, get) => ({
         return { channels: remaining, activeChannelId: newActiveId };
       });
 
-      // Reload posts for the new active channel
       const { activeChannelId } = get();
       if (activeChannelId) get().fetchPosts();
     } catch (error) {
@@ -508,10 +540,8 @@ export const useCommunityStore = create<CommunityState>((set, get) => ({
   addRealtimePost: async (post: CommunityMessage) => {
     const { fetchProfile, activeChannelId } = get();
 
-    // Only show posts for the active channel
     if (post.channel_id !== activeChannelId) return;
 
-    // Remove any optimistic post with same content from same user
     set((state) => ({
       posts: state.posts.filter(p => !p.isOptimistic || p.user_id !== post.user_id),
     }));
@@ -575,6 +605,8 @@ export const useCommunityStore = create<CommunityState>((set, get) => ({
       const dmsWithProfiles = await Promise.all(
         (data || []).map(async (dm) => {
           const fromProfile = await fetchProfile(dm.from_user_id);
+          // Also cache the to_user profile for conversation building
+          await fetchProfile(dm.to_user_id);
           return { ...dm, from_profile: fromProfile || undefined } as DirectMessage;
         })
       );
@@ -583,7 +615,9 @@ export const useCommunityStore = create<CommunityState>((set, get) => ({
         dm => dm.to_user_id === currentUserId && !dm.is_read
       ).length;
 
-      set({ directMessages: dmsWithProfiles, unreadDmCount: unreadCount });
+      const conversations = buildConversations(dmsWithProfiles, currentUserId, get().profileCache);
+
+      set({ directMessages: dmsWithProfiles, unreadDmCount: unreadCount, dmConversations: conversations });
     } catch (error) {
       console.error('Error fetching DMs:', error);
     }
@@ -596,6 +630,9 @@ export const useCommunityStore = create<CommunityState>((set, get) => ({
         .insert({ from_user_id: fromUserId, to_user_id: toUserId, content });
 
       if (error) throw error;
+
+      // Refetch to rebuild conversations
+      await get().fetchDirectMessages(fromUserId);
     } catch (error) {
       console.error('Error sending DM:', error);
       throw error;
@@ -611,16 +648,22 @@ export const useCommunityStore = create<CommunityState>((set, get) => ({
         .eq('to_user_id', currentUserId)
         .eq('is_read', false);
 
-      set((state) => ({
-        directMessages: state.directMessages.map(dm =>
+      set((state) => {
+        const updatedDms = state.directMessages.map(dm =>
           dm.from_user_id === fromUserId && dm.to_user_id === currentUserId
             ? { ...dm, is_read: true }
             : dm
-        ),
-        unreadDmCount: Math.max(0, state.unreadDmCount - state.directMessages.filter(
-          dm => dm.from_user_id === fromUserId && dm.to_user_id === currentUserId && !dm.is_read
-        ).length),
-      }));
+        );
+        const unreadCount = updatedDms.filter(
+          dm => dm.to_user_id === currentUserId && !dm.is_read
+        ).length;
+        const conversations = buildConversations(updatedDms, currentUserId, state.profileCache);
+        return {
+          directMessages: updatedDms,
+          unreadDmCount: unreadCount,
+          dmConversations: conversations,
+        };
+      });
     } catch (error) {
       console.error('Error marking DMs read:', error);
     }
@@ -633,11 +676,21 @@ export const useCommunityStore = create<CommunityState>((set, get) => ({
   addRealtimeDm: async (dm: DirectMessage) => {
     const { fetchProfile } = get();
     const fromProfile = await fetchProfile(dm.from_user_id);
+    await fetchProfile(dm.to_user_id);
     const dmWithProfile = { ...dm, from_profile: fromProfile || undefined };
 
-    set((state) => ({
-      directMessages: [...state.directMessages, dmWithProfile],
-      unreadDmCount: state.unreadDmCount + (dm.is_read ? 0 : 1),
-    }));
+    set((state) => {
+      const updatedDms = [...state.directMessages, dmWithProfile];
+      // Determine current user from existing DMs or auth
+      // We use the fact that the DM was sent TO us if we're the recipient
+      const currentUserId = dm.to_user_id; // realtime only fires for to_user_id filter
+      const unreadCount = state.unreadDmCount + (dm.is_read ? 0 : 1);
+      const conversations = buildConversations(updatedDms, currentUserId, state.profileCache);
+      return {
+        directMessages: updatedDms,
+        unreadDmCount: unreadCount,
+        dmConversations: conversations,
+      };
+    });
   },
 }));

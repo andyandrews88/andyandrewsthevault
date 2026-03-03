@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Hash, Lock, Mail, X, Pencil, Trash2, Plus, Check, ChevronDown, ChevronRight, Settings } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Hash, Lock, Mail, X, Pencil, Trash2, Plus, Settings, ChevronDown, ChevronRight, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useCommunityStore, CommunityChannel } from '@/stores/communityStore';
 import { Badge } from '@/components/ui/badge';
@@ -9,6 +9,8 @@ import { useAdminCheck } from '@/hooks/useAdminCheck';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useNotificationStore } from '@/stores/notificationStore';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { supabase } from '@/integrations/supabase/client';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -97,34 +99,19 @@ function EditChannelDialog({ channel, open, onClose }: EditChannelDialogProps) {
         <div className="space-y-4 py-2">
           <div className="space-y-1.5">
             <Label htmlFor="ch-name">Channel Name</Label>
-            <Input
-              id="ch-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="general"
-            />
+            <Input id="ch-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="general" />
             <p className="text-[11px] text-muted-foreground">Lowercase, hyphens only. Shown as #{name.toLowerCase().replace(/\s+/g, '-')}</p>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="ch-desc">Description</Label>
-            <Textarea
-              id="ch-desc"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="What is this channel for?"
-              className="resize-none min-h-[72px]"
-            />
+            <Textarea id="ch-desc" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What is this channel for?" className="resize-none min-h-[72px]" />
           </div>
           <div className="space-y-1.5">
             <Label>Category</Label>
             <Select value={category} onValueChange={setCategory}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
+              <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                {CATEGORIES.map((c) => (
-                  <SelectItem key={c} value={c}>{c}</SelectItem>
-                ))}
+                {CATEGORIES.map((c) => (<SelectItem key={c} value={c}>{c}</SelectItem>))}
               </SelectContent>
             </Select>
           </div>
@@ -164,11 +151,7 @@ function NewChannelDialog({ open, onClose }: NewChannelDialogProps) {
     if (!name.trim()) return;
     setSaving(true);
     try {
-      await createChannel(
-        name.trim().toLowerCase().replace(/\s+/g, '-'),
-        description.trim(),
-        category
-      );
+      await createChannel(name.trim().toLowerCase().replace(/\s+/g, '-'), description.trim(), category);
       toast({ title: 'Channel created' });
       setName('');
       setDescription('');
@@ -189,36 +172,19 @@ function NewChannelDialog({ open, onClose }: NewChannelDialogProps) {
         <div className="space-y-4 py-2">
           <div className="space-y-1.5">
             <Label htmlFor="new-name">Channel Name</Label>
-            <Input
-              id="new-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. q-and-a"
-            />
-            {name && (
-              <p className="text-[11px] text-muted-foreground">#{name.toLowerCase().replace(/\s+/g, '-')}</p>
-            )}
+            <Input id="new-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. q-and-a" />
+            {name && <p className="text-[11px] text-muted-foreground">#{name.toLowerCase().replace(/\s+/g, '-')}</p>}
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="new-desc">Description</Label>
-            <Textarea
-              id="new-desc"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="What is this channel for?"
-              className="resize-none min-h-[72px]"
-            />
+            <Textarea id="new-desc" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What is this channel for?" className="resize-none min-h-[72px]" />
           </div>
           <div className="space-y-1.5">
             <Label>Category</Label>
             <Select value={category} onValueChange={setCategory}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
+              <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                {CATEGORIES.map((c) => (
-                  <SelectItem key={c} value={c}>{c}</SelectItem>
-                ))}
+                {CATEGORIES.map((c) => (<SelectItem key={c} value={c}>{c}</SelectItem>))}
               </SelectContent>
             </Select>
           </div>
@@ -239,6 +205,7 @@ export function ChannelSidebar({ onClose }: ChannelSidebarProps) {
     channels,
     activeChannelId,
     setActiveChannel,
+    dmConversations,
     unreadDmCount,
     activeDmUserId,
     setActiveDmUser,
@@ -253,8 +220,27 @@ export function ChannelSidebar({ onClose }: ChannelSidebarProps) {
   const [editingChannel, setEditingChannel] = useState<CommunityChannel | null>(null);
   const [newChannelOpen, setNewChannelOpen] = useState(false);
   const [adminMode, setAdminMode] = useState(false);
+  const [dmSectionOpen, setDmSectionOpen] = useState(true);
+  const [hasPrivateCoaching, setHasPrivateCoaching] = useState(false);
 
   const groups = groupChannels(channels);
+
+  // Check if user has private coaching enabled (or is admin)
+  useEffect(() => {
+    if (!user) return;
+    if (isAdmin) {
+      setHasPrivateCoaching(true);
+      return;
+    }
+    supabase
+      .from('user_profiles')
+      .select('private_coaching_enabled')
+      .eq('id', user.id)
+      .single()
+      .then(({ data }) => {
+        setHasPrivateCoaching(data?.private_coaching_enabled || false);
+      });
+  }, [user, isAdmin]);
 
   const handleChannelClick = (channelId: string, channelName: string) => {
     setActiveChannel(channelId);
@@ -264,9 +250,8 @@ export function ChannelSidebar({ onClose }: ChannelSidebarProps) {
     onClose?.();
   };
 
-  const handleDmClick = () => {
-    setActiveDmUser(user?.id || null);
-    if (user) fetchDirectMessages(user.id);
+  const handleConversationClick = (partnerId: string) => {
+    setActiveDmUser(partnerId);
     onClose?.();
   };
 
@@ -291,9 +276,7 @@ export function ChannelSidebar({ onClose }: ChannelSidebarProps) {
               title="Toggle admin editing mode"
               className={cn(
                 'p-1 rounded transition-colors',
-                adminMode
-                  ? 'text-primary bg-primary/15'
-                  : 'text-muted-foreground hover:text-foreground'
+                adminMode ? 'text-primary bg-primary/15' : 'text-muted-foreground hover:text-foreground'
               )}
             >
               <Settings className="w-3.5 h-3.5" />
@@ -323,11 +306,7 @@ export function ChannelSidebar({ onClose }: ChannelSidebarProps) {
                   {category}
                 </p>
                 {isAdmin && adminMode && (
-                  <button
-                    onClick={() => setNewChannelOpen(true)}
-                    className="text-muted-foreground hover:text-primary transition-colors"
-                    title="Add channel"
-                  >
+                  <button onClick={() => setNewChannelOpen(true)} className="text-muted-foreground hover:text-primary transition-colors" title="Add channel">
                     <Plus className="w-3 h-3" />
                   </button>
                 )}
@@ -365,22 +344,14 @@ export function ChannelSidebar({ onClose }: ChannelSidebarProps) {
                     )}
                   </button>
 
-                  {/* Admin action buttons, shown inline */}
                   {isAdmin && adminMode && (
                     <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-0.5">
-                      <button
-                        onClick={() => setEditingChannel(ch)}
-                        className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors"
-                        title="Edit channel"
-                      >
+                      <button onClick={() => setEditingChannel(ch)} className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors" title="Edit channel">
                         <Pencil className="w-3 h-3" />
                       </button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <button
-                            className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                            title="Delete channel"
-                          >
+                          <button className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors" title="Delete channel">
                             <Trash2 className="w-3 h-3" />
                           </button>
                         </AlertDialogTrigger>
@@ -393,10 +364,7 @@ export function ChannelSidebar({ onClose }: ChannelSidebarProps) {
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                             <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction
-                              className="bg-destructive hover:bg-destructive/90"
-                              onClick={() => handleDeleteChannel(ch.id)}
-                            >
+                            <AlertDialogAction className="bg-destructive hover:bg-destructive/90" onClick={() => handleDeleteChannel(ch.id)}>
                               Delete Channel
                             </AlertDialogAction>
                           </AlertDialogFooter>
@@ -409,7 +377,6 @@ export function ChannelSidebar({ onClose }: ChannelSidebarProps) {
             </div>
           ))}
 
-          {/* Add channel button (when no groups yet or as standalone CTA) */}
           {isAdmin && adminMode && (
             <div className="px-3 mb-4">
               <button
@@ -422,48 +389,74 @@ export function ChannelSidebar({ onClose }: ChannelSidebarProps) {
             </div>
           )}
 
-          {/* Direct Messages section */}
-          {user && (
+          {/* Direct Messages section - only for private coaching clients or admins */}
+          {user && hasPrivateCoaching && (
             <div className="mb-4">
-              <p className="px-4 py-1 text-[10px] font-bold tracking-widest text-muted-foreground uppercase">
-                Direct Messages
-              </p>
               <button
-                onClick={handleDmClick}
-                className={cn(
-                  'w-full flex items-center gap-2 px-3 py-1.5 mx-1 rounded text-sm transition-colors text-left',
-                  activeDmUserId
-                    ? 'bg-primary/15 text-primary font-medium'
-                    : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground'
-                )}
+                onClick={() => setDmSectionOpen(v => !v)}
+                className="flex items-center gap-1 px-4 py-1 w-full text-left"
               >
-                <Mail className="w-3.5 h-3.5 flex-shrink-0 opacity-60" />
-                <span className="flex-1 truncate">Coach Messages</span>
-                {unreadDmCount > 0 && (
-                  <Badge variant="destructive" className="text-[10px] h-4 min-w-4 px-1 flex items-center justify-center">
+                {dmSectionOpen ? (
+                  <ChevronDown className="w-3 h-3 text-muted-foreground" />
+                ) : (
+                  <ChevronRight className="w-3 h-3 text-muted-foreground" />
+                )}
+                <p className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase flex-1">
+                  Direct Messages
+                </p>
+                {unreadDmCount > 0 && !dmSectionOpen && (
+                  <Badge variant="destructive" className="text-[10px] h-4 min-w-4 px-1">
                     {unreadDmCount}
                   </Badge>
                 )}
               </button>
+
+              {dmSectionOpen && (
+                <div className="mt-1">
+                  {dmConversations.length === 0 ? (
+                    <p className="px-4 py-2 text-xs text-muted-foreground/60">No conversations yet</p>
+                  ) : (
+                    dmConversations.map((conv) => {
+                      const name = conv.partnerProfile?.display_name || 'User';
+                      const initials = name.slice(0, 2).toUpperCase();
+                      const isActive = activeDmUserId === conv.partnerId;
+
+                      return (
+                        <button
+                          key={conv.partnerId}
+                          onClick={() => handleConversationClick(conv.partnerId)}
+                          className={cn(
+                            'w-full flex items-center gap-2.5 px-3 py-1.5 mx-1 rounded text-sm transition-colors text-left',
+                            isActive
+                              ? 'bg-primary/15 text-primary font-medium'
+                              : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground'
+                          )}
+                        >
+                          <Avatar className="h-6 w-6 flex-shrink-0">
+                            <AvatarImage src={conv.partnerProfile?.avatar_url || undefined} />
+                            <AvatarFallback className="text-[10px] bg-accent/20 text-accent">{initials}</AvatarFallback>
+                          </Avatar>
+                          <span className="truncate flex-1">{name}</span>
+                          {conv.unreadCount > 0 && (
+                            <Badge variant="destructive" className="text-[10px] h-4 min-w-4 px-1 flex items-center justify-center">
+                              {conv.unreadCount}
+                            </Badge>
+                          )}
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
       </ScrollArea>
 
-      {/* Edit channel dialog */}
       {editingChannel && (
-        <EditChannelDialog
-          channel={editingChannel}
-          open={!!editingChannel}
-          onClose={() => setEditingChannel(null)}
-        />
+        <EditChannelDialog channel={editingChannel} open={!!editingChannel} onClose={() => setEditingChannel(null)} />
       )}
-
-      {/* New channel dialog */}
-      <NewChannelDialog
-        open={newChannelOpen}
-        onClose={() => setNewChannelOpen(false)}
-      />
+      <NewChannelDialog open={newChannelOpen} onClose={() => setNewChannelOpen(false)} />
     </div>
   );
 }

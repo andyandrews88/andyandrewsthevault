@@ -10,38 +10,39 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 
 export function CommunityFeed() {
-  const { fetchChannels, activeDmUserId, fetchDirectMessages, channels, activeChannelId, setActiveChannel } = useCommunityStore();
+  const { fetchChannels, activeDmUserId, fetchDirectMessages, channels, activeChannelId, dmConversations } = useCommunityStore();
   const { user } = useAuthStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Subscribe to realtime updates
   useCommunityRealtime();
 
-  // Boot: load channels
   useEffect(() => {
     fetchChannels();
   }, [fetchChannels]);
 
-  // Load DMs on mount if user is logged in
   useEffect(() => {
     if (user) fetchDirectMessages(user.id);
   }, [user, fetchDirectMessages]);
 
+  // Find conversation partner name for mobile header
+  const activeConvPartner = activeDmUserId
+    ? dmConversations.find(c => c.partnerId === activeDmUserId)?.partnerProfile?.display_name || 'Messages'
+    : null;
+
   return (
     <div className="rounded-xl border border-border overflow-hidden" style={{ height: 'calc(100vh - 200px)', minHeight: '520px' }}>
-      {/* Desktop layout: sidebar + feed */}
+      {/* Desktop layout */}
       <div className="hidden md:flex h-full">
         <div className="w-56 flex-shrink-0">
           <ChannelSidebar />
         </div>
         <div className="flex-1 min-w-0">
-          {activeDmUserId ? <DirectMessagePane /> : <ChannelFeed />}
+          {activeDmUserId ? <DirectMessagePane conversationPartnerId={activeDmUserId} /> : <ChannelFeed />}
         </div>
       </div>
 
       {/* Mobile layout */}
       <div className="flex flex-col h-full md:hidden">
-        {/* Mobile channel header with hamburger */}
         <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-[hsl(220_16%_7%)] flex-shrink-0">
           <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
             <SheetTrigger asChild>
@@ -54,13 +55,12 @@ export function CommunityFeed() {
             </SheetContent>
           </Sheet>
           <span className="text-sm font-medium text-muted-foreground">
-            {activeDmUserId ? 'Coach Messages' : channels.find(c => c.id === activeChannelId)?.name ? `#${channels.find(c => c.id === activeChannelId)?.name}` : 'Community'}
+            {activeConvPartner || (channels.find(c => c.id === activeChannelId)?.name ? `#${channels.find(c => c.id === activeChannelId)?.name}` : 'Community')}
           </span>
         </div>
 
-        {/* Mobile feed */}
         <div className="flex-1 min-h-0">
-          {activeDmUserId ? <DirectMessagePane /> : <ChannelFeed />}
+          {activeDmUserId ? <DirectMessagePane conversationPartnerId={activeDmUserId} /> : <ChannelFeed />}
         </div>
       </div>
     </div>
