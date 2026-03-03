@@ -12,7 +12,7 @@ declare global {
   }
 }
 
-const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY || '';
+const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY || 'BAip0odqgT1HxAeqNVCEizm88HQv_K6qnPSnZ3UJn6TxuF4VqJx7J2idd5vLpjHQo99H0BDy25tbvLSz-kPOmUs';
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
