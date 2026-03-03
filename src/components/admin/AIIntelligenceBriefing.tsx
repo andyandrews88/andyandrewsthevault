@@ -147,12 +147,17 @@ export function AIIntelligenceBriefing() {
 
   return (
     <Card className="border-primary/20">
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Brain className="h-5 w-5 text-primary" />
-          Intelligence Briefing
-        </CardTitle>
-        <div className="flex items-center gap-2">
+      <CardHeader className="pb-2 space-y-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Brain className="h-5 w-5 text-primary" />
+            Intelligence Briefing
+          </CardTitle>
+          <Button variant="ghost" size="icon" onClick={generate} disabled={loading} className="h-7 w-7 shrink-0">
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+          </Button>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
           {generatedAt && (
             <Badge variant="secondary" className="text-[10px] font-normal">
               {new Date(generatedAt).toLocaleString()}
@@ -160,9 +165,6 @@ export function AIIntelligenceBriefing() {
           )}
           <Button variant="outline" size="sm" onClick={toggleAll} className="text-xs h-7">
             {openSections.size === sections.length ? "Collapse All" : "Expand All"}
-          </Button>
-          <Button variant="ghost" size="icon" onClick={generate} disabled={loading} className="h-7 w-7">
-            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
           </Button>
         </div>
       </CardHeader>

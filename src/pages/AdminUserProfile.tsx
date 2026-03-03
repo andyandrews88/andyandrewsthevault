@@ -30,6 +30,9 @@ import { ClientAIReport } from "@/components/admin/ClientAIReport";
 import { PTSessionTracker } from "@/components/admin/PTSessionTracker";
 import { useDashboardLayout } from "@/hooks/useDashboardLayout";
 import { CollapsibleDashboardSection } from "@/components/ui/CollapsibleDashboardSection";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ChevronDown } from "lucide-react";
 
 const DEFAULT_ORDER = [
   "stats", "readiness", "ai-report", "compliance", "training",
@@ -56,6 +59,8 @@ const SECTION_META: Record<string, { title: string }> = {
 };
 
 export default function AdminUserProfile() {
+  const isMobile = useIsMobile();
+  const [moreInfoOpen, setMoreInfoOpen] = useState(false);
   const { userId } = useParams<{ userId: string }>();
   const { isAdmin, isLoading: adminLoading } = useAdminCheck();
   const navigate = useNavigate();
@@ -249,33 +254,57 @@ export default function AdminUserProfile() {
         </div>
         {data.training.workouts.length > 0 && (
           <Card className="glass border-border/50">
-            <CardHeader className="pb-2"><CardTitle className="text-sm">Recent Workouts (Total Volume: {data.training.totalVolume.toLocaleString()} kg)</CardTitle></CardHeader>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Workout</TableHead><TableHead>Date</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Volume</TableHead><TableHead className="w-10"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {data.training.workouts.slice(0, 15).map((w: any) => (
-                    <TableRow key={w.id} className="cursor-pointer hover:bg-primary/5 transition-colors" onClick={() => navigate(`/admin/user/${userId}/build-workout?edit=${w.id}&name=${encodeURIComponent(w.workout_name)}&client=${encodeURIComponent(p?.display_name || 'User')}`)}>
-                      <TableCell className="text-sm font-medium">{w.workout_name}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{format(new Date(w.date), "MMM d, yyyy")}</TableCell>
-                      <TableCell><Badge variant={w.is_completed ? "default" : "secondary"} className={`text-[10px] ${w.is_completed ? 'bg-green-600/80' : 'bg-amber-500/80'}`}>{w.is_completed ? "Completed" : "In Progress"}</Badge></TableCell>
-                      <TableCell className="text-right text-sm">{Number(w.total_volume || 0).toLocaleString()}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-0.5">
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); navigate(`/admin/user/${userId}/build-workout?edit=${w.id}&name=${encodeURIComponent(w.workout_name)}&client=${encodeURIComponent(p?.display_name || 'User')}`); }} title="Edit"><Pencil className="h-3.5 w-3.5" /></Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); setCopyWorkout({ id: w.id, name: w.workout_name }); setCopyDialogOpen(true); }} title="Copy"><Copy className="h-3.5 w-3.5" /></Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive/60 hover:text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteWorkoutId(w.id); }} title="Delete"><Trash2 className="h-3.5 w-3.5" /></Button>
-                        </div>
-                      </TableCell>
+            {isMobile ? (
+              /* Mobile: card layout for workouts */
+              <CardContent className="p-3 space-y-2">
+                {data.training.workouts.slice(0, 15).map((w: any) => (
+                  <div key={w.id} className="p-3 rounded-lg border border-border/50 space-y-1.5"
+                    onClick={() => navigate(`/admin/user/${userId}/build-workout?edit=${w.id}&name=${encodeURIComponent(w.workout_name)}&client=${encodeURIComponent(p?.display_name || 'User')}`)}>
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium truncate flex-1">{w.workout_name}</p>
+                      <Badge variant={w.is_completed ? "default" : "secondary"} className={`text-[10px] shrink-0 ${w.is_completed ? 'bg-green-600/80' : 'bg-amber-500/80'}`}>{w.is_completed ? "Done" : "Active"}</Badge>
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>{format(new Date(w.date), "MMM d, yyyy")}</span>
+                      <span>{Number(w.total_volume || 0).toLocaleString()} kg</span>
+                    </div>
+                    <div className="flex items-center gap-1 justify-end">
+                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); navigate(`/admin/user/${userId}/build-workout?edit=${w.id}&name=${encodeURIComponent(w.workout_name)}&client=${encodeURIComponent(p?.display_name || 'User')}`); }}><Pencil className="h-3 w-3" /></Button>
+                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); setCopyWorkout({ id: w.id, name: w.workout_name }); setCopyDialogOpen(true); }}><Copy className="h-3 w-3" /></Button>
+                      <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive/60" onClick={(e) => { e.stopPropagation(); setDeleteWorkoutId(w.id); }}><Trash2 className="h-3 w-3" /></Button>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            ) : (
+              /* Desktop: table layout */
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Workout</TableHead><TableHead>Date</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Volume</TableHead><TableHead className="w-10"></TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
+                  </TableHeader>
+                  <TableBody>
+                    {data.training.workouts.slice(0, 15).map((w: any) => (
+                      <TableRow key={w.id} className="cursor-pointer hover:bg-primary/5 transition-colors" onClick={() => navigate(`/admin/user/${userId}/build-workout?edit=${w.id}&name=${encodeURIComponent(w.workout_name)}&client=${encodeURIComponent(p?.display_name || 'User')}`)}>
+                        <TableCell className="text-sm font-medium">{w.workout_name}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{format(new Date(w.date), "MMM d, yyyy")}</TableCell>
+                        <TableCell><Badge variant={w.is_completed ? "default" : "secondary"} className={`text-[10px] ${w.is_completed ? 'bg-green-600/80' : 'bg-amber-500/80'}`}>{w.is_completed ? "Completed" : "In Progress"}</Badge></TableCell>
+                        <TableCell className="text-right text-sm">{Number(w.total_volume || 0).toLocaleString()}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-0.5">
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); navigate(`/admin/user/${userId}/build-workout?edit=${w.id}&name=${encodeURIComponent(w.workout_name)}&client=${encodeURIComponent(p?.display_name || 'User')}`); }} title="Edit"><Pencil className="h-3.5 w-3.5" /></Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); setCopyWorkout({ id: w.id, name: w.workout_name }); setCopyDialogOpen(true); }} title="Copy"><Copy className="h-3.5 w-3.5" /></Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive/60 hover:text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteWorkoutId(w.id); }} title="Delete"><Trash2 className="h-3.5 w-3.5" /></Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            )}
           </Card>
         )}
         {data.training.prs.length > 0 && (
@@ -298,15 +327,34 @@ export default function AdminUserProfile() {
       return (
         <Card className="glass border-border/50">
           <CardHeader className="pb-2"><CardTitle className="text-sm">{data.checkins.totalCount} check-ins · {data.checkins.streak} day streak</CardTitle></CardHeader>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader><TableRow><TableHead>Date</TableHead><TableHead className="text-center">Sleep Hrs</TableHead><TableHead className="text-center">Sleep Q</TableHead><TableHead className="text-center">Energy</TableHead><TableHead className="text-center">Stress</TableHead><TableHead className="text-center">Drive</TableHead></TableRow></TableHeader>
-              <TableBody>
+          {isMobile ? (
+            /* Mobile: compact cards for check-ins */
+            <CardContent className="p-3">
+              <div className="grid grid-cols-1 gap-2">
                 {data.checkins.entries.slice(0, 14).map((c: any) => (
-                  <TableRow key={c.id}>
-                    <TableCell className="text-sm">{format(new Date(c.check_date), "MMM d")}</TableCell>
-                    <TableCell className="text-center text-sm">{c.sleep_hours ? `${c.sleep_hours}h` : "—"}</TableCell>
-                    <TableCell className="text-center text-sm">{c.sleep_score}</TableCell>
+                  <div key={c.id} className="p-2.5 rounded-lg border border-border/50">
+                    <p className="text-xs font-medium text-muted-foreground mb-1.5">{format(new Date(c.check_date), "MMM d")}</p>
+                    <div className="grid grid-cols-5 gap-1 text-center">
+                      <div><p className="text-xs text-muted-foreground">Sleep</p><p className="text-sm font-semibold">{c.sleep_hours ? `${c.sleep_hours}h` : "—"}</p></div>
+                      <div><p className="text-xs text-muted-foreground">Quality</p><p className="text-sm font-semibold">{c.sleep_score}</p></div>
+                      <div><p className="text-xs text-muted-foreground">Energy</p><p className="text-sm font-semibold">{c.energy_score}</p></div>
+                      <div><p className="text-xs text-muted-foreground">Stress</p><p className="text-sm font-semibold">{c.stress_score}</p></div>
+                      <div><p className="text-xs text-muted-foreground">Drive</p><p className="text-sm font-semibold">{c.drive_score}</p></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          ) : (
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader><TableRow><TableHead>Date</TableHead><TableHead className="text-center">Sleep Hrs</TableHead><TableHead className="text-center">Sleep Q</TableHead><TableHead className="text-center">Energy</TableHead><TableHead className="text-center">Stress</TableHead><TableHead className="text-center">Drive</TableHead></TableRow></TableHeader>
+                <TableBody>
+                  {data.checkins.entries.slice(0, 14).map((c: any) => (
+                    <TableRow key={c.id}>
+                      <TableCell className="text-sm">{format(new Date(c.check_date), "MMM d")}</TableCell>
+                      <TableCell className="text-center text-sm">{c.sleep_hours ? `${c.sleep_hours}h` : "—"}</TableCell>
+                      <TableCell className="text-center text-sm">{c.sleep_score}</TableCell>
                     <TableCell className="text-center text-sm">{c.energy_score}</TableCell>
                     <TableCell className="text-center text-sm">{c.stress_score}</TableCell>
                     <TableCell className="text-center text-sm">{c.drive_score}</TableCell>
@@ -314,7 +362,8 @@ export default function AdminUserProfile() {
                 ))}
               </TableBody>
             </Table>
-          </CardContent>
+            </CardContent>
+          )}
         </Card>
       );
     },
@@ -431,16 +480,37 @@ export default function AdminUserProfile() {
               {p?.display_name || "Unknown User"}
               {privateCoaching && <Badge variant="elite" className="gap-1 text-[10px]"><Shield className="h-3 w-3" />Private Coaching</Badge>}
             </h1>
-            <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1 flex-wrap">
-              {data.email && <span className="flex items-center gap-1"><Mail className="h-3.5 w-3.5" />{data.email}</span>}
+            <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1 flex-wrap">
+              {data.email && !isMobile && <span className="flex items-center gap-1"><Mail className="h-3.5 w-3.5" />{data.email}</span>}
               {p?.sex && <Badge variant="outline" className="text-[10px] capitalize">{p.sex}</Badge>}
               {p?.birthday && <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" />{(() => { const b = new Date(p.birthday); const age = new Date().getFullYear() - b.getFullYear(); return `${age} yrs`; })()}</span>}
-              {p?.height_cm && <span>{p.height_cm} cm</span>}
-              {p?.weight_kg && <span className="flex items-center gap-1"><Scale className="h-3.5 w-3.5" />{p.weight_kg} kg</span>}
-              {p?.location && <span>{p.location}</span>}
-              <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" />Joined {data.joinDate ? formatDistanceToNow(new Date(data.joinDate), { addSuffix: true }) : "unknown"}</span>
-              <span>{daysSince} days on platform</span>
+              {!isMobile && (
+                <>
+                  {p?.height_cm && <span>{p.height_cm} cm</span>}
+                  {p?.weight_kg && <span className="flex items-center gap-1"><Scale className="h-3.5 w-3.5" />{p.weight_kg} kg</span>}
+                  {p?.location && <span>{p.location}</span>}
+                  <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" />Joined {data.joinDate ? formatDistanceToNow(new Date(data.joinDate), { addSuffix: true }) : "unknown"}</span>
+                  <span>{daysSince} days on platform</span>
+                </>
+              )}
             </div>
+            {isMobile && (
+              <Collapsible open={moreInfoOpen} onOpenChange={setMoreInfoOpen}>
+                <CollapsibleTrigger className="flex items-center gap-1 text-xs text-primary mt-1">
+                  More info <ChevronDown className={`h-3 w-3 transition-transform ${moreInfoOpen ? "rotate-180" : ""}`} />
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1 flex-wrap">
+                    {data.email && <span className="flex items-center gap-1"><Mail className="h-3 w-3" />{data.email}</span>}
+                    {p?.height_cm && <span>{p.height_cm} cm</span>}
+                    {p?.weight_kg && <span className="flex items-center gap-1"><Scale className="h-3 w-3" />{p.weight_kg} kg</span>}
+                    {p?.location && <span>{p.location}</span>}
+                    <span>Joined {data.joinDate ? formatDistanceToNow(new Date(data.joinDate), { addSuffix: true }) : "unknown"}</span>
+                    <span>{daysSince}d on platform</span>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+            )}
           </div>
           <div className="flex items-center gap-1 shrink-0">
             <Button variant={editMode ? "default" : "ghost"} size="icon" className="h-8 w-8" onClick={() => setEditMode(!editMode)} title={editMode ? "Done editing" : "Edit layout"}>

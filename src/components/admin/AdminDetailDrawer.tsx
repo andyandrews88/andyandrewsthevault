@@ -14,7 +14,7 @@ import { formatDistanceToNow, format, differenceInDays } from "date-fns";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
 import {
   Users, Activity, TrendingUp, CalendarCheck, Maximize2, Minimize2,
-  MoreVertical, Ban, UserX, Trash2, ShieldOff, RotateCcw
+  MoreVertical, Ban, UserX, Trash2, ShieldOff, RotateCcw, ChevronRight, Dumbbell
 } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
@@ -23,6 +23,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 type Section = "users" | "training" | "nutrition" | "lifestyle" | "community" | "content";
 type UserFilter = "all" | "active" | "inactive" | "has_program" | "no_nutrition" | "suspended";
@@ -88,6 +89,82 @@ function UserStatCards({ users }: { users: any[] }) {
   );
 }
 
+/* Mobile client card for the Client Directory */
+function MobileClientCard({ u, onNavigate, onAction, actionLoading, onDelete }: {
+  u: any;
+  onNavigate: () => void;
+  onAction: (action: string, id: string, name: string) => void;
+  actionLoading: string | null;
+  onDelete: (target: { id: string; name: string }) => void;
+}) {
+  const isSuspended = u.status === "suspended" || u.status === "archived";
+  const isArchived = u.displayName?.startsWith("[Archived]");
+
+  return (
+    <Card className={`border-border/50 ${isSuspended ? "opacity-50" : ""}`}>
+      <CardContent className="p-3">
+        <div className="flex items-center gap-3">
+          <Avatar className="h-10 w-10 shrink-0" onClick={onNavigate}>
+            <AvatarFallback className="text-xs bg-primary/10 text-primary">
+              {getInitials(u.displayName || "?")}
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex-1 min-w-0" onClick={onNavigate}>
+            <div className="flex items-center gap-2">
+              <p className={`text-sm font-medium truncate ${isArchived ? "line-through" : ""}`}>{u.displayName}</p>
+              {isSuspended && <Badge variant="destructive" className="text-[9px] h-4 shrink-0">Suspended</Badge>}
+            </div>
+            <p className="text-[10px] text-muted-foreground">
+              {u.lastActive ? `Active ${formatDistanceToNow(new Date(u.lastActive), { addSuffix: true })}` : "Never active"}
+            </p>
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" disabled={actionLoading === u.id}>
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {isSuspended ? (
+                <DropdownMenuItem onClick={() => onAction("unsuspend", u.id, u.displayName)}>
+                  <RotateCcw className="h-4 w-4 mr-2" /> Unsuspend
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem onClick={() => onAction("suspend", u.id, u.displayName)}>
+                  <Ban className="h-4 w-4 mr-2" /> Suspend
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem onClick={() => onAction("archive", u.id, u.displayName)}>
+                <UserX className="h-4 w-4 mr-2" /> Archive
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onAction("remove_role", u.id, u.displayName)}>
+                <ShieldOff className="h-4 w-4 mr-2" /> Remove Roles
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive"
+                onClick={() => onDelete({ id: u.id, name: u.displayName })}
+              >
+                <Trash2 className="h-4 w-4 mr-2" /> Delete Permanently
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+        {/* Stats row */}
+        <div className="flex items-center gap-3 mt-2 pl-[52px]" onClick={onNavigate}>
+          <div className="flex items-center gap-1">
+            <Dumbbell className="h-3 w-3 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">{u.workoutsCount}</span>
+          </div>
+          <DateBadge date={u.lastWorkoutDate} />
+          {u.scheduledWorkouts > 0 && <ComplianceText scheduled={u.scheduledWorkouts} completed={u.completedWorkouts} />}
+          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground ml-auto" />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function AdminDetailDrawer({
   section,
   open,
@@ -108,6 +185,7 @@ export function AdminDetailDrawer({
   const navigate = useNavigate();
   const { toast } = useToast();
   const prevKeyRef = useRef<string | null>(null);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     if (!open || !section) return;
@@ -138,7 +216,6 @@ export function AdminDetailDrawer({
       if (error) throw error;
       if (result?.error) throw new Error(result.error);
       toast({ title: result.message || "Action completed" });
-      // Refresh data
       prevKeyRef.current = null;
       setData(null);
       setLoading(true);
@@ -220,122 +297,145 @@ export function AdminDetailDrawer({
                 {f.label}
               </Button>
             ))}
-            <Button
-              variant={showExtraColumns ? "secondary" : "outline"}
-              size="sm"
-              className="text-xs h-7 ml-auto"
-              onClick={() => setShowExtraColumns(!showExtraColumns)}
-            >
-              {showExtraColumns ? "Less Columns" : "More Columns"}
-            </Button>
+            {!isMobile && (
+              <Button
+                variant={showExtraColumns ? "secondary" : "outline"}
+                size="sm"
+                className="text-xs h-7 ml-auto"
+                onClick={() => setShowExtraColumns(!showExtraColumns)}
+              >
+                {showExtraColumns ? "Less Columns" : "More Columns"}
+              </Button>
+            )}
           </div>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Client</TableHead>
-                  <TableHead>Last Workout</TableHead>
-                  <TableHead className="hidden md:table-cell">Last Check-in</TableHead>
-                  <TableHead className="hidden md:table-cell text-right">Compliance</TableHead>
-                  <TableHead className="text-right">Workouts</TableHead>
-                  {showExtraColumns && (
-                    <>
-                      <TableHead className="hidden lg:table-cell text-right">Avg Energy</TableHead>
-                      <TableHead className="hidden lg:table-cell text-right">Weight</TableHead>
-                      <TableHead className="hidden lg:table-cell text-center">Nutrition</TableHead>
-                      <TableHead className="hidden lg:table-cell text-center">Program</TableHead>
-                    </>
-                  )}
-                  <TableHead className="w-10"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {users.map((u: any) => {
-                  const isArchived = u.displayName?.startsWith("[Archived]");
-                  const isSuspended = u.status === "suspended" || u.status === "archived";
-                  return (
-                    <TableRow
-                      key={u.id}
-                      className={`cursor-pointer hover:bg-muted/50 ${isSuspended ? "opacity-50" : ""} ${isArchived ? "line-through" : ""}`}
-                      onClick={() => { onClose(); navigate(`/admin/user/${u.id}`); }}
-                    >
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Avatar className="h-8 w-8">
-                            <AvatarFallback className="text-xs bg-primary/10 text-primary">
-                              {getInitials(u.displayName || "?")}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium truncate">{u.displayName}</p>
-                            <p className="text-[10px] text-muted-foreground">
-                              {u.lastActive ? `Active ${formatDistanceToNow(new Date(u.lastActive), { addSuffix: true })}` : "Never"}
-                            </p>
+
+          {/* Mobile: Card layout */}
+          {isMobile ? (
+            <div className="space-y-2">
+              {users.map((u: any) => (
+                <MobileClientCard
+                  key={u.id}
+                  u={u}
+                  onNavigate={() => { onClose(); navigate(`/admin/user/${u.id}`); }}
+                  onAction={handleUserAction}
+                  actionLoading={actionLoading}
+                  onDelete={setDeleteTarget}
+                />
+              ))}
+              {users.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-4">No clients match this filter.</p>
+              )}
+            </div>
+          ) : (
+            /* Desktop: Table layout */
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Client</TableHead>
+                    <TableHead>Last Workout</TableHead>
+                    <TableHead className="hidden md:table-cell">Last Check-in</TableHead>
+                    <TableHead className="hidden md:table-cell text-right">Compliance</TableHead>
+                    <TableHead className="text-right">Workouts</TableHead>
+                    {showExtraColumns && (
+                      <>
+                        <TableHead className="hidden lg:table-cell text-right">Avg Energy</TableHead>
+                        <TableHead className="hidden lg:table-cell text-right">Weight</TableHead>
+                        <TableHead className="hidden lg:table-cell text-center">Nutrition</TableHead>
+                        <TableHead className="hidden lg:table-cell text-center">Program</TableHead>
+                      </>
+                    )}
+                    <TableHead className="w-10"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {users.map((u: any) => {
+                    const isArchived = u.displayName?.startsWith("[Archived]");
+                    const isSuspended = u.status === "suspended" || u.status === "archived";
+                    return (
+                      <TableRow
+                        key={u.id}
+                        className={`cursor-pointer hover:bg-muted/50 ${isSuspended ? "opacity-50" : ""} ${isArchived ? "line-through" : ""}`}
+                        onClick={() => { onClose(); navigate(`/admin/user/${u.id}`); }}
+                      >
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-8 w-8">
+                              <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                                {getInitials(u.displayName || "?")}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium truncate">{u.displayName}</p>
+                              <p className="text-[10px] text-muted-foreground">
+                                {u.lastActive ? `Active ${formatDistanceToNow(new Date(u.lastActive), { addSuffix: true })}` : "Never"}
+                              </p>
+                            </div>
+                            {isSuspended && <Badge variant="destructive" className="text-[9px] h-4">Suspended</Badge>}
                           </div>
-                          {isSuspended && <Badge variant="destructive" className="text-[9px] h-4">Suspended</Badge>}
-                        </div>
-                      </TableCell>
-                      <TableCell><DateBadge date={u.lastWorkoutDate} /></TableCell>
-                      <TableCell className="hidden md:table-cell"><DateBadge date={u.lastCheckinDate} /></TableCell>
-                      <TableCell className="hidden md:table-cell text-right">
-                        <ComplianceText scheduled={u.scheduledWorkouts} completed={u.completedWorkouts} />
-                      </TableCell>
-                      <TableCell className="text-right"><span className="text-sm">{u.workoutsCount}</span></TableCell>
-                      {showExtraColumns && (
-                        <>
-                          <TableCell className="hidden lg:table-cell text-right text-sm">
-                            {u.avgEnergy != null ? `${u.avgEnergy}/5` : "—"}
-                          </TableCell>
-                          <TableCell className="hidden lg:table-cell text-right text-sm">
-                            {u.latestWeight != null ? `${u.latestWeight}kg` : "—"}
-                          </TableCell>
-                          <TableCell className="hidden lg:table-cell text-center">
-                            {u.hasNutrition ? <Badge variant="secondary" className="text-[9px]">✓</Badge> : <span className="text-xs text-muted-foreground">—</span>}
-                          </TableCell>
-                          <TableCell className="hidden lg:table-cell text-center">
-                            {u.programEnrolled ? <Badge variant="secondary" className="text-[9px]">✓</Badge> : <span className="text-xs text-muted-foreground">—</span>}
-                          </TableCell>
-                        </>
-                      )}
-                      <TableCell className="w-10" onClick={e => e.stopPropagation()}>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-7 w-7" disabled={actionLoading === u.id}>
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            {isSuspended ? (
-                              <DropdownMenuItem onClick={() => handleUserAction("unsuspend", u.id, u.displayName)}>
-                                <RotateCcw className="h-4 w-4 mr-2" /> Unsuspend
+                        </TableCell>
+                        <TableCell><DateBadge date={u.lastWorkoutDate} /></TableCell>
+                        <TableCell className="hidden md:table-cell"><DateBadge date={u.lastCheckinDate} /></TableCell>
+                        <TableCell className="hidden md:table-cell text-right">
+                          <ComplianceText scheduled={u.scheduledWorkouts} completed={u.completedWorkouts} />
+                        </TableCell>
+                        <TableCell className="text-right"><span className="text-sm">{u.workoutsCount}</span></TableCell>
+                        {showExtraColumns && (
+                          <>
+                            <TableCell className="hidden lg:table-cell text-right text-sm">
+                              {u.avgEnergy != null ? `${u.avgEnergy}/5` : "—"}
+                            </TableCell>
+                            <TableCell className="hidden lg:table-cell text-right text-sm">
+                              {u.latestWeight != null ? `${u.latestWeight}kg` : "—"}
+                            </TableCell>
+                            <TableCell className="hidden lg:table-cell text-center">
+                              {u.hasNutrition ? <Badge variant="secondary" className="text-[9px]">✓</Badge> : <span className="text-xs text-muted-foreground">—</span>}
+                            </TableCell>
+                            <TableCell className="hidden lg:table-cell text-center">
+                              {u.programEnrolled ? <Badge variant="secondary" className="text-[9px]">✓</Badge> : <span className="text-xs text-muted-foreground">—</span>}
+                            </TableCell>
+                          </>
+                        )}
+                        <TableCell className="w-10" onClick={e => e.stopPropagation()}>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-7 w-7" disabled={actionLoading === u.id}>
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              {isSuspended ? (
+                                <DropdownMenuItem onClick={() => handleUserAction("unsuspend", u.id, u.displayName)}>
+                                  <RotateCcw className="h-4 w-4 mr-2" /> Unsuspend
+                                </DropdownMenuItem>
+                              ) : (
+                                <DropdownMenuItem onClick={() => handleUserAction("suspend", u.id, u.displayName)}>
+                                  <Ban className="h-4 w-4 mr-2" /> Suspend
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuItem onClick={() => handleUserAction("archive", u.id, u.displayName)}>
+                                <UserX className="h-4 w-4 mr-2" /> Archive
                               </DropdownMenuItem>
-                            ) : (
-                              <DropdownMenuItem onClick={() => handleUserAction("suspend", u.id, u.displayName)}>
-                                <Ban className="h-4 w-4 mr-2" /> Suspend
+                              <DropdownMenuItem onClick={() => handleUserAction("remove_role", u.id, u.displayName)}>
+                                <ShieldOff className="h-4 w-4 mr-2" /> Remove Roles
                               </DropdownMenuItem>
-                            )}
-                            <DropdownMenuItem onClick={() => handleUserAction("archive", u.id, u.displayName)}>
-                              <UserX className="h-4 w-4 mr-2" /> Archive
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleUserAction("remove_role", u.id, u.displayName)}>
-                              <ShieldOff className="h-4 w-4 mr-2" /> Remove Roles
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              className="text-destructive focus:text-destructive"
-                              onClick={() => setDeleteTarget({ id: u.id, name: u.displayName })}
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" /> Delete Permanently
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                className="text-destructive focus:text-destructive"
+                                onClick={() => setDeleteTarget({ id: u.id, name: u.displayName })}
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" /> Delete Permanently
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </div>
       );
     }
@@ -498,12 +598,14 @@ export function AdminDetailDrawer({
   return (
     <>
       <Sheet open={open} onOpenChange={(isOpen) => { if (!isOpen) { prevKeyRef.current = null; setData(null); setIsMaximized(false); setUserFilter("all"); onClose(); } }}>
-        <SheetContent className={`overflow-y-auto transition-all duration-200 ${isMaximized ? "w-full sm:max-w-[95vw]" : "w-full sm:max-w-2xl"}`}>
+        <SheetContent className={`overflow-y-auto transition-all duration-200 ${isMobile ? "w-full" : isMaximized ? "w-full sm:max-w-[95vw]" : "w-full sm:max-w-2xl"}`}>
           <SheetHeader className="flex flex-row items-center justify-between pr-8">
             <SheetTitle>{section ? titles[section] : ""}</SheetTitle>
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsMaximized(!isMaximized)}>
-              {isMaximized ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-            </Button>
+            {!isMobile && (
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsMaximized(!isMaximized)}>
+                {isMaximized ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+              </Button>
+            )}
           </SheetHeader>
           <div className="mt-4">
             {renderContent()}
