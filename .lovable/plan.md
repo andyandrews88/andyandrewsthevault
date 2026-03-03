@@ -1,53 +1,69 @@
 
 
-# Plan: Enhance Private Coaching Panel — 3 Features
+# Plan: Admin Mobile UI Overhaul
 
-## Current State
-The `PrivateCoachingPanel.tsx` already has a drawer with a session timeline showing dates, workout names, and notes. The data fetching for workout names is already in place. However, there are three gaps:
+## Problem Summary
+The Client Directory table in the `AdminDetailDrawer` scrolls horizontally and gets stuck on mobile because the `<Table>` inside `overflow-x-auto` fights with the Sheet's own scroll, causing scroll trapping. Beyond that, several admin sections have mobile-hostile patterns that need fixing.
 
-1. **Workout names and notes ARE already showing** in the drawer timeline (lines 227-236), but the "Recent Sessions" table at the bottom only shows date + notes, not the workout name. The drawer itself does show both — if the data exists. The issue may be that no sessions have `workout_id` set, or the workouts query is failing due to RLS (the client can only see their own workouts, which should work).
+## Audit of All Admin Sections — Mobile Issues Found
 
-2. **No invoice visibility for the client** — `pt_invoices` has no client SELECT RLS policy, so clients can't see invoices at all. Need a migration + UI.
+### 1. Client Directory (AdminDetailDrawer — users section) — CRITICAL
+- **Scroll trapping**: The table uses `overflow-x-auto` inside a sheet with `overflow-y-auto`, causing bidirectional scroll conflict on touch
+- **Too many columns visible**: On mobile, columns like "Last Check-in", "Compliance" are hidden via `md:table-cell` but "Last Workout", "Workouts", and action columns still force horizontal scroll
+- **Fix**: On mobile, replace the table with a stacked card layout (one card per client) showing name, avatar, last workout badge, and workout count. Keep the table for desktop. Use `useIsMobile()` to switch
 
-3. **No way to tap a session and see workout details** — needs a mini workout summary popup.
+### 2. AdminDashboard header — MODERATE
+- **Lines 128-137**: The "Quick Assign" and "My Templates" buttons overflow on narrow screens, pushing against the title
+- **Fix**: Stack buttons below the title on mobile, or collapse into a single dropdown/action menu
 
-## Changes
+### 3. AdminUserProfile header — MODERATE
+- **Lines 419-455**: The user info (email, sex, age, height, weight, location, join date, days) wraps poorly on mobile — too many inline items create visual clutter
+- **Fix**: Limit inline items on mobile to 2-3 key stats, put the rest behind a collapsible "More info" section
 
-### 1. Add RLS policy for client invoice access
-**Migration:** Add SELECT policy on `pt_invoices` for clients:
-```sql
-CREATE POLICY "Clients can view their own invoices"
-ON public.pt_invoices FOR SELECT TO authenticated
-USING (auth.uid() = client_user_id);
-```
+### 4. AdminUserProfile — Training section table — MODERATE
+- **Lines 254-278**: The "Recent Workouts" table has 5 columns (Workout, Date, Status, Volume, Actions) that overflow on mobile
+- **Fix**: On mobile, switch to card layout or hide Volume/Actions columns, show actions via swipe or long-press
 
-### 2. Update `PrivateCoachingPanel.tsx`
+### 5. AdminUserProfile — Check-in History table — MODERATE
+- **Lines 303-316**: 6 columns (Date, Sleep Hrs, Sleep Q, Energy, Stress, Drive) — too wide for mobile
+- **Fix**: On mobile, show as compact cards or a 2-column grid of scores per date
 
-**Fetch invoices** alongside packages and sessions. Add `pt_invoices` query filtered by `client_user_id`.
+### 6. PTSessionTracker tables — MODERATE
+- **Lines 305-336**: Session History table (Date, Workout, Notes, Actions) — Notes column truncates but still takes space
+- **Lines 376-411**: Invoices table (Date, Amount, Status, Link, Delete) — 5 columns
+- **Fix**: Card-based layouts on mobile for both
 
-**Fetch full workout data** (exercises + sets) when a session is tapped. Store in state and show in a small dialog.
+### 7. AdminDetailDrawer — Sheet width — MINOR
+- The Sheet is `w-full sm:max-w-2xl` which is fine, but the maximize button (`95vw`) isn't useful on mobile
+- **Fix**: Hide the maximize button on mobile
 
-**Session timeline enhancements:**
-- Each session entry becomes tappable
-- When tapped, open a compact `Dialog` showing:
-  - Session date and coach notes
-  - Linked workout summary (exercise names, sets x reps x weight) fetched on-demand from `workout_exercises` + `exercise_sets`
-  - If an invoice is linked to the same package, show a "View Invoice" button that opens the `invoice_url` in a new tab
+### 8. AI Intelligence Briefing header — MINOR
+- **Line 150**: `flex-row` header with title + timestamp badge + two buttons wraps awkwardly on mobile
+- **Fix**: Stack controls below title on mobile
 
-**Invoice section in drawer:**
-- Below the session timeline, add a small "Invoices" section if any invoices exist for the active package
-- Each invoice shows date, amount, status badge, and a "Pay / View" button linking to `invoice_url`
+## Implementation Priority
 
-### File changes
+| Priority | Area | Effort |
+|----------|------|--------|
+| 1 (Critical) | Client Directory → card layout on mobile | Medium |
+| 2 | AdminDashboard header buttons | Small |
+| 3 | AdminUserProfile header info overflow | Small |
+| 4 | Training table → mobile cards | Medium |
+| 5 | Check-in table → mobile layout | Medium |
+| 6 | PT Session/Invoice tables → mobile cards | Medium |
+| 7 | Hide maximize button on mobile | Trivial |
+| 8 | AI Briefing header wrap | Small |
 
-| File | Change |
-|------|--------|
-| `src/components/dashboard/PrivateCoachingPanel.tsx` | Add invoice fetch, tappable sessions with workout summary dialog, invoice section in drawer |
-| Migration | Add `pt_invoices` client SELECT policy |
+## Technical Approach
 
-### UI approach (not clunky)
-- Sessions remain as timeline items — just add a subtle chevron or tap indicator
-- Tapping a session opens a **compact Dialog** (not a new page) with the workout breakdown
-- Invoices appear as small cards at the bottom of the drawer — just date, amount, and a "View Invoice" button
-- Everything stays within the existing drawer flow
+All changes use the existing `useIsMobile()` hook. Pattern: render a card-based layout when `isMobile` is true, keep existing tables for desktop. No new components needed — just conditional rendering within existing files.
+
+### Files to modify:
+- `src/components/admin/AdminDetailDrawer.tsx` — Client Directory mobile cards + hide maximize on mobile
+- `src/pages/AdminDashboard.tsx` — Header button layout
+- `src/pages/AdminUserProfile.tsx` — Header info, training table, check-in table
+- `src/components/admin/PTSessionTracker.tsx` — Session/invoice tables
+- `src/components/admin/AIIntelligenceBriefing.tsx` — Header wrap fix
+
+No database changes. No new dependencies.
 
