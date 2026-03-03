@@ -106,6 +106,13 @@ export default function AdminUserProfile() {
     }
   }, [adminUser, isAdmin, fetchDirectMessages]);
 
+  // Sync private coaching state from profile data (must be before early returns)
+  useEffect(() => {
+    if (data?.profile?.private_coaching_enabled !== undefined) {
+      setPrivateCoaching(!!data.profile.private_coaching_enabled);
+    }
+  }, [data?.profile?.private_coaching_enabled]);
+
   const handleSendDm = async () => {
     if (!dmContent.trim() || !adminUser || !userId) return;
     setDmSending(true);
@@ -148,11 +155,6 @@ export default function AdminUserProfile() {
 
   const p = data.profile;
   const daysSince = data.joinDate ? Math.floor((Date.now() - new Date(data.joinDate).getTime()) / 86400000) : 0;
-
-  // Sync private coaching state from profile data
-  useEffect(() => {
-    if (p?.private_coaching_enabled !== undefined) setPrivateCoaching(!!p.private_coaching_enabled);
-  }, [p?.private_coaching_enabled]);
 
   const togglePrivateCoaching = async (checked: boolean) => {
     setPrivateCoaching(checked);
