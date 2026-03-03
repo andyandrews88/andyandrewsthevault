@@ -5,6 +5,7 @@ import { WeeklyReview } from "./WeeklyReview";
 import { LatestUpdates } from "./LatestUpdates";
 import { AnnouncementBanner } from "./AnnouncementBanner";
 import { GoalsPanel } from "@/components/goals/GoalsPanel";
+import { PrivateCoachingPanel } from "./PrivateCoachingPanel";
 import { useDashboardStore } from "@/stores/dashboardStore";
 import { Badge } from "@/components/ui/badge";
 import { NotificationSettings } from "@/components/vault/NotificationSettings";
@@ -15,9 +16,10 @@ import { CollapsibleDashboardSection } from "@/components/ui/CollapsibleDashboar
 import { Button } from "@/components/ui/button";
 import { Settings2, RotateCcw } from "lucide-react";
 
-const DEFAULT_ORDER = ["snapshot", "training", "updates", "goals", "review"];
+const DEFAULT_ORDER = ["coaching", "snapshot", "training", "updates", "goals", "review"];
 
 const SECTION_META: Record<string, { title: string }> = {
+  coaching: { title: "My Coaching" },
   snapshot: { title: "Today's Snapshot" },
   training: { title: "Training Suggestion" },
   updates: { title: "Latest Updates" },
@@ -26,6 +28,7 @@ const SECTION_META: Record<string, { title: string }> = {
 };
 
 const SECTION_COMPONENTS: Record<string, () => ReactNode> = {
+  coaching: () => <PrivateCoachingPanel />,
   snapshot: () => <TodaySnapshot />,
   training: () => <TrainingSuggestion />,
   updates: () => <LatestUpdates />,

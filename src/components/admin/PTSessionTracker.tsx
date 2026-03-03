@@ -17,7 +17,7 @@ import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import {
   Package, Plus, CalendarIcon, FileText, ExternalLink, DollarSign,
-  CheckCircle2, Clock, AlertTriangle, Trash2,
+  CheckCircle2, Clock, AlertTriangle, Trash2, Pencil,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PTReportGenerator } from "./PTReportGenerator";
@@ -76,6 +76,13 @@ export function PTSessionTracker({ clientUserId, clientDisplayName }: PTSessionT
   const [logSessionOpen, setLogSessionOpen] = useState(false);
   const [addInvoiceOpen, setAddInvoiceOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
+  const [editSessionOpen, setEditSessionOpen] = useState(false);
+  const [editingSession, setEditingSession] = useState<PTSession | null>(null);
+
+  // Edit session form
+  const [editDate, setEditDate] = useState<Date>(new Date());
+  const [editWorkoutId, setEditWorkoutId] = useState("");
+  const [editNotes, setEditNotes] = useState("");
 
   // New package form
   const [pkgName, setPkgName] = useState("");
@@ -176,6 +183,28 @@ export function PTSessionTracker({ clientUserId, clientDisplayName }: PTSessionT
     toast({ title: "Invoice added" });
     setAddInvoiceOpen(false);
     setInvUrl(""); setInvAmount(""); setInvNotes(""); setInvStatus("pending"); setInvCurrency("AUD");
+    fetchAll();
+  };
+
+  const openEditSession = (s: PTSession) => {
+    setEditingSession(s);
+    setEditDate(new Date(s.session_date));
+    setEditWorkoutId(s.workout_id || "");
+    setEditNotes(s.notes || "");
+    setEditSessionOpen(true);
+  };
+
+  const handleEditSession = async () => {
+    if (!editingSession) return;
+    const { error } = await supabase.from("pt_sessions").update({
+      session_date: format(editDate, "yyyy-MM-dd"),
+      workout_id: editWorkoutId || null,
+      notes: editNotes || null,
+    } as any).eq("id", editingSession.id);
+    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Session updated" });
+    setEditSessionOpen(false);
+    setEditingSession(null);
     fetchAll();
   };
 
@@ -289,9 +318,14 @@ export function PTSessionTracker({ clientUserId, clientDisplayName }: PTSessionT
                     <TableCell className="text-sm text-muted-foreground">{getWorkoutName(s.workout_id) || "—"}</TableCell>
                     <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">{s.notes || "—"}</TableCell>
                     <TableCell>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive/60 hover:text-destructive" onClick={() => handleDeleteSession(s.id, s.package_id)}>
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+                      <div className="flex items-center gap-0.5">
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditSession(s)} title="Edit session">
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive/60 hover:text-destructive" onClick={() => handleDeleteSession(s.id, s.package_id)}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -546,6 +580,50 @@ export function PTSessionTracker({ clientUserId, clientDisplayName }: PTSessionT
           <DialogFooter>
             <Button variant="ghost" onClick={() => setAddInvoiceOpen(false)}>Cancel</Button>
             <Button onClick={handleAddInvoice} disabled={!invUrl.trim()}>Add Invoice</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Session Dialog */}
+      <Dialog open={editSessionOpen} onOpenChange={setEditSessionOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit PT Session</DialogTitle>
+            <DialogDescription>Update session details for {clientDisplayName}.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Session Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full justify-start text-left font-normal">
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {format(editDate, "PPP")}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={editDate} onSelect={d => d && setEditDate(d)} /></PopoverContent>
+              </Popover>
+            </div>
+            <div>
+              <Label>Link to Workout (optional)</Label>
+              <Select value={editWorkoutId || "none"} onValueChange={v => setEditWorkoutId(v === "none" ? "" : v)}>
+                <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {workouts.map(w => (
+                    <SelectItem key={w.id} value={w.id}>{w.workout_name} — {format(new Date(w.date), "MMM d")}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Notes (optional)</Label>
+              <Textarea value={editNotes} onChange={e => setEditNotes(e.target.value)} placeholder="Session notes..." />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setEditSessionOpen(false)}>Cancel</Button>
+            <Button onClick={handleEditSession}>Save Changes</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

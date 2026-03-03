@@ -9,9 +9,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Switch } from "@/components/ui/switch";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import {
   ChevronLeft, User, Dumbbell, Award, Heart, Target, MessageSquare, Scale, Mail, Calendar, Send, Copy, ClipboardList,
-  Moon, Zap, Brain, Flame, UtensilsCrossed, BookOpen, Settings2, RotateCcw,
+  Moon, Zap, Brain, Flame, UtensilsCrossed, BookOpen, Settings2, RotateCcw, Trash2, Pencil, Shield,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { useAuthStore } from "@/stores/authStore";
@@ -68,6 +70,8 @@ export default function AdminUserProfile() {
   const [copyWorkout, setCopyWorkout] = useState<{ id: string; name: string } | null>(null);
   const [assignOpen, setAssignOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
+  const [privateCoaching, setPrivateCoaching] = useState(false);
+  const [deleteWorkoutId, setDeleteWorkoutId] = useState<string | null>(null);
 
   const { order, moveUp, moveDown, toggleCollapse, isCollapsed, resetLayout } = useDashboardLayout("admin-profile-layout", DEFAULT_ORDER);
 
@@ -144,6 +148,37 @@ export default function AdminUserProfile() {
 
   const p = data.profile;
   const daysSince = data.joinDate ? Math.floor((Date.now() - new Date(data.joinDate).getTime()) / 86400000) : 0;
+
+  // Sync private coaching state from profile data
+  useEffect(() => {
+    if (p?.private_coaching_enabled !== undefined) setPrivateCoaching(!!p.private_coaching_enabled);
+  }, [p?.private_coaching_enabled]);
+
+  const togglePrivateCoaching = async (checked: boolean) => {
+    setPrivateCoaching(checked);
+    const { error } = await supabase.from("user_profiles").update({ private_coaching_enabled: checked } as any).eq("id", userId!);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+      setPrivateCoaching(!checked);
+      return;
+    }
+    toast({ title: checked ? "Private coaching enabled" : "Private coaching disabled" });
+  };
+
+  const handleDeleteWorkout = async (workoutId: string) => {
+    const { error } = await supabase.from("workouts").delete().eq("id", workoutId);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Workout deleted" });
+    // Re-fetch profile data
+    try {
+      const { data: result } = await supabase.functions.invoke("admin-user-profile", { body: { userId } });
+      if (result) setData(result);
+    } catch {}
+    setDeleteWorkoutId(null);
+  };
 
   // Section renderers
   const sections: Record<string, () => ReactNode> = {
@@ -227,7 +262,13 @@ export default function AdminUserProfile() {
                       <TableCell className="text-sm text-muted-foreground">{format(new Date(w.date), "MMM d, yyyy")}</TableCell>
                       <TableCell><Badge variant={w.is_completed ? "default" : "secondary"} className={`text-[10px] ${w.is_completed ? 'bg-green-600/80' : 'bg-amber-500/80'}`}>{w.is_completed ? "Completed" : "In Progress"}</Badge></TableCell>
                       <TableCell className="text-right text-sm">{Number(w.total_volume || 0).toLocaleString()}</TableCell>
-                      <TableCell><Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); setCopyWorkout({ id: w.id, name: w.workout_name }); setCopyDialogOpen(true); }}><Copy className="h-3.5 w-3.5" /></Button></TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-0.5">
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); navigate(`/admin/user/${userId}/build-workout?edit=${w.id}&name=${encodeURIComponent(w.workout_name)}&client=${encodeURIComponent(p?.display_name || 'User')}`); }} title="Edit"><Pencil className="h-3.5 w-3.5" /></Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); setCopyWorkout({ id: w.id, name: w.workout_name }); setCopyDialogOpen(true); }} title="Copy"><Copy className="h-3.5 w-3.5" /></Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive/60 hover:text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteWorkoutId(w.id); }} title="Delete"><Trash2 className="h-3.5 w-3.5" /></Button>
+                        </div>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -384,7 +425,14 @@ export default function AdminUserProfile() {
             </AvatarFallback>
           </Avatar>
           <div className="flex-1">
-            <h1 className="text-2xl font-bold flex items-center gap-2">{p?.display_name || "Unknown User"}</h1>
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              {p?.display_name || "Unknown User"}
+              {privateCoaching && <Badge variant="elite" className="gap-1 text-[10px]"><Shield className="h-3 w-3" />Private Coaching</Badge>}
+            </h1>
+            <div className="flex items-center gap-2 mt-1">
+              <Switch checked={privateCoaching} onCheckedChange={togglePrivateCoaching} />
+              <span className="text-xs text-muted-foreground">Private Coaching Access</span>
+            </div>
             <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1 flex-wrap">
               {data.email && <span className="flex items-center gap-1"><Mail className="h-3.5 w-3.5" />{data.email}</span>}
               {p?.sex && <Badge variant="outline" className="text-[10px] capitalize">{p.sex}</Badge>}
@@ -436,6 +484,20 @@ export default function AdminUserProfile() {
         <CopyWorkoutDialog open={copyDialogOpen} onOpenChange={(open) => { setCopyDialogOpen(open); if (!open) setCopyWorkout(null); }} sourceWorkoutId={copyWorkout.id} sourceWorkoutName={copyWorkout.name} excludeUserId={userId} />
       )}
       <AssignTemplateWizard open={assignOpen} onOpenChange={setAssignOpen} targetUserId={userId!} targetDisplayName={p?.display_name || "User"} />
+
+      {/* Delete Workout Confirmation */}
+      <AlertDialog open={!!deleteWorkoutId} onOpenChange={(open) => { if (!open) setDeleteWorkoutId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Workout?</AlertDialogTitle>
+            <AlertDialogDescription>This will permanently delete this workout and all its exercises and sets. This action cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => deleteWorkoutId && handleDeleteWorkout(deleteWorkoutId)}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
