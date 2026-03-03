@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PTReportGenerator } from "./PTReportGenerator";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface PTSessionTrackerProps {
   clientUserId: string;
@@ -64,6 +65,7 @@ type PTInvoice = {
 };
 
 export function PTSessionTracker({ clientUserId, clientDisplayName }: PTSessionTrackerProps) {
+  const isMobile = useIsMobile();
   const { user } = useAuthStore();
   const [packages, setPackages] = useState<PTPackage[]>([]);
   const [sessions, setSessions] = useState<PTSession[]>([]);
@@ -295,43 +297,60 @@ export function PTSessionTracker({ clientUserId, clientDisplayName }: PTSessionT
         </Card>
       )}
 
-      {/* Session History */}
       {sessions.length > 0 && (
         <Card className="glass border-border/50">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">Session History ({sessions.length})</CardTitle>
           </CardHeader>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Workout</TableHead>
-                  <TableHead>Notes</TableHead>
-                   <TableHead className="w-20"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sessions.map(s => (
-                  <TableRow key={s.id}>
-                    <TableCell className="text-sm">{format(new Date(s.session_date), "MMM d, yyyy")}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{getWorkoutName(s.workout_id) || "—"}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">{s.notes || "—"}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-0.5">
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditSession(s)} title="Edit session">
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive/60 hover:text-destructive" onClick={() => handleDeleteSession(s.id, s.package_id)}>
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    </TableCell>
+          {isMobile ? (
+            <CardContent className="p-3 space-y-2">
+              {sessions.map(s => (
+                <div key={s.id} className="p-2.5 rounded-lg border border-border/50 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium">{format(new Date(s.session_date), "MMM d, yyyy")}</p>
+                    <div className="flex items-center gap-0.5">
+                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => openEditSession(s)}><Pencil className="h-3 w-3" /></Button>
+                      <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive/60" onClick={() => handleDeleteSession(s.id, s.package_id)}><Trash2 className="h-3 w-3" /></Button>
+                    </div>
+                  </div>
+                  {getWorkoutName(s.workout_id) && <p className="text-xs text-primary">{getWorkoutName(s.workout_id)}</p>}
+                  {s.notes && <p className="text-xs text-muted-foreground line-clamp-2">{s.notes}</p>}
+                </div>
+              ))}
+            </CardContent>
+          ) : (
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Workout</TableHead>
+                    <TableHead>Notes</TableHead>
+                    <TableHead className="w-20"></TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
+                </TableHeader>
+                <TableBody>
+                  {sessions.map(s => (
+                    <TableRow key={s.id}>
+                      <TableCell className="text-sm">{format(new Date(s.session_date), "MMM d, yyyy")}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{getWorkoutName(s.workout_id) || "—"}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">{s.notes || "—"}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-0.5">
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditSession(s)} title="Edit session">
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive/60 hover:text-destructive" onClick={() => handleDeleteSession(s.id, s.package_id)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          )}
         </Card>
       )}
 
@@ -372,44 +391,70 @@ export function PTSessionTracker({ clientUserId, clientDisplayName }: PTSessionT
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">Invoices ({invoices.length})</CardTitle>
           </CardHeader>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Link</TableHead>
-                  <TableHead className="w-10"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {invoices.map(inv => (
-                  <TableRow key={inv.id}>
-                    <TableCell className="text-sm">{format(new Date(inv.invoice_date), "MMM d, yyyy")}</TableCell>
-                    <TableCell className="text-sm font-mono">{inv.currency === "LKR" ? "Rs" : "$"}{Number(inv.amount).toFixed(2)} {inv.currency}</TableCell>
-                    <TableCell>
-                      <Badge className={cn("text-[10px] capitalize", statusColor(inv.status))}>
-                        <span className="flex items-center gap-1">{statusIcon(inv.status)}{inv.status}</span>
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
+          {isMobile ? (
+            <CardContent className="p-3 space-y-2">
+              {invoices.map(inv => (
+                <div key={inv.id} className="p-2.5 rounded-lg border border-border/50 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium">{format(new Date(inv.invoice_date), "MMM d, yyyy")}</p>
+                    <Badge className={cn("text-[10px] capitalize", statusColor(inv.status))}>
+                      <span className="flex items-center gap-1">{statusIcon(inv.status)}{inv.status}</span>
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-mono">{inv.currency === "LKR" ? "Rs" : "$"}{Number(inv.amount).toFixed(2)} {inv.currency}</p>
+                    <div className="flex items-center gap-1">
                       {inv.invoice_url && (
-                        <a href={inv.invoice_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                          <ExternalLink className="h-3.5 w-3.5" />
+                        <a href={inv.invoice_url} target="_blank" rel="noopener noreferrer">
+                          <Button variant="outline" size="sm" className="h-6 text-xs gap-1"><ExternalLink className="h-3 w-3" />View</Button>
                         </a>
                       )}
-                    </TableCell>
-                    <TableCell>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive/60 hover:text-destructive" onClick={() => handleDeleteInvoice(inv.id)}>
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </TableCell>
+                      <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive/60" onClick={() => handleDeleteInvoice(inv.id)}><Trash2 className="h-3 w-3" /></Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          ) : (
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Link</TableHead>
+                    <TableHead className="w-10"></TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
+                </TableHeader>
+                <TableBody>
+                  {invoices.map(inv => (
+                    <TableRow key={inv.id}>
+                      <TableCell className="text-sm">{format(new Date(inv.invoice_date), "MMM d, yyyy")}</TableCell>
+                      <TableCell className="text-sm font-mono">{inv.currency === "LKR" ? "Rs" : "$"}{Number(inv.amount).toFixed(2)} {inv.currency}</TableCell>
+                      <TableCell>
+                        <Badge className={cn("text-[10px] capitalize", statusColor(inv.status))}>
+                          <span className="flex items-center gap-1">{statusIcon(inv.status)}{inv.status}</span>
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {inv.invoice_url && (
+                          <a href={inv.invoice_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                            <ExternalLink className="h-3.5 w-3.5" />
+                          </a>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive/60 hover:text-destructive" onClick={() => handleDeleteInvoice(inv.id)}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          )}
         </Card>
       )}
 
