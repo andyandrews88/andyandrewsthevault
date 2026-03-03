@@ -1,4 +1,4 @@
-// Admin Dashboard
+// Admin Dashboard – mobile optimised
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Navbar } from "@/components/layout/Navbar";
