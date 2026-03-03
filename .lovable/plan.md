@@ -1,69 +1,76 @@
 
 
-# Plan: Admin Mobile UI Overhaul
+# Plan: PWA Web Push Notifications
 
-## Problem Summary
-The Client Directory table in the `AdminDetailDrawer` scrolls horizontally and gets stuck on mobile because the `<Table>` inside `overflow-x-auto` fights with the Sheet's own scroll, causing scroll trapping. Beyond that, several admin sections have mobile-hostile patterns that need fixing.
+## What This Gives You
 
-## Audit of All Admin Sections — Mobile Issues Found
+When you create or activate an announcement from your admin panel, every user who has granted notification permission will receive a browser push notification — even if the app is closed. Tapping the notification opens the app. This is completely free with no third-party services required.
 
-### 1. Client Directory (AdminDetailDrawer — users section) — CRITICAL
-- **Scroll trapping**: The table uses `overflow-x-auto` inside a sheet with `overflow-y-auto`, causing bidirectional scroll conflict on touch
-- **Too many columns visible**: On mobile, columns like "Last Check-in", "Compliance" are hidden via `md:table-cell` but "Last Workout", "Workouts", and action columns still force horizontal scroll
-- **Fix**: On mobile, replace the table with a stacked card layout (one card per client) showing name, avatar, last workout badge, and workout count. Keep the table for desktop. Use `useIsMobile()` to switch
+## How It Works
 
-### 2. AdminDashboard header — MODERATE
-- **Lines 128-137**: The "Quick Assign" and "My Templates" buttons overflow on narrow screens, pushing against the title
-- **Fix**: Stack buttons below the title on mobile, or collapse into a single dropdown/action menu
+```text
+Admin creates announcement
+        │
+        ▼
+Edge function "send-push" fires
+        │
+        ▼
+Reads all push subscriptions from DB
+        │
+        ▼
+Sends Web Push to each subscriber
+        │
+        ▼
+User's phone/desktop shows notification
+```
 
-### 3. AdminUserProfile header — MODERATE
-- **Lines 419-455**: The user info (email, sex, age, height, weight, location, join date, days) wraps poorly on mobile — too many inline items create visual clutter
-- **Fix**: Limit inline items on mobile to 2-3 key stats, put the rest behind a collapsible "More info" section
+## Implementation Steps
 
-### 4. AdminUserProfile — Training section table — MODERATE
-- **Lines 254-278**: The "Recent Workouts" table has 5 columns (Workout, Date, Status, Volume, Actions) that overflow on mobile
-- **Fix**: On mobile, switch to card layout or hide Volume/Actions columns, show actions via swipe or long-press
+### 1. Database: Push Subscriptions Table
+Create a `push_subscriptions` table to store each user's browser push subscription (endpoint, keys). RLS: users can insert/delete/view their own subscriptions. Admins can read all (needed for sending).
 
-### 5. AdminUserProfile — Check-in History table — MODERATE
-- **Lines 303-316**: 6 columns (Date, Sleep Hrs, Sleep Q, Energy, Stress, Drive) — too wide for mobile
-- **Fix**: On mobile, show as compact cards or a 2-column grid of scores per date
+### 2. Generate VAPID Keys
+Web Push requires a VAPID key pair. Generate once, store the private key as a backend secret (`VAPID_PRIVATE_KEY`), and the public key as `VITE_VAPID_PUBLIC_KEY` in the codebase (it's a publishable key, safe to expose).
 
-### 6. PTSessionTracker tables — MODERATE
-- **Lines 305-336**: Session History table (Date, Workout, Notes, Actions) — Notes column truncates but still takes space
-- **Lines 376-411**: Invoices table (Date, Amount, Status, Link, Delete) — 5 columns
-- **Fix**: Card-based layouts on mobile for both
+### 3. Service Worker: Push Event Handler
+Add a `push` event listener to the service worker that displays the notification when received. Since we use `vite-plugin-pwa`, we'll add a custom service worker file that extends the generated one. This handles displaying the notification and opening the app on click.
 
-### 7. AdminDetailDrawer — Sheet width — MINOR
-- The Sheet is `w-full sm:max-w-2xl` which is fine, but the maximize button (`95vw`) isn't useful on mobile
-- **Fix**: Hide the maximize button on mobile
+### 4. Client: Permission Request + Subscription
+Create a `useWebPush` hook that:
+- Checks if push is supported
+- Requests notification permission
+- Subscribes the browser and saves the subscription to the database
+- Shows a prompt in the app (e.g., a banner or button in notification settings)
 
-### 8. AI Intelligence Briefing header — MINOR
-- **Line 150**: `flex-row` header with title + timestamp badge + two buttons wraps awkwardly on mobile
-- **Fix**: Stack controls below title on mobile
+### 5. Edge Function: `send-push`
+A new edge function that:
+- Accepts a title + message payload
+- Reads all subscriptions from the DB (using service role key)
+- Sends a Web Push to each using the `web-push` protocol
+- Cleans up expired/invalid subscriptions
 
-## Implementation Priority
+### 6. Admin Integration
+Wire the existing `AnnouncementManager` to call the `send-push` edge function when an announcement is created or activated. Add a "Send Push" toggle/button so you control which announcements also trigger a push.
 
-| Priority | Area | Effort |
-|----------|------|--------|
-| 1 (Critical) | Client Directory → card layout on mobile | Medium |
-| 2 | AdminDashboard header buttons | Small |
-| 3 | AdminUserProfile header info overflow | Small |
-| 4 | Training table → mobile cards | Medium |
-| 5 | Check-in table → mobile layout | Medium |
-| 6 | PT Session/Invoice tables → mobile cards | Medium |
-| 7 | Hide maximize button on mobile | Trivial |
-| 8 | AI Briefing header wrap | Small |
+### 7. User-Facing: Notification Settings Update
+Add a "Push notifications" toggle to the existing `NotificationSettings` panel. When enabled, it requests permission and subscribes. When disabled, it unsubscribes.
 
-## Technical Approach
+## Files to Create
+- `supabase/functions/send-push/index.ts` — edge function
+- `public/custom-sw.js` — push event handler for service worker
 
-All changes use the existing `useIsMobile()` hook. Pattern: render a card-based layout when `isMobile` is true, keep existing tables for desktop. No new components needed — just conditional rendering within existing files.
+## Files to Modify
+- `vite.config.ts` — point PWA to custom service worker import
+- `src/stores/notificationStore.ts` — add push subscription logic
+- `src/components/vault/NotificationSettings.tsx` — add push toggle
+- `src/components/admin/AnnouncementManager.tsx` — add "send push" option
 
-### Files to modify:
-- `src/components/admin/AdminDetailDrawer.tsx` — Client Directory mobile cards + hide maximize on mobile
-- `src/pages/AdminDashboard.tsx` — Header button layout
-- `src/pages/AdminUserProfile.tsx` — Header info, training table, check-in table
-- `src/components/admin/PTSessionTracker.tsx` — Session/invoice tables
-- `src/components/admin/AIIntelligenceBriefing.tsx` — Header wrap fix
+## Limitations to Be Aware Of
+- **iOS Safari**: Web push works on iOS 16.4+ only if the PWA is added to home screen. Not all your iOS users will get notifications.
+- **Android Chrome**: Works reliably, even when app is closed.
+- **Desktop**: Works on Chrome, Edge, Firefox.
+- Users must explicitly grant permission — you can't force it.
 
-No database changes. No new dependencies.
+## No Cost
+VAPID keys are self-generated. The Push API is a free browser standard. The edge function runs on your existing backend. Zero external services needed.
 
