@@ -5,8 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { format } from "date-fns";
-import { Shield, Dumbbell, CheckCircle2, Clock } from "lucide-react";
+import { Shield, Dumbbell, CheckCircle2, Clock, ChevronRight, Calendar } from "lucide-react";
 
 export function PrivateCoachingPanel() {
   const { user } = useAuthStore();
@@ -14,13 +15,14 @@ export function PrivateCoachingPanel() {
   const [packages, setPackages] = useState<any[]>([]);
   const [sessions, setSessions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [workoutNames, setWorkoutNames] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!user?.id) return;
 
     async function load() {
       setLoading(true);
-      // Check if private coaching is enabled
       const { data: profile } = await supabase
         .from("user_profiles")
         .select("private_coaching_enabled")
@@ -35,27 +37,46 @@ export function PrivateCoachingPanel() {
 
       setEnabled(true);
 
-      // Fetch PT data
       const [pkgRes, sessRes] = await Promise.all([
         supabase.from("pt_packages").select("*").eq("client_user_id", user!.id).order("created_at", { ascending: false }),
         supabase.from("pt_sessions").select("*").eq("client_user_id", user!.id).order("session_date", { ascending: false }),
       ]);
 
       if (pkgRes.data) setPackages(pkgRes.data);
-      if (sessRes.data) setSessions(sessRes.data);
+      if (sessRes.data) {
+        setSessions(sessRes.data);
+        // Fetch workout names for sessions that have workout_id
+        const workoutIds = sessRes.data
+          .map((s: any) => s.workout_id)
+          .filter(Boolean) as string[];
+        if (workoutIds.length > 0) {
+          const { data: workouts } = await supabase
+            .from("workouts")
+            .select("id, workout_name")
+            .in("id", workoutIds);
+          if (workouts) {
+            const map: Record<string, string> = {};
+            workouts.forEach((w: any) => { map[w.id] = w.workout_name; });
+            setWorkoutNames(map);
+          }
+        }
+      }
       setLoading(false);
     }
 
     load();
   }, [user?.id]);
 
-  // Don't render anything if not enabled or loading
   if (loading || enabled === null || !enabled) return null;
 
   const activePackage = packages.find((p) => p.status === "active");
   const remaining = activePackage ? activePackage.sessions_purchased - activePackage.sessions_used : 0;
   const progressPct = activePackage ? (activePackage.sessions_used / activePackage.sessions_purchased) * 100 : 0;
   const completedSessions = sessions.length;
+
+  const packageSessions = activePackage
+    ? sessions.filter((s) => s.package_id === activePackage.id)
+    : [];
 
   return (
     <div className="space-y-4">
@@ -67,9 +88,12 @@ export function PrivateCoachingPanel() {
         </Badge>
       </div>
 
-      {/* Active Package Card */}
+      {/* Active Package Card — Tappable */}
       {activePackage ? (
-        <Card className="border-accent/30 bg-gradient-to-br from-accent/5 to-transparent shadow-glow">
+        <Card
+          className="border-accent/30 bg-gradient-to-br from-accent/5 to-transparent shadow-glow cursor-pointer transition-all hover:border-accent/50 hover:shadow-lg active:scale-[0.98]"
+          onClick={() => setDrawerOpen(true)}
+        >
           <CardContent className="p-5 space-y-4">
             <div className="flex items-center justify-between">
               <div>
@@ -78,9 +102,12 @@ export function PrivateCoachingPanel() {
                   Started {format(new Date(activePackage.purchase_date), "MMM d, yyyy")}
                 </p>
               </div>
-              <div className="text-right">
-                <p className="text-4xl font-bold font-mono text-accent">{remaining}</p>
-                <p className="text-xs text-muted-foreground">sessions left</p>
+              <div className="text-right flex items-center gap-2">
+                <div>
+                  <p className="text-4xl font-bold font-mono text-accent">{remaining}</p>
+                  <p className="text-xs text-muted-foreground">sessions left</p>
+                </div>
+                <ChevronRight className="h-5 w-5 text-muted-foreground/50" />
               </div>
             </div>
             <div className="space-y-1.5">
@@ -93,6 +120,9 @@ export function PrivateCoachingPanel() {
               </div>
               <Progress value={progressPct} className="h-2.5" />
             </div>
+            <p className="text-[11px] text-muted-foreground/60 text-center">
+              Tap to view session history
+            </p>
           </CardContent>
         </Card>
       ) : (
@@ -151,6 +181,69 @@ export function PrivateCoachingPanel() {
             </Table>
           </CardContent>
         </Card>
+      )}
+
+      {/* Session Breakdown Drawer */}
+      {activePackage && (
+        <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
+          <DrawerContent className="max-h-[85vh]">
+            <DrawerHeader className="pb-2">
+              <DrawerTitle className="text-base">{activePackage.package_name}</DrawerTitle>
+              <p className="text-xs text-muted-foreground">
+                Started {format(new Date(activePackage.purchase_date), "MMM d, yyyy")}
+              </p>
+            </DrawerHeader>
+
+            <div className="px-4 pb-2">
+              <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                <span>{activePackage.sessions_used} of {activePackage.sessions_purchased} sessions used</span>
+                <span>{remaining} remaining</span>
+              </div>
+              <Progress value={progressPct} className="h-2" />
+            </div>
+
+            <div className="px-4 pb-6 overflow-y-auto flex-1">
+              {packageSessions.length === 0 ? (
+                <div className="text-center py-10 text-muted-foreground">
+                  <Calendar className="h-8 w-8 mx-auto mb-3 text-muted-foreground/40" />
+                  <p className="text-sm font-medium">No sessions logged yet</p>
+                  <p className="text-xs mt-1">Sessions with your coach will appear here.</p>
+                </div>
+              ) : (
+                <div className="relative mt-4">
+                  {/* Timeline connector */}
+                  <div className="absolute left-[7px] top-2 bottom-2 w-px bg-border" />
+
+                  <div className="space-y-4">
+                    {packageSessions.map((s, i) => (
+                      <div key={s.id} className="relative pl-6">
+                        {/* Dot */}
+                        <div className="absolute left-0 top-1.5 h-[15px] w-[15px] rounded-full border-2 border-accent bg-background" />
+
+                        <div className="space-y-0.5">
+                          <p className="text-sm font-medium">
+                            {format(new Date(s.session_date), "EEEE, MMM d yyyy")}
+                          </p>
+                          {s.workout_id && workoutNames[s.workout_id] && (
+                            <p className="text-xs text-accent flex items-center gap-1">
+                              <Dumbbell className="h-3 w-3" />
+                              {workoutNames[s.workout_id]}
+                            </p>
+                          )}
+                          {s.notes && (
+                            <p className="text-xs text-muted-foreground leading-relaxed mt-1">
+                              {s.notes}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </DrawerContent>
+        </Drawer>
       )}
     </div>
   );
