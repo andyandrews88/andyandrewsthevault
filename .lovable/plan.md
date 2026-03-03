@@ -1,83 +1,71 @@
 
 
-# Plan: Collapsible & Reorderable Dashboard Sections
+# Plan: Private Coaching Access, Client PT Dashboard, Session Editing & Workout Actions
 
 ## Overview
 
-Make both the **Client Dashboard** (VaultDashboard) and **Admin User Profile** sections collapsible and reorderable. Each section gets a collapse toggle, and sections can be moved up/down to customize layout. Order and collapse state persist in localStorage.
+Four features: (1) a toggle on admin profiles to grant/revoke private coaching access, (2) a client-facing "My Coaching" dashboard section visible only to private coaching clients showing session progress, (3) editable PT sessions with working workout linking, and (4) edit/delete actions on the Recent Workouts table in admin profiles.
 
-## Approach
+---
 
-No drag-and-drop library needed — a clean up/down arrow UI is more reliable and mobile-friendly. Each section is wrapped in a reusable `CollapsibleDashboardSection` component.
+## 1. Private Coaching Toggle (Admin Side)
 
-## New Component: `CollapsibleDashboardSection`
+**Database**: Add `private_coaching_enabled` boolean column to `user_profiles` (default `false`). No new table needed — this is a feature flag, not a role.
 
-Location: `src/components/ui/CollapsibleDashboardSection.tsx`
+**Migration**:
+```sql
+ALTER TABLE public.user_profiles ADD COLUMN private_coaching_enabled boolean NOT NULL DEFAULT false;
+```
 
-A wrapper that provides:
-- **Collapse toggle** — chevron icon that expands/collapses the section content with smooth animation
-- **Reorder buttons** — small up/down arrow buttons (visible on hover or via an "edit layout" toggle) to move sections
-- **Header area** — renders the section title/badge as-is
+**Admin UI** (`AdminUserProfile.tsx`): Add a `Switch` toggle in the header area next to the client's name/badges. Label: "Private Coaching". When toggled, updates `user_profiles.private_coaching_enabled` for that user. The admin profile edge function already returns the profile data, so it will include this field automatically.
 
-Props: `id`, `title`, `icon?`, `badge?`, `children`, `defaultOpen?`, `onMoveUp?`, `onMoveDown?`, `isFirst?`, `isLast?`
+---
 
-## New Hook: `useDashboardLayout`
+## 2. Client "My Coaching" Dashboard Section
 
-Location: `src/hooks/useDashboardLayout.ts`
+**New Component**: `src/components/dashboard/PrivateCoachingPanel.tsx`
 
-A small hook using localStorage (or zustand) to persist:
-- **Section order** — array of section IDs
-- **Collapsed state** — map of section ID → boolean
-- **Helper functions** — `moveUp(id)`, `moveDown(id)`, `toggleCollapse(id)`, `isCollapsed(id)`
+Only renders if the logged-in user's `private_coaching_enabled` is `true` (fetched from `user_profiles`). Shows:
+- **Session Progress Card** — active package name, sessions remaining vs total, progress bar (pulled from `pt_packages` where `client_user_id = user.id`)
+- **Session History** — list of completed sessions with dates and linked workout names (from `pt_sessions`)
+- Premium styling with a "Private Coaching" badge and accent border
 
-Uses a unique storage key per dashboard (e.g. `vault-dashboard-layout`, `admin-profile-layout`).
+**RLS**: Add SELECT policies on `pt_packages` and `pt_sessions` so clients can read their own rows:
+```sql
+CREATE POLICY "Clients can view their own packages" ON pt_packages FOR SELECT USING (auth.uid() = client_user_id);
+CREATE POLICY "Clients can view their own sessions" ON pt_sessions FOR SELECT USING (auth.uid() = client_user_id);
+```
 
-## Changes to `VaultDashboard.tsx`
+**Integration** (`VaultDashboard.tsx`): Add `"coaching"` to `DEFAULT_ORDER` and `SECTION_META`/`SECTION_COMPONENTS`. The component self-hides if the user doesn't have private coaching enabled.
 
-Wrap each widget (AnnouncementBanner, TodaySnapshot, TrainingSuggestion, LatestUpdates, GoalsPanel, WeeklyReview) in `CollapsibleDashboardSection`. Render sections in order from the layout hook. Add an "Edit Layout" toggle button in the header area that shows/hides the reorder arrows.
+---
 
-Sections (5 items):
-| ID | Title |
-|----|-------|
-| `snapshot` | Today's Snapshot |
-| `training` | Training Suggestion |
-| `updates` | Latest Updates |
-| `goals` | Goals |
-| `review` | Weekly Review |
+## 3. Editable PT Sessions (Admin)
 
-AnnouncementBanner stays pinned at top (not reorderable).
+**PTSessionTracker.tsx changes**:
+- Add an **Edit** button (pencil icon) next to each session row's delete button
+- Add `editSessionOpen` dialog state and `editingSession` state
+- Edit dialog pre-fills date, workout link, and notes — saves via `supabase.from("pt_sessions").update(...)` 
+- The workout selector already works (uses `workouts` fetched for the client) — this just surfaces it in the edit flow too
 
-## Changes to `AdminUserProfile.tsx`
+---
 
-Same pattern. Each major section becomes a collapsible, reorderable block. Add "Edit Layout" toggle near the page header.
+## 4. Edit/Delete on Recent Workouts (Admin Profile)
 
-Sections (~10 items):
-| ID | Title |
-|----|-------|
-| `stats` | Stats Summary |
-| `readiness` | Readiness & Lifestyle |
-| `ai-report` | AI Client Report |
-| `compliance` | Program Compliance |
-| `training` | Training |
-| `pt-tracker` | PT Session Tracker |
-| `checkins` | Check-in History |
-| `goals` | Goals |
-| `nutrition` | Nutrition |
-| `community` | Community |
-| `body-entries` | Body Entries |
-| `messages` | Private Message |
-| `analytics` | Coaching Analytics |
-| `performance` | Performance Report |
-| `notes` | Coaching Notes |
+**AdminUserProfile.tsx** — in the `training` section renderer, add action buttons to each workout row:
+- **Delete** button (Trash2 icon) — deletes the workout via `supabase.from("workouts").delete().eq("id", w.id)`, then re-fetches profile data
+- The **Edit** button already exists (clicking the row navigates to the workout builder) — make this more obvious with a pencil icon button
+- Add confirmation dialog for delete to prevent accidental deletion
+
+---
 
 ## Files to Create/Modify
 
 | File | Change |
 |------|--------|
-| `src/components/ui/CollapsibleDashboardSection.tsx` | **New** — Reusable collapsible + reorderable section wrapper |
-| `src/hooks/useDashboardLayout.ts` | **New** — Persists section order and collapse state to localStorage |
-| `src/components/dashboard/VaultDashboard.tsx` | Wrap widgets in collapsible sections, render by stored order |
-| `src/pages/AdminUserProfile.tsx` | Wrap all sections in collapsible sections, render by stored order |
-
-No database changes needed — layout preferences stored client-side in localStorage.
+| **Migration** | Add `private_coaching_enabled` to `user_profiles`; add SELECT RLS on `pt_packages` and `pt_sessions` for clients |
+| `src/components/dashboard/PrivateCoachingPanel.tsx` | **New** — Client-facing coaching dashboard with session progress |
+| `src/components/dashboard/VaultDashboard.tsx` | Add coaching section to collapsible layout |
+| `src/pages/AdminUserProfile.tsx` | Add Private Coaching toggle switch; add delete button to recent workouts |
+| `src/components/admin/PTSessionTracker.tsx` | Add edit session dialog and edit button per session row |
 
