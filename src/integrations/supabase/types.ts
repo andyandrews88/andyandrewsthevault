@@ -1173,6 +1173,7 @@ export type Database = {
           last_name: string | null
           location: string | null
           notification_preferences: Json
+          private_coaching_enabled: boolean
           sex: string | null
           timezone: string | null
           unit_preference: string | null
@@ -1191,6 +1192,7 @@ export type Database = {
           last_name?: string | null
           location?: string | null
           notification_preferences?: Json
+          private_coaching_enabled?: boolean
           sex?: string | null
           timezone?: string | null
           unit_preference?: string | null
@@ -1209,6 +1211,7 @@ export type Database = {
           last_name?: string | null
           location?: string | null
           notification_preferences?: Json
+          private_coaching_enabled?: boolean
           sex?: string | null
           timezone?: string | null
           unit_preference?: string | null
