@@ -1651,6 +1651,7 @@ export type Database = {
       }
     }
     Functions: {
+      has_private_coaching: { Args: { _user_id: string }; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
