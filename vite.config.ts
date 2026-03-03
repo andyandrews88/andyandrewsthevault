@@ -20,6 +20,7 @@ export default defineConfig(({ mode }) => ({
       registerType: "autoUpdate",
       includeAssets: ["favicon.ico", "robots.txt"],
       workbox: {
+        importScripts: ['/custom-sw.js'],
         navigateFallbackDenylist: [/^\/~oauth/],
         globPatterns: ["**/*.{html,ico,png,svg,woff2}"],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
