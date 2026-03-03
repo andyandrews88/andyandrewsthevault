@@ -4,19 +4,32 @@ import { useAuthStore } from "@/stores/authStore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { format } from "date-fns";
-import { Shield, Dumbbell, CheckCircle2, Clock, ChevronRight, Calendar } from "lucide-react";
+import { Shield, Dumbbell, CheckCircle2, Clock, ChevronRight, Calendar, ExternalLink, FileText, Receipt } from "lucide-react";
+
+interface WorkoutDetail {
+  workout_name: string;
+  date: string;
+  total_volume: number | null;
+  exercises: { name: string; sets: { weight: number | null; reps: number | null; set_number: number }[] }[];
+}
 
 export function PrivateCoachingPanel() {
   const { user } = useAuthStore();
   const [enabled, setEnabled] = useState<boolean | null>(null);
   const [packages, setPackages] = useState<any[]>([]);
   const [sessions, setSessions] = useState<any[]>([]);
+  const [invoices, setInvoices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [workoutNames, setWorkoutNames] = useState<Record<string, string>>({});
+  const [selectedSession, setSelectedSession] = useState<any | null>(null);
+  const [workoutDetail, setWorkoutDetail] = useState<WorkoutDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -37,15 +50,16 @@ export function PrivateCoachingPanel() {
 
       setEnabled(true);
 
-      const [pkgRes, sessRes] = await Promise.all([
+      const [pkgRes, sessRes, invRes] = await Promise.all([
         supabase.from("pt_packages").select("*").eq("client_user_id", user!.id).order("created_at", { ascending: false }),
         supabase.from("pt_sessions").select("*").eq("client_user_id", user!.id).order("session_date", { ascending: false }),
+        supabase.from("pt_invoices").select("*").eq("client_user_id", user!.id).order("invoice_date", { ascending: false }),
       ]);
 
       if (pkgRes.data) setPackages(pkgRes.data);
+      if (invRes.data) setInvoices(invRes.data);
       if (sessRes.data) {
         setSessions(sessRes.data);
-        // Fetch workout names for sessions that have workout_id
         const workoutIds = sessRes.data
           .map((s: any) => s.workout_id)
           .filter(Boolean) as string[];
@@ -67,6 +81,56 @@ export function PrivateCoachingPanel() {
     load();
   }, [user?.id]);
 
+  async function openSessionDetail(session: any) {
+    setSelectedSession(session);
+    setWorkoutDetail(null);
+
+    if (!session.workout_id) return;
+
+    setDetailLoading(true);
+    const { data: workout } = await supabase
+      .from("workouts")
+      .select("workout_name, date, total_volume")
+      .eq("id", session.workout_id)
+      .single();
+
+    const { data: exercises } = await supabase
+      .from("workout_exercises")
+      .select("id, exercise_name, order_index")
+      .eq("workout_id", session.workout_id)
+      .order("order_index", { ascending: true });
+
+    if (workout && exercises) {
+      const exerciseIds = exercises.map((e: any) => e.id);
+      const { data: sets } = exerciseIds.length > 0
+        ? await supabase
+            .from("exercise_sets")
+            .select("exercise_id, set_number, weight, reps")
+            .in("exercise_id", exerciseIds)
+            .eq("set_type", "working")
+            .eq("is_completed", true)
+            .order("set_number", { ascending: true })
+        : { data: [] };
+
+      const setsMap: Record<string, any[]> = {};
+      (sets || []).forEach((s: any) => {
+        if (!setsMap[s.exercise_id]) setsMap[s.exercise_id] = [];
+        setsMap[s.exercise_id].push(s);
+      });
+
+      setWorkoutDetail({
+        workout_name: workout.workout_name,
+        date: workout.date,
+        total_volume: workout.total_volume,
+        exercises: exercises.map((e: any) => ({
+          name: e.exercise_name,
+          sets: setsMap[e.id] || [],
+        })),
+      });
+    }
+    setDetailLoading(false);
+  }
+
   if (loading || enabled === null || !enabled) return null;
 
   const activePackage = packages.find((p) => p.status === "active");
@@ -77,6 +141,15 @@ export function PrivateCoachingPanel() {
   const packageSessions = activePackage
     ? sessions.filter((s) => s.package_id === activePackage.id)
     : [];
+
+  const packageInvoices = activePackage
+    ? invoices.filter((inv) => inv.package_id === activePackage.id)
+    : [];
+
+  // Find invoice for a specific session's package
+  const sessionInvoice = selectedSession
+    ? invoices.find((inv) => inv.package_id === selectedSession.package_id)
+    : null;
 
   return (
     <div className="space-y-4">
@@ -163,16 +236,20 @@ export function PrivateCoachingPanel() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Date</TableHead>
+                  <TableHead>Workout</TableHead>
                   <TableHead>Notes</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {sessions.slice(0, 10).map((s) => (
-                  <TableRow key={s.id}>
+                  <TableRow key={s.id} className="cursor-pointer hover:bg-secondary/50" onClick={() => openSessionDetail(s)}>
                     <TableCell className="text-sm">
-                      {format(new Date(s.session_date), "MMM d, yyyy")}
+                      {format(new Date(s.session_date), "MMM d")}
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground truncate max-w-[200px]">
+                    <TableCell className="text-sm text-accent">
+                      {s.workout_id && workoutNames[s.workout_id] ? workoutNames[s.workout_id] : "—"}
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground truncate max-w-[120px]">
                       {s.notes || "—"}
                     </TableCell>
                   </TableRow>
@@ -211,29 +288,75 @@ export function PrivateCoachingPanel() {
                 </div>
               ) : (
                 <div className="relative mt-4">
-                  {/* Timeline connector */}
                   <div className="absolute left-[7px] top-2 bottom-2 w-px bg-border" />
-
                   <div className="space-y-4">
-                    {packageSessions.map((s, i) => (
-                      <div key={s.id} className="relative pl-6">
-                        {/* Dot */}
-                        <div className="absolute left-0 top-1.5 h-[15px] w-[15px] rounded-full border-2 border-accent bg-background" />
+                    {packageSessions.map((s) => (
+                      <div
+                        key={s.id}
+                        className="relative pl-6 cursor-pointer rounded-lg p-2 -ml-2 hover:bg-secondary/50 transition-colors"
+                        onClick={() => openSessionDetail(s)}
+                      >
+                        <div className="absolute left-0 top-3.5 h-[15px] w-[15px] rounded-full border-2 border-accent bg-background" />
+                        <div className="flex items-center justify-between">
+                          <div className="space-y-0.5 flex-1">
+                            <p className="text-sm font-medium">
+                              {format(new Date(s.session_date), "EEEE, MMM d yyyy")}
+                            </p>
+                            {s.workout_id && workoutNames[s.workout_id] && (
+                              <p className="text-xs text-accent flex items-center gap-1">
+                                <Dumbbell className="h-3 w-3" />
+                                {workoutNames[s.workout_id]}
+                              </p>
+                            )}
+                            {s.notes && (
+                              <p className="text-xs text-muted-foreground leading-relaxed mt-1">
+                                {s.notes}
+                              </p>
+                            )}
+                          </div>
+                          <ChevronRight className="h-4 w-4 text-muted-foreground/40 shrink-0" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
-                        <div className="space-y-0.5">
+              {/* Invoices Section */}
+              {packageInvoices.length > 0 && (
+                <div className="mt-6 pt-4 border-t border-border/50">
+                  <div className="flex items-center gap-1.5 mb-3">
+                    <Receipt className="h-4 w-4 text-muted-foreground" />
+                    <p className="text-sm font-medium">Invoices</p>
+                  </div>
+                  <div className="space-y-2">
+                    {packageInvoices.map((inv) => (
+                      <div key={inv.id} className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 border border-border/50">
+                        <div>
                           <p className="text-sm font-medium">
-                            {format(new Date(s.session_date), "EEEE, MMM d yyyy")}
+                            {inv.currency} {Number(inv.amount).toFixed(2)}
                           </p>
-                          {s.workout_id && workoutNames[s.workout_id] && (
-                            <p className="text-xs text-accent flex items-center gap-1">
-                              <Dumbbell className="h-3 w-3" />
-                              {workoutNames[s.workout_id]}
-                            </p>
-                          )}
-                          {s.notes && (
-                            <p className="text-xs text-muted-foreground leading-relaxed mt-1">
-                              {s.notes}
-                            </p>
+                          <p className="text-xs text-muted-foreground">
+                            {format(new Date(inv.invoice_date), "MMM d, yyyy")}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={inv.status === "paid" ? "success" : inv.status === "sent" ? "warning" : "outline"} className="text-[10px]">
+                            {inv.status}
+                          </Badge>
+                          {inv.invoice_url && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-xs gap-1"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                window.open(inv.invoice_url, "_blank");
+                              }}
+                            >
+                              <ExternalLink className="h-3 w-3" />
+                              View
+                            </Button>
                           )}
                         </div>
                       </div>
@@ -245,6 +368,78 @@ export function PrivateCoachingPanel() {
           </DrawerContent>
         </Drawer>
       )}
+
+      {/* Session Detail Dialog */}
+      <Dialog open={!!selectedSession} onOpenChange={(open) => !open && setSelectedSession(null)}>
+        <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-base flex items-center gap-2">
+              <Dumbbell className="h-4 w-4 text-accent" />
+              {selectedSession && format(new Date(selectedSession.session_date), "EEEE, MMM d yyyy")}
+            </DialogTitle>
+          </DialogHeader>
+
+          {selectedSession?.notes && (
+            <div className="bg-secondary/30 rounded-lg p-3 border border-border/50">
+              <p className="text-xs font-medium text-muted-foreground mb-1">Coach Notes</p>
+              <p className="text-sm">{selectedSession.notes}</p>
+            </div>
+          )}
+
+          {detailLoading ? (
+            <div className="text-center py-6 text-muted-foreground text-sm">Loading workout...</div>
+          ) : workoutDetail ? (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold">{workoutDetail.workout_name}</p>
+                {workoutDetail.total_volume != null && workoutDetail.total_volume > 0 && (
+                  <Badge variant="data" className="text-[10px]">
+                    {Math.round(workoutDetail.total_volume).toLocaleString()} kg vol
+                  </Badge>
+                )}
+              </div>
+              {workoutDetail.exercises.map((ex, i) => (
+                <div key={i} className="border border-border/50 rounded-lg p-3">
+                  <p className="text-sm font-medium mb-2">{ex.name}</p>
+                  {ex.sets.length > 0 ? (
+                    <div className="space-y-1">
+                      {ex.sets.map((set, j) => (
+                        <div key={j} className="flex justify-between text-xs text-muted-foreground font-mono">
+                          <span>Set {set.set_number}</span>
+                          <span>
+                            {set.weight != null ? `${set.weight}kg` : "BW"} × {set.reps ?? "—"}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">No sets recorded</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : selectedSession?.workout_id ? (
+            <p className="text-sm text-muted-foreground text-center py-4">Could not load workout details.</p>
+          ) : (
+            <p className="text-sm text-muted-foreground text-center py-4">No linked workout for this session.</p>
+          )}
+
+          {/* Invoice link in dialog */}
+          {sessionInvoice && sessionInvoice.invoice_url && (
+            <div className="pt-2 border-t border-border/50">
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full gap-2"
+                onClick={() => window.open(sessionInvoice.invoice_url, "_blank")}
+              >
+                <FileText className="h-4 w-4" />
+                View Invoice — {sessionInvoice.currency} {Number(sessionInvoice.amount).toFixed(2)}
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
