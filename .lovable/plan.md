@@ -1,40 +1,70 @@
 
 
-# Fix: Time-Based Metrics Not Updating + Admin Drawer Scroll Frozen on Mobile
+# Root-Cause Analysis & Permanent Fix Plan
 
-## Issue 1: Time-Based Toggle Not Reflecting
+## Bug 1: Assault Bike (Conditioning) Data Not Displaying
 
-**Root cause**: Two problems working together:
+**Root Cause — `fetchWorkoutByDate` (line 158-162 of workoutStore.ts)**
 
-1. In `ExerciseActionSheet` (mobile), the `handleAction` wrapper calls `onMetadataChange` and then immediately closes the drawer via `onOpenChange(false)`. While the `setIsTimed(true)` call happens synchronously, closing the drawer triggers a re-render cascade. The Radix Drawer unmount animation can cause React to batch these state updates in a way where the parent's `isTimed` state update is effectively swallowed by the drawer close re-render.
+The query that loads completed workouts for calendar/history view is:
+```
+.select('*, sets:exercise_sets(*)')
+```
 
-2. The `ExerciseCard` useEffect on lines 118-136 fetches from the DB on mount based on `exercise.exercise_name`. The `upsertExerciseLibraryField` call is async and NOT awaited in the action handler, so if there's any re-mount triggered by the drawer close, the useEffect re-fetches from DB before the upsert has completed, overwriting the optimistic state with the old DB value.
+This **does not join `conditioning_sets`**. When the calendar view loads a completed assault bike workout, `conditioning_sets` is always `[]` because the data was never fetched. The `WorkoutHistoryView` component correctly renders conditioning data (lines 110-138), but the data is never provided.
 
-**Fix in `ExerciseActionSheet.tsx`**:
-- Make metadata actions NOT close the drawer immediately. Instead, call `onMetadataChange` and let the user see the change, then close manually. Or: delay the close until after the upsert completes.
-- Simplest fix: Remove `handleAction` wrapping for metadata changes. Call `onMetadataChange` synchronously, await the upsert, then close the sheet.
+Compare with `fetchActiveWorkout` (line 771-774) and `editWorkout` (line 632-636) which both correctly use:
+```
+.select('*, sets:exercise_sets(*), conditioning_sets:conditioning_sets(*)')
+```
 
-**Fix in `ExerciseCard.tsx`**:
-- Add a `metadataVersion` counter state that increments when `onMetadataChange` is called. This prevents the mount useEffect from overwriting optimistic state.
-- Make the useEffect skip fetching if metadata was just locally updated (guard with a ref).
+**Fix**: Add `conditioning_sets:conditioning_sets(*)` to the `fetchWorkoutByDate` select query on line 160.
 
-## Issue 2: Admin Drawer Frozen / Can't Scroll on Mobile
+---
 
-**Root cause**: The `SheetContent` component uses `fixed inset-y-0` positioning with `overflow-y-auto` applied directly. On mobile browsers (especially iOS Safari), scroll inside fixed-position elements often fails because:
+## Bug 2: Client Directory / Drawer Scroll Failure on Mobile
 
-1. The Sheet overlay intercepts touch events
-2. The `SheetContent` doesn't have a proper flex layout — the header and content area are both inside the scrollable container, but there's no explicit height constraint forcing the content to overflow
+**Root Cause — `AdminDetailDrawer.tsx` line 601 & 610**
 
-**Fix in `AdminDetailDrawer.tsx`**:
-- Restructure SheetContent to use `flex flex-col` with the header as a fixed section and the content area as `flex-1 overflow-y-auto`
-- Add `overscroll-behavior-y: contain` and `-webkit-overflow-scrolling: touch` to the scrollable content area
-- Move `overflow-y-auto` from SheetContent to the inner content div, and give SheetContent `overflow-hidden` instead
+The previous fix applied `flex flex-col overflow-hidden` to `SheetContent` and `flex-1 overflow-y-auto` to the content div. Looking at the screenshot, the Client Directory IS scrolling (user captured 5+ clients). However, the `users` section content wrapper on line 285 adds its OWN `overflow-y-auto` div, creating a **nested scroll container** that fights with the parent.
 
-## Files to Modify
+**Fix**: Remove the redundant `overflow-y-auto overscroll-y-contain` from the inner `users` content div (line 285) since the parent flex container at line 610 already handles scrolling.
 
-| File | Change |
-|------|--------|
-| `src/components/workout/ExerciseActionSheet.tsx` | Stop immediately closing drawer for metadata actions; await upsert then close |
-| `src/components/workout/ExerciseCard.tsx` | Add guard to prevent useEffect from overwriting optimistic metadata state |
-| `src/components/admin/AdminDetailDrawer.tsx` | Fix flex layout for proper mobile scrolling inside Sheet |
+---
+
+## Bug 3: Private Coaching Toggle Resetting After Navigation
+
+**Root Cause — `AdminUserProfile.tsx` lines 87-106 & 115-119**
+
+The `toggle_coaching` edge function works correctly (confirmed in code review — line 76-80 of edge function). The problem is the **data loading lifecycle**:
+
+1. Admin toggles coaching ON → optimistic state sets `privateCoaching = true` → edge function updates DB ✓
+2. Admin navigates away and returns → `useEffect` on line 87 fires, calling `admin-user-profile` edge function
+3. The `admin-user-profile` function fetches profile data which includes `private_coaching_enabled`
+4. `useEffect` on line 115-119 syncs: `setPrivateCoaching(!!data.profile.private_coaching_enabled)`
+
+The issue is likely that the `admin-user-profile` edge function is returning **stale/cached data** or not reading the `private_coaching_enabled` field at all.
+
+**Fix**: Inspect the `admin-user-profile` edge function to ensure it returns `private_coaching_enabled` from `user_profiles`. If it does, the toggle should work. If the field isn't being returned, add it to the profile select query in the edge function.
+
+---
+
+## Bug 4: Admin Library Tabs Overflowing on Mobile
+
+**Root Cause — `AdminPanel.tsx` lines 271-287**
+
+The `TabsList` contains 4 tabs (Resources, Podcasts, Programs, Exercises) with no horizontal scroll. On mobile, this overflows the container width, causing content to be clipped or break the layout (visible in screenshot — tabs are cut off at "Exe...").
+
+**Fix**: Wrap the `TabsList` in a horizontal scroll container or apply `overflow-x-auto` with `w-full` and ensure tabs don't wrap. Use `className="w-full overflow-x-auto"` on the `TabsList`.
+
+---
+
+## Implementation Summary
+
+| # | File | Line(s) | Change |
+|---|------|---------|--------|
+| 1 | `src/stores/workoutStore.ts` | 160 | Add `conditioning_sets:conditioning_sets(*)` to select |
+| 2 | `src/components/admin/AdminDetailDrawer.tsx` | 285 | Remove nested `overflow-y-auto` from users content div |
+| 3 | `supabase/functions/admin-user-profile/index.ts` | TBD | Verify `private_coaching_enabled` is in profile select; if missing, add it |
+| 4 | `src/components/vault/AdminPanel.tsx` | 272 | Add `overflow-x-auto` to TabsList for horizontal scroll |
 
