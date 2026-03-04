@@ -453,6 +453,7 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
               onMoveDown={moveDown}
               canMoveUp={canUp}
               canMoveDown={canDown}
+              libraryMeta={libraryMetaMap[exercise.exercise_name.toLowerCase()] ?? undefined}
             />
           )
         );
