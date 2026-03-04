@@ -196,7 +196,7 @@ export function ExerciseCard({ exercise, onRemove, allExercises = [], onMoveUp, 
             </div>
           </div>
 
-          <div className="flex items-center gap-0.5">
+          <div className="flex items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
             {canMoveUp && (
               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onMoveUp}>
                 <ArrowUp className="h-3.5 w-3.5" />
@@ -298,7 +298,9 @@ export function ExerciseCard({ exercise, onRemove, allExercises = [], onMoveUp, 
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
-          <ChevronsUpDown className={`h-4 w-4 text-muted-foreground transition-transform ${isCollapsed ? '' : 'rotate-90'}`} />
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setIsCollapsed(!isCollapsed)}>
+            <ChevronsUpDown className={`h-4 w-4 text-muted-foreground transition-transform ${isCollapsed ? '' : 'rotate-90'}`} />
+          </Button>
           </div>
         </div>
       </CardHeader>
