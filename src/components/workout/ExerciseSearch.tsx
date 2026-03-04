@@ -33,6 +33,7 @@ interface ExerciseSearchProps {
   recentExercises?: string[];
   mode?: 'add' | 'replace';
   title?: string;
+  section?: 'warmup' | 'main' | 'cooldown';
 }
 
 type CategoryKey = keyof typeof EXERCISE_CATEGORIES;
