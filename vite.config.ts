@@ -21,6 +21,8 @@ export default defineConfig(({ mode }) => ({
       includeAssets: ["favicon.ico", "robots.txt"],
       workbox: {
         importScripts: ['/custom-sw.js'],
+        skipWaiting: true,
+        clientsClaim: true,
         navigateFallbackDenylist: [/^\/~oauth/],
         globPatterns: ["**/*.{html,ico,png,svg,woff2}"],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
@@ -32,7 +34,7 @@ export default defineConfig(({ mode }) => ({
               cacheName: "static-assets",
               expiration: {
                 maxEntries: 100,
-                maxAgeSeconds: 60 * 60 * 24,
+                maxAgeSeconds: 60 * 60,
               },
             },
           },

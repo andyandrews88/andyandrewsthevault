@@ -123,6 +123,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
   isSaving: false,
   newPR: null,
   restTimerTrigger: 0,
+  _lastFetchedAt: { active: 0, records: 0, days: 0 } as Record<string, number>,
   
   clearNewPR: () => set({ newPR: null }),
   
@@ -715,11 +716,16 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
   },
   
   fetchActiveWorkout: async () => {
+    const now = Date.now();
+    const last = (get() as any)._lastFetchedAt?.active || 0;
+    if (now - last < 30_000 && get().activeWorkout !== null) return;
+
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.user) return;
     const user = session.user;
     
     if (get().isEditing) return;
+    (set as any)({ _lastFetchedAt: { ...(get() as any)._lastFetchedAt, active: now } });
 
     // Soft refresh: don't show loading spinner if we already have a workout loaded
     const hasExistingWorkout = !!get().activeWorkout;
@@ -811,9 +817,14 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
   },
   
   fetchPersonalRecords: async () => {
+    const now = Date.now();
+    const last = (get() as any)._lastFetchedAt?.records || 0;
+    if (now - last < 30_000 && get().personalRecords.length > 0) return;
+
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.user) return;
     const user = session.user;
+    (set as any)({ _lastFetchedAt: { ...(get() as any)._lastFetchedAt, records: now } });
     
     const { data: records } = await supabase
       .from('personal_records')
@@ -903,9 +914,14 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
   },
   
   fetchWorkoutDays: async (weeks = 12): Promise<WorkoutDay[]> => {
+    const now = Date.now();
+    const last = (get() as any)._lastFetchedAt?.days || 0;
+    if (now - last < 30_000 && get().workoutDays.length > 0) return get().workoutDays;
+
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.user) return [];
     const user = session.user;
+    (set as any)({ _lastFetchedAt: { ...(get() as any)._lastFetchedAt, days: now } });
 
     const fromDate = format(subDays(new Date(), weeks * 7), 'yyyy-MM-dd');
     const futureDate = format(addDays(new Date(), weeks * 7), 'yyyy-MM-dd');
