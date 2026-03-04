@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -7,7 +8,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
-import { Plus, MoreVertical, Trash2, Timer, ArrowUp, ArrowDown, RefreshCw } from "lucide-react";
+import { Plus, MoreVertical, Trash2, Timer, ArrowUp, ArrowDown, RefreshCw, ChevronsUpDown } from "lucide-react";
 import { WorkoutExercise, ConditioningSet } from "@/types/workout";
 import { ConditioningSetRow } from "./ConditioningSetRow";
 import { ExerciseSearch } from "./ExerciseSearch";
@@ -38,13 +39,18 @@ export function ConditioningCard({ exercise, onRemove, onMoveUp, onMoveDown, can
   const completedSets = exercise.conditioning_sets?.filter(s => s.is_completed).length || 0;
   const totalSets = exercise.conditioning_sets?.length || 0;
 
+  const allCompleted = useMemo(() => totalSets > 0 && completedSets === totalSets, [completedSets, totalSets]);
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  useEffect(() => { if (allCompleted) setIsCollapsed(true); }, [allCompleted]);
+
   const handleComplete = async (setId: string) => {
     await completeConditioningSet(setId);
   };
 
   return (
+    <Collapsible open={!isCollapsed} onOpenChange={(open) => setIsCollapsed(!open)}>
     <Card variant="elevated" className="overflow-hidden border-l-4 border-l-accent">
-      <CardHeader className="py-3 px-4 bg-accent/10">
+      <CardHeader className="py-3 px-4 bg-accent/10 cursor-pointer" onClick={() => setIsCollapsed(!isCollapsed)}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Timer className="h-4 w-4 text-accent" />
@@ -58,7 +64,7 @@ export function ConditioningCard({ exercise, onRemove, onMoveUp, onMoveDown, can
             </div>
           </div>
 
-          <div className="flex items-center gap-0.5">
+          <div className="flex items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
             {canMoveUp && (
               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onMoveUp}>
                 <ArrowUp className="h-3.5 w-3.5" />
@@ -88,12 +94,13 @@ export function ConditioningCard({ exercise, onRemove, onMoveUp, onMoveDown, can
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          <ChevronsUpDown className={`h-4 w-4 text-muted-foreground`} />
           </div>
         </div>
       </CardHeader>
       
+      <CollapsibleContent>
       <CardContent className="p-0">
-        {/* Header Row */}
         <div className="hidden sm:grid grid-cols-[32px_1fr_1fr_1fr_40px_28px] gap-1.5 sm:gap-2 items-center py-2 px-4 border-b border-border bg-muted/30 text-xs font-medium text-muted-foreground">
           <span className="text-center">Set</span>
           <span className="text-center">Time</span>
@@ -102,8 +109,6 @@ export function ConditioningCard({ exercise, onRemove, onMoveUp, onMoveDown, can
           <span className="text-center">✓</span>
           <span></span>
         </div>
-        
-        {/* Sets */}
         <div className="px-4">
           {exercise.conditioning_sets?.map((set) => (
             <ConditioningSetRow
@@ -115,8 +120,6 @@ export function ConditioningCard({ exercise, onRemove, onMoveUp, onMoveDown, can
             />
           ))}
         </div>
-        
-        {/* Add Set Button */}
         <div className="p-3 border-t border-border/50">
           <Button 
             variant="outline" 
@@ -129,6 +132,7 @@ export function ConditioningCard({ exercise, onRemove, onMoveUp, onMoveDown, can
           </Button>
         </div>
       </CardContent>
+      </CollapsibleContent>
       <ExerciseSearch
         open={showReplaceSearch}
         onOpenChange={setShowReplaceSearch}
@@ -136,5 +140,6 @@ export function ConditioningCard({ exercise, onRemove, onMoveUp, onMoveDown, can
         mode="replace"
       />
     </Card>
+    </Collapsible>
   );
 }

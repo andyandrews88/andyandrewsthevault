@@ -20,6 +20,7 @@ export interface WorkoutExercise {
   notes: string | null;
   exercise_type: 'strength' | 'conditioning';
   superset_group: string | null;
+  workout_section: 'warmup' | 'main' | 'cooldown';
   created_at: string;
   sets?: ExerciseSet[];
   conditioning_sets?: ConditioningSet[];
