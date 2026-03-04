@@ -9,10 +9,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   ChevronLeft, Plus, Copy, Trash2, Save, Loader2, Dumbbell, GripVertical,
+  Flame, Snowflake, ChevronUp, ChevronDown,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+
+type WorkoutSection = 'warmup' | 'main' | 'cooldown';
 
 interface TemplateExercise {
   name: string;
@@ -25,6 +29,7 @@ interface TemplateExercise {
   rest_seconds?: number;
   notes?: string;
   set_type?: string;
+  workout_section?: WorkoutSection;
 }
 
 interface TemplateWorkout {
@@ -41,6 +46,12 @@ interface Props {
   template: { id: string; name: string; duration_weeks: number; days_per_week: number; category: string; description: string };
   onBack: () => void;
 }
+
+const SECTION_CONFIG: { key: WorkoutSection; label: string; icon: any; color: string }[] = [
+  { key: 'warmup', label: 'WARM UP', icon: Flame, color: 'text-orange-500' },
+  { key: 'main', label: 'EXERCISES', icon: Dumbbell, color: 'text-primary' },
+  { key: 'cooldown', label: 'COOL DOWN', icon: Snowflake, color: 'text-blue-400' },
+];
 
 export function TemplateEditor({ template, onBack }: Props) {
   const [workouts, setWorkouts] = useState<TemplateWorkout[]>([]);
@@ -66,7 +77,10 @@ export function TemplateEditor({ template, onBack }: Props) {
       const parsed = typeof data === "string" ? JSON.parse(data) : data;
       setWorkouts((parsed.workouts || []).map((w: any) => ({
         ...w,
-        exercises: Array.isArray(w.exercises) ? w.exercises : [],
+        exercises: Array.isArray(w.exercises) ? w.exercises.map((ex: any) => ({
+          ...ex,
+          workout_section: ex.workout_section || 'main',
+        })) : [],
       })));
     } catch { setWorkouts([]); }
     finally { setLoading(false); }
@@ -89,22 +103,7 @@ export function TemplateEditor({ template, onBack }: Props) {
   const updateWorkout = (idx: number, field: string, value: any) => {
     setWorkouts(prev => {
       const all = [...prev];
-      const wIdx = all.findIndex((w, i) => {
-        let count = 0;
-        for (let j = 0; j < all.length; j++) {
-          if (all[j].week_number === activeWeek) {
-            if (count === idx) return j === i;
-            count++;
-          }
-        }
-        return false;
-      });
-      const realIdx = all.reduce((acc, w, i) => {
-        if (w.week_number === activeWeek) {
-          acc.push(i);
-        }
-        return acc;
-      }, [] as number[])[idx];
+      const realIdx = getRealIndex(idx);
       if (realIdx !== undefined) {
         (all[realIdx] as any)[field] = value;
       }
@@ -112,13 +111,13 @@ export function TemplateEditor({ template, onBack }: Props) {
     });
   };
 
-  const addExercise = (workoutIdx: number) => {
+  const addExercise = (workoutIdx: number, section: WorkoutSection = 'main') => {
     const realIdx = getRealIndex(workoutIdx);
     if (realIdx === undefined) return;
     setWorkouts(prev => {
       const all = [...prev];
       const w = { ...all[realIdx] };
-      w.exercises = [...w.exercises, { name: "", sets: 3, reps: "8", set_type: "working" }];
+      w.exercises = [...w.exercises, { name: "", sets: 3, reps: "8", set_type: "working", workout_section: section }];
       all[realIdx] = w;
       return all;
     });
@@ -190,7 +189,6 @@ export function TemplateEditor({ template, onBack }: Props) {
           },
         });
       }
-      // Propagate changes to all assigned clients
       const { data: propagateResult } = await supabase.functions.invoke("admin-workout-builder", {
         body: { action: "propagate_template", templateId: template.id },
       });
@@ -227,6 +225,59 @@ export function TemplateEditor({ template, onBack }: Props) {
       toast({ title: "Error", description: e.message, variant: "destructive" });
     } finally { setSaving(false); }
   };
+
+  const renderExerciseRow = (wIdx: number, ex: TemplateExercise, eIdx: number) => (
+    <div key={eIdx} className="border border-border/50 rounded-lg p-3 space-y-2">
+      <div className="flex items-center gap-2">
+        <GripVertical className="h-4 w-4 text-muted-foreground shrink-0" />
+        <Input
+          value={ex.name}
+          onChange={(e) => updateExercise(wIdx, eIdx, "name", e.target.value)}
+          placeholder="Exercise name"
+          className="flex-1 h-8 text-sm"
+        />
+        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive shrink-0" onClick={() => removeExercise(wIdx, eIdx)}>
+          <Trash2 className="h-3 w-3" />
+        </Button>
+      </div>
+      <div className="grid grid-cols-6 gap-2">
+        <div>
+          <label className="text-[10px] text-muted-foreground">Sets</label>
+          <Input type="number" value={ex.sets} onChange={(e) => updateExercise(wIdx, eIdx, "sets", parseInt(e.target.value) || 1)} className="h-7 text-xs" />
+        </div>
+        <div>
+          <label className="text-[10px] text-muted-foreground">Reps</label>
+          <Input value={ex.reps} onChange={(e) => updateExercise(wIdx, eIdx, "reps", e.target.value)} className="h-7 text-xs" placeholder="8" />
+        </div>
+        <div>
+          <label className="text-[10px] text-muted-foreground">%1RM</label>
+          <Input type="number" value={ex.percentage ?? ""} onChange={(e) => updateExercise(wIdx, eIdx, "percentage", e.target.value ? parseFloat(e.target.value) : null)} className="h-7 text-xs" placeholder="85" />
+        </div>
+        <div>
+          <label className="text-[10px] text-muted-foreground">RPE</label>
+          <Input type="number" value={ex.rpe ?? ""} onChange={(e) => updateExercise(wIdx, eIdx, "rpe", e.target.value ? parseFloat(e.target.value) : null)} className="h-7 text-xs" placeholder="8" step="0.5" />
+        </div>
+        <div>
+          <label className="text-[10px] text-muted-foreground">RIR</label>
+          <Input type="number" value={ex.rir ?? ""} onChange={(e) => updateExercise(wIdx, eIdx, "rir", e.target.value ? parseInt(e.target.value) : null)} className="h-7 text-xs" placeholder="2" />
+        </div>
+        <div>
+          <label className="text-[10px] text-muted-foreground">Tempo</label>
+          <Input value={ex.tempo ?? ""} onChange={(e) => updateExercise(wIdx, eIdx, "tempo", e.target.value)} className="h-7 text-xs" placeholder="30X1" />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label className="text-[10px] text-muted-foreground">Rest (sec)</label>
+          <Input type="number" value={ex.rest_seconds ?? ""} onChange={(e) => updateExercise(wIdx, eIdx, "rest_seconds", e.target.value ? parseInt(e.target.value) : undefined)} className="h-7 text-xs" placeholder="120" />
+        </div>
+        <div>
+          <label className="text-[10px] text-muted-foreground">Notes</label>
+          <Input value={ex.notes ?? ""} onChange={(e) => updateExercise(wIdx, eIdx, "notes", e.target.value)} className="h-7 text-xs" placeholder="Pause at bottom..." />
+        </div>
+      </div>
+    </div>
+  );
 
   if (loading) {
     return (
@@ -351,63 +402,44 @@ export function TemplateEditor({ template, onBack }: Props) {
                     className="text-xs border-none px-0 h-auto focus-visible:ring-0 text-muted-foreground"
                   />
                 </CardHeader>
-                <CardContent className="space-y-2">
-                  {/* Exercise rows */}
-                  {w.exercises.map((ex, eIdx) => (
-                    <div key={eIdx} className="border border-border/50 rounded-lg p-3 space-y-2">
-                      <div className="flex items-center gap-2">
-                        <GripVertical className="h-4 w-4 text-muted-foreground shrink-0" />
-                        <Input
-                          value={ex.name}
-                          onChange={(e) => updateExercise(wIdx, eIdx, "name", e.target.value)}
-                          placeholder="Exercise name"
-                          className="flex-1 h-8 text-sm"
-                        />
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive shrink-0" onClick={() => removeExercise(wIdx, eIdx)}>
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
+                <CardContent className="space-y-4">
+                  {/* Section-based exercise layout */}
+                  {SECTION_CONFIG.map(({ key: sectionKey, label, icon: Icon, color }) => {
+                    const sectionExercises = w.exercises
+                      .map((ex, idx) => ({ ex, idx }))
+                      .filter(({ ex }) => (ex.workout_section || 'main') === sectionKey);
+
+                    return (
+                      <div key={sectionKey}>
+                        <div className="flex items-center justify-between py-1.5 mb-2 border-b border-border/30">
+                          <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                            <Icon className={`h-3.5 w-3.5 ${color}`} />
+                            {label}
+                            {sectionExercises.length > 0 && (
+                              <Badge variant="secondary" className="text-[9px] h-3.5 px-1 font-mono">
+                                {sectionExercises.length}
+                              </Badge>
+                            )}
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 text-[10px] gap-1 text-primary px-2"
+                            onClick={() => addExercise(wIdx, sectionKey)}
+                          >
+                            <Plus className="h-2.5 w-2.5" />Add
+                          </Button>
+                        </div>
+                        {sectionExercises.length === 0 ? (
+                          <p className="text-[10px] text-muted-foreground/50 text-center py-2">—</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {sectionExercises.map(({ ex, idx }) => renderExerciseRow(wIdx, ex, idx))}
+                          </div>
+                        )}
                       </div>
-                      <div className="grid grid-cols-6 gap-2">
-                        <div>
-                          <label className="text-[10px] text-muted-foreground">Sets</label>
-                          <Input type="number" value={ex.sets} onChange={(e) => updateExercise(wIdx, eIdx, "sets", parseInt(e.target.value) || 1)} className="h-7 text-xs" />
-                        </div>
-                        <div>
-                          <label className="text-[10px] text-muted-foreground">Reps</label>
-                          <Input value={ex.reps} onChange={(e) => updateExercise(wIdx, eIdx, "reps", e.target.value)} className="h-7 text-xs" placeholder="8" />
-                        </div>
-                        <div>
-                          <label className="text-[10px] text-muted-foreground">%1RM</label>
-                          <Input type="number" value={ex.percentage ?? ""} onChange={(e) => updateExercise(wIdx, eIdx, "percentage", e.target.value ? parseFloat(e.target.value) : null)} className="h-7 text-xs" placeholder="85" />
-                        </div>
-                        <div>
-                          <label className="text-[10px] text-muted-foreground">RPE</label>
-                          <Input type="number" value={ex.rpe ?? ""} onChange={(e) => updateExercise(wIdx, eIdx, "rpe", e.target.value ? parseFloat(e.target.value) : null)} className="h-7 text-xs" placeholder="8" step="0.5" />
-                        </div>
-                        <div>
-                          <label className="text-[10px] text-muted-foreground">RIR</label>
-                          <Input type="number" value={ex.rir ?? ""} onChange={(e) => updateExercise(wIdx, eIdx, "rir", e.target.value ? parseInt(e.target.value) : null)} className="h-7 text-xs" placeholder="2" />
-                        </div>
-                        <div>
-                          <label className="text-[10px] text-muted-foreground">Tempo</label>
-                          <Input value={ex.tempo ?? ""} onChange={(e) => updateExercise(wIdx, eIdx, "tempo", e.target.value)} className="h-7 text-xs" placeholder="30X1" />
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <label className="text-[10px] text-muted-foreground">Rest (sec)</label>
-                          <Input type="number" value={ex.rest_seconds ?? ""} onChange={(e) => updateExercise(wIdx, eIdx, "rest_seconds", e.target.value ? parseInt(e.target.value) : undefined)} className="h-7 text-xs" placeholder="120" />
-                        </div>
-                        <div>
-                          <label className="text-[10px] text-muted-foreground">Notes</label>
-                          <Input value={ex.notes ?? ""} onChange={(e) => updateExercise(wIdx, eIdx, "notes", e.target.value)} className="h-7 text-xs" placeholder="Pause at bottom..." />
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                  <Button variant="outline" size="sm" onClick={() => addExercise(wIdx)} className="w-full gap-1 border-dashed">
-                    <Plus className="h-3.5 w-3.5" />Add Exercise
-                  </Button>
+                    );
+                  })}
                 </CardContent>
               </Card>
             ))}

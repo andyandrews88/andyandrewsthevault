@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
   ChevronLeft, Dumbbell, Plus, Trash2, Check, X, Loader2,
   FileText, Timer, Save, Video, ChevronDown, ChevronUp, RotateCcw,
-  MoreVertical, RefreshCw, ArrowRightLeft,
+  MoreVertical, RefreshCw, ArrowRightLeft, Flame, Snowflake,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -17,6 +17,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { AdminExerciseMenu } from "@/components/workout/AdminExerciseMenu";
 import { supabase } from "@/integrations/supabase/client";
 import { useAdminCheck } from "@/hooks/useAdminCheck";
@@ -46,7 +47,16 @@ interface LocalExercise {
   videoSaving: boolean;
   isTimed: boolean;
   isUnilateral: boolean;
+  workout_section: 'warmup' | 'main' | 'cooldown';
 }
+
+type WorkoutSection = 'warmup' | 'main' | 'cooldown';
+
+const SECTION_CONFIG: { key: WorkoutSection; label: string; icon: any; color: string }[] = [
+  { key: 'warmup', label: 'WARM UP', icon: Flame, color: 'text-orange-500' },
+  { key: 'main', label: 'EXERCISES', icon: Dumbbell, color: 'text-primary' },
+  { key: 'cooldown', label: 'COOL DOWN', icon: Snowflake, color: 'text-blue-400' },
+];
 
 async function invokeBuilder(body: Record<string, unknown>) {
   const { data, error } = await supabase.functions.invoke("admin-workout-builder", { body });
@@ -56,10 +66,8 @@ async function invokeBuilder(body: Record<string, unknown>) {
 
 function getEmbedUrl(url: string): string | null {
   if (!url) return null;
-  // YouTube
   const ytMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
   if (ytMatch) return `https://www.youtube.com/embed/${ytMatch[1]}`;
-  // Vimeo
   const vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
   if (vimeoMatch) return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
   return url;
@@ -86,10 +94,23 @@ export default function AdminWorkoutBuilderPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
   const [exerciseSearchOpen, setExerciseSearchOpen] = useState(false);
+  const [exerciseSearchSection, setExerciseSearchSection] = useState<WorkoutSection>('main');
   const [replaceSearchOpen, setReplaceSearchOpen] = useState(false);
   const [replacingExerciseId, setReplacingExerciseId] = useState<string | null>(null);
   const [addingExercise, setAddingExercise] = useState(false);
   const [savingSetId, setSavingSetId] = useState<string | null>(null);
+  const [collapsedSections, setCollapsedSections] = useState<Record<WorkoutSection, boolean>>({
+    warmup: false, main: false, cooldown: false,
+  });
+
+  const toggleSection = (section: WorkoutSection) => {
+    setCollapsedSections(prev => ({ ...prev, [section]: !prev[section] }));
+  };
+
+  const openSearchForSection = (section: WorkoutSection) => {
+    setExerciseSearchSection(section);
+    setExerciseSearchOpen(true);
+  };
 
   useEffect(() => {
     if (!adminLoading && !isAdmin) navigate("/");
@@ -102,13 +123,11 @@ export default function AdminWorkoutBuilderPage() {
     const init = async () => {
       try {
         if (isEditMode) {
-          // EDIT MODE: load existing workout
           const detail = await invokeBuilder({ action: "get_workout_detail", workoutId: editWorkoutId });
           setWorkoutId(editWorkoutId);
           setNotes(detail.workout?.notes || "");
           setIsCompleted(detail.workout?.is_completed || false);
 
-          // Load video URLs and metadata for each exercise
           const loadedExercises: LocalExercise[] = [];
           for (const ex of (detail.exercises || [])) {
             let videoUrl: string | null = null;
@@ -134,11 +153,11 @@ export default function AdminWorkoutBuilderPage() {
               videoSaving: false,
               isTimed,
               isUnilateral,
+              workout_section: ex.workout_section || 'main',
             });
           }
           setExercises(loadedExercises);
         } else {
-          // CREATE MODE
           const data = await invokeBuilder({
             action: "create_workout", userId, workoutName, date: workoutDate,
           });
@@ -156,6 +175,7 @@ export default function AdminWorkoutBuilderPage() {
                   action: "add_exercise", workoutId: newWorkoutId,
                   exerciseName: srcEx.exercise_name, orderIndex: i,
                   exerciseType: srcEx.exercise_type || "strength",
+                  workoutSection: srcEx.workout_section || "main",
                 });
                 const newSets: LocalSet[] = [];
                 const srcSets = srcEx.sets || [];
@@ -188,6 +208,7 @@ export default function AdminWorkoutBuilderPage() {
                   exercise_type: exData.exercise_type || "strength", notes: srcEx.notes || "",
                   sets: newSets, videoUrl: null, videoExpanded: false, videoInput: "", videoSaving: false,
                   isTimed: false, isUnilateral: false,
+                  workout_section: srcEx.workout_section || 'main',
                 }]);
               }
               toast({ title: "Workout cloned", description: `${sourceExercises.length} exercises loaded` });
@@ -221,10 +242,12 @@ export default function AdminWorkoutBuilderPage() {
     if (!workoutId) return;
     setAddingExercise(true);
     const type = isConditioningExercise(name) ? "conditioning" : "strength";
+    const sectionExercises = exercises.filter(e => e.workout_section === exerciseSearchSection);
     try {
       const data = await invokeBuilder({
         action: "add_exercise", workoutId, exerciseName: name,
         orderIndex: exercises.length, exerciseType: type,
+        workoutSection: exerciseSearchSection,
       });
       let videoUrl: string | null = null;
       let isTimed = false;
@@ -243,6 +266,7 @@ export default function AdminWorkoutBuilderPage() {
         })),
         videoUrl, videoExpanded: false, videoInput: videoUrl || "", videoSaving: false,
         isTimed, isUnilateral,
+        workout_section: exerciseSearchSection,
       }]);
     } catch (e: any) {
       toast({ title: "Error", description: e.message, variant: "destructive" });
@@ -335,7 +359,6 @@ export default function AdminWorkoutBuilderPage() {
     try { await invokeBuilder({ action: "update_exercise_notes", exerciseId, notes: ex.notes }); } catch {}
   };
 
-  // Toggle video section
   const toggleVideoExpanded = (exerciseId: string) => {
     setExercises(prev => prev.map(e => e.id === exerciseId ? { ...e, videoExpanded: !e.videoExpanded } : e));
   };
@@ -421,7 +444,6 @@ export default function AdminWorkoutBuilderPage() {
         toast({ title: "No previous data", description: `No past sessions found for ${exerciseName}` });
         return;
       }
-      // Update existing sets with last session data
       const ex = exercises.find(e => e.id === exerciseId);
       if (!ex) return;
       for (let i = 0; i < lastSets.length; i++) {
@@ -431,7 +453,6 @@ export default function AdminWorkoutBuilderPage() {
           await invokeBuilder({ action: "add_set", exerciseId, setNumber: i + 1, weight: lastSets[i].weight, reps: lastSets[i].reps });
         }
       }
-      // Reload exercise sets
       const detail = await invokeBuilder({ action: "get_workout_detail", workoutId: workoutId! });
       const updatedEx = (detail.exercises || []).find((e: any) => e.id === exerciseId);
       if (updatedEx) {
@@ -465,6 +486,185 @@ export default function AdminWorkoutBuilderPage() {
       setReplacingExerciseId(null);
       setReplaceSearchOpen(false);
     }
+  };
+
+  // Helper to render an exercise card (reused across sections)
+  const renderExerciseCard = (exercise: LocalExercise) => {
+    const exCompleted = exercise.sets.filter(s => s.is_completed).length;
+    const embedUrl = exercise.videoUrl ? getEmbedUrl(exercise.videoUrl) : null;
+    return (
+      <Card key={exercise.id} className="overflow-hidden border-border/50">
+        <CardHeader className="py-3 px-4 bg-secondary/30 border-b border-border/50">
+          <div className="flex items-center justify-between">
+            <div className="flex-1 min-w-0">
+              <h3 className="font-bold text-sm uppercase tracking-wider text-foreground">
+                {exercise.exercise_name}
+              </h3>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-xs text-muted-foreground">
+                  {exCompleted}/{exercise.sets.length} sets
+                </span>
+                {exercise.exercise_type === "conditioning" && (
+                  <Badge variant="outline" className="text-[10px] h-4 px-1.5">
+                    <Timer className="h-2.5 w-2.5 mr-0.5" />Conditioning
+                  </Badge>
+                )}
+                {exercise.isTimed && (
+                  <Badge variant="outline" className="text-[10px] h-4 px-1.5 border-accent text-accent-foreground">
+                    <Timer className="h-2.5 w-2.5 mr-0.5" />Timed
+                  </Badge>
+                )}
+                {exercise.isUnilateral && (
+                  <Badge variant="outline" className="text-[10px] h-4 px-1.5 border-accent text-accent-foreground">
+                    L/R
+                  </Badge>
+                )}
+              </div>
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem onClick={() => toggleVideoExpanded(exercise.id)}>
+                  <Video className={`h-4 w-4 mr-2 ${exercise.videoUrl ? 'text-primary' : ''}`} />
+                  {exercise.videoExpanded ? 'Hide Video' : 'Show Video'}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleLoadLastSession(exercise.id, exercise.exercise_name)}>
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Load Last Session
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => { setReplacingExerciseId(exercise.id); setReplaceSearchOpen(true); }}>
+                  <ArrowRightLeft className="h-4 w-4 mr-2" />
+                  Replace Exercise
+                </DropdownMenuItem>
+                <AdminExerciseMenu exerciseName={exercise.exercise_name} isAdmin={true} onMetadataChange={(field, value) => handleMetadataChange(exercise.id, field, value)} />
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="text-destructive" onClick={() => handleRemoveExercise(exercise.id)}>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Remove Exercise
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </CardHeader>
+
+        <CardContent className="p-0">
+          {exercise.videoExpanded && (
+            <div className="p-3 border-b border-border/30 bg-muted/20 space-y-2">
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Paste YouTube or Vimeo URL..."
+                  value={exercise.videoInput}
+                  onChange={(e) => handleVideoInputChange(exercise.id, e.target.value)}
+                  className="flex-1 h-9 text-xs"
+                />
+                <Button
+                  size="sm"
+                  onClick={() => handleSaveVideo(exercise.id)}
+                  disabled={exercise.videoSaving || !exercise.videoInput.trim()}
+                  className="h-9"
+                >
+                  {exercise.videoSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                </Button>
+              </div>
+              {embedUrl && (
+                <div className="aspect-video rounded-md overflow-hidden bg-black">
+                  <iframe
+                    src={embedUrl}
+                    className="w-full h-full"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="grid grid-cols-[40px_1fr_1fr_1fr_44px_36px] gap-1.5 items-center py-2.5 px-4 border-b border-border/50 bg-muted/30">
+            <span className="text-[11px] font-semibold text-muted-foreground text-center uppercase">Set</span>
+            <span className="text-[11px] font-semibold text-muted-foreground text-center uppercase">{exercise.isTimed ? "+Load" : "Kg"}</span>
+            <span className="text-[11px] font-semibold text-muted-foreground text-center uppercase">{exercise.isTimed ? "Sec" : "Reps"}</span>
+            <span className="text-[11px] font-semibold text-muted-foreground text-center uppercase">RIR</span>
+            <span className="text-[11px] font-semibold text-muted-foreground text-center uppercase">Done</span>
+            <span></span>
+          </div>
+
+          <div className="divide-y divide-border/20">
+            {exercise.sets.map((s) => (
+              <div
+                key={s.id}
+                className={`grid grid-cols-[40px_1fr_1fr_1fr_44px_36px] gap-1.5 items-center py-2 px-4 transition-colors ${
+                  s.is_completed ? "bg-primary/5" : ""
+                }`}
+              >
+                <span className="text-center text-sm font-bold text-muted-foreground font-mono">
+                  {s.set_number}
+                </span>
+                <Input
+                  type="number" inputMode="decimal" placeholder="—"
+                  value={s.weight ?? ""}
+                  onChange={(e) => handleUpdateSet(s.id, "weight", e.target.value ? Number(e.target.value) : null)}
+                  onBlur={() => handleSaveSet(s.id)}
+                  className="h-10 text-center text-sm font-mono border-border/50 bg-secondary/20"
+                />
+                <Input
+                  type="number" inputMode="numeric" placeholder={exercise.isTimed ? "sec" : "—"}
+                  value={s.reps ?? ""}
+                  onChange={(e) => handleUpdateSet(s.id, "reps", e.target.value ? Number(e.target.value) : null)}
+                  onBlur={() => handleSaveSet(s.id)}
+                  className="h-10 text-center text-sm font-mono border-border/50 bg-secondary/20"
+                />
+                <Input
+                  type="number" inputMode="numeric" placeholder="—"
+                  value={s.rir ?? ""}
+                  onChange={(e) => handleUpdateSet(s.id, "rir", e.target.value ? Number(e.target.value) : null)}
+                  onBlur={() => handleSaveSet(s.id)}
+                  className="h-10 text-center text-sm font-mono border-border/50 bg-secondary/20"
+                />
+                <Button
+                  variant={s.is_completed ? "default" : "outline"}
+                  size="icon"
+                  className={`h-10 w-10 ${s.is_completed ? "bg-success text-success-foreground hover:bg-success/90" : "border-border/50"}`}
+                  onClick={() => handleCompleteSet(s.id)}
+                >
+                  <Check className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost" size="icon"
+                  className="h-10 w-10 text-muted-foreground hover:text-destructive"
+                  onClick={() => handleRemoveSet(s.id)}
+                >
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            ))}
+          </div>
+
+          <div className="p-3 space-y-2 border-t border-border/30">
+            <Button
+              variant="outline" size="sm"
+              onClick={() => handleAddSet(exercise.id)}
+              className="w-full gap-2 border-dashed border-border/50"
+            >
+              <Plus className="h-3.5 w-3.5" />Add Set
+            </Button>
+            <div className="relative">
+              <FileText className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                placeholder="Coach cue (e.g. 3s eccentric, pause at bottom)"
+                value={exercise.notes}
+                onChange={(e) => handleUpdateExerciseNotes(exercise.id, e.target.value)}
+                onBlur={() => handleSaveExerciseNotes(exercise.id)}
+                className="pl-8 h-9 text-xs border-border/30 bg-transparent"
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
   };
 
   if (adminLoading || isCreating) {
@@ -542,207 +742,55 @@ export default function AdminWorkoutBuilderPage() {
           </div>
         )}
 
-        {/* Exercise Cards */}
-        {exercises.map((exercise) => {
-          const exCompleted = exercise.sets.filter(s => s.is_completed).length;
-          const embedUrl = exercise.videoUrl ? getEmbedUrl(exercise.videoUrl) : null;
+        {/* Section-based Exercise Layout */}
+        {SECTION_CONFIG.map(({ key, label, icon: Icon, color }) => {
+          const sectionExercises = exercises.filter(e => e.workout_section === key);
+          const isOpen = !collapsedSections[key];
+
           return (
-            <Card key={exercise.id} className="overflow-hidden border-border/50">
-              {/* Exercise Header */}
-              <CardHeader className="py-3 px-4 bg-secondary/30 border-b border-border/50">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-sm uppercase tracking-wider text-foreground">
-                      {exercise.exercise_name}
-                    </h3>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-xs text-muted-foreground">
-                        {exCompleted}/{exercise.sets.length} sets
-                      </span>
-                      {exercise.exercise_type === "conditioning" && (
-                        <Badge variant="outline" className="text-[10px] h-4 px-1.5">
-                          <Timer className="h-2.5 w-2.5 mr-0.5" />Conditioning
-                        </Badge>
-                      )}
-                      {exercise.isTimed && (
-                        <Badge variant="outline" className="text-[10px] h-4 px-1.5 border-accent text-accent-foreground">
-                          <Timer className="h-2.5 w-2.5 mr-0.5" />Timed
-                        </Badge>
-                      )}
-                      {exercise.isUnilateral && (
-                        <Badge variant="outline" className="text-[10px] h-4 px-1.5 border-accent text-accent-foreground">
-                          L/R
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
-                        <MoreVertical className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-56">
-                      <DropdownMenuItem onClick={() => toggleVideoExpanded(exercise.id)}>
-                        <Video className={`h-4 w-4 mr-2 ${exercise.videoUrl ? 'text-primary' : ''}`} />
-                        {exercise.videoExpanded ? 'Hide Video' : 'Show Video'}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleLoadLastSession(exercise.id, exercise.exercise_name)}>
-                        <RefreshCw className="h-4 w-4 mr-2" />
-                        Load Last Session
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => { setReplacingExerciseId(exercise.id); setReplaceSearchOpen(true); }}>
-                        <ArrowRightLeft className="h-4 w-4 mr-2" />
-                        Replace Exercise
-                      </DropdownMenuItem>
-                      <AdminExerciseMenu exerciseName={exercise.exercise_name} isAdmin={true} onMetadataChange={(field, value) => handleMetadataChange(exercise.id, field, value)} />
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem className="text-destructive" onClick={() => handleRemoveExercise(exercise.id)}>
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Remove Exercise
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </CardHeader>
-
-              <CardContent className="p-0">
-                {/* Video Section (expandable) */}
-                {exercise.videoExpanded && (
-                  <div className="p-3 border-b border-border/30 bg-muted/20 space-y-2">
-                    <div className="flex gap-2">
-                      <Input
-                        placeholder="Paste YouTube or Vimeo URL..."
-                        value={exercise.videoInput}
-                        onChange={(e) => handleVideoInputChange(exercise.id, e.target.value)}
-                        className="flex-1 h-9 text-xs"
-                      />
-                      <Button
-                        size="sm"
-                        onClick={() => handleSaveVideo(exercise.id)}
-                        disabled={exercise.videoSaving || !exercise.videoInput.trim()}
-                        className="h-9"
-                      >
-                        {exercise.videoSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-                      </Button>
-                    </div>
-                    {embedUrl && (
-                      <div className="aspect-video rounded-md overflow-hidden bg-black">
-                        <iframe
-                          src={embedUrl}
-                          className="w-full h-full"
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                          allowFullScreen
-                        />
-                      </div>
+            <Collapsible key={key} open={isOpen} onOpenChange={() => toggleSection(key)}>
+              <div className="flex items-center justify-between py-2">
+                <CollapsibleTrigger asChild>
+                  <button className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors">
+                    <Icon className={`h-4 w-4 ${color}`} />
+                    {label}
+                    {sectionExercises.length > 0 && (
+                      <Badge variant="secondary" className="text-[10px] h-4 px-1.5 font-mono">
+                        {sectionExercises.length}
+                      </Badge>
                     )}
+                    {isOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                  </button>
+                </CollapsibleTrigger>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs gap-1 text-primary"
+                  onClick={() => openSearchForSection(key)}
+                  disabled={addingExercise}
+                >
+                  <Plus className="h-3 w-3" />Add
+                </Button>
+              </div>
+              <CollapsibleContent className="space-y-3">
+                {sectionExercises.length === 0 ? (
+                  <div className="text-center py-4 border border-dashed border-border/50 rounded-lg">
+                    <p className="text-xs text-muted-foreground">No {label.toLowerCase()} exercises</p>
                   </div>
+                ) : (
+                  sectionExercises.map(exercise => renderExerciseCard(exercise))
                 )}
-
-                {/* Set Grid Header */}
-                <div className="grid grid-cols-[40px_1fr_1fr_1fr_44px_36px] gap-1.5 items-center py-2.5 px-4 border-b border-border/50 bg-muted/30">
-                  <span className="text-[11px] font-semibold text-muted-foreground text-center uppercase">Set</span>
-                  <span className="text-[11px] font-semibold text-muted-foreground text-center uppercase">{exercise.isTimed ? "+Load" : "Kg"}</span>
-                  <span className="text-[11px] font-semibold text-muted-foreground text-center uppercase">{exercise.isTimed ? "Sec" : "Reps"}</span>
-                  <span className="text-[11px] font-semibold text-muted-foreground text-center uppercase">RIR</span>
-                  <span className="text-[11px] font-semibold text-muted-foreground text-center uppercase">Done</span>
-                  <span></span>
-                </div>
-
-                {/* Sets */}
-                <div className="divide-y divide-border/20">
-                  {exercise.sets.map((s) => (
-                    <div
-                      key={s.id}
-                      className={`grid grid-cols-[40px_1fr_1fr_1fr_44px_36px] gap-1.5 items-center py-2 px-4 transition-colors ${
-                        s.is_completed ? "bg-primary/5" : ""
-                      }`}
-                    >
-                      <span className="text-center text-sm font-bold text-muted-foreground font-mono">
-                        {s.set_number}
-                      </span>
-                      <Input
-                        type="number" inputMode="decimal" placeholder="—"
-                        value={s.weight ?? ""}
-                        onChange={(e) => handleUpdateSet(s.id, "weight", e.target.value ? Number(e.target.value) : null)}
-                        onBlur={() => handleSaveSet(s.id)}
-                        className="h-10 text-center text-sm font-mono border-border/50 bg-secondary/20"
-                      />
-                      <Input
-                        type="number" inputMode="numeric" placeholder={exercise.isTimed ? "sec" : "—"}
-                        value={s.reps ?? ""}
-                        onChange={(e) => handleUpdateSet(s.id, "reps", e.target.value ? Number(e.target.value) : null)}
-                        onBlur={() => handleSaveSet(s.id)}
-                        className="h-10 text-center text-sm font-mono border-border/50 bg-secondary/20"
-                      />
-                      <Input
-                        type="number" inputMode="numeric" placeholder="—"
-                        value={s.rir ?? ""}
-                        onChange={(e) => handleUpdateSet(s.id, "rir", e.target.value ? Number(e.target.value) : null)}
-                        onBlur={() => handleSaveSet(s.id)}
-                        className="h-10 text-center text-sm font-mono border-border/50 bg-secondary/20"
-                      />
-                      <Button
-                        variant={s.is_completed ? "default" : "outline"}
-                        size="icon"
-                        className={`h-10 w-10 ${s.is_completed ? "bg-success text-success-foreground hover:bg-success/90" : "border-border/50"}`}
-                        onClick={() => handleCompleteSet(s.id)}
-                      >
-                        <Check className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost" size="icon"
-                        className="h-10 w-10 text-muted-foreground hover:text-destructive"
-                        onClick={() => handleRemoveSet(s.id)}
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Add Set + Coach Cue */}
-                <div className="p-3 space-y-2 border-t border-border/30">
-                  <Button
-                    variant="outline" size="sm"
-                    onClick={() => handleAddSet(exercise.id)}
-                    className="w-full gap-2 border-dashed border-border/50"
-                  >
-                    <Plus className="h-3.5 w-3.5" />Add Set
-                  </Button>
-                  <div className="relative">
-                    <FileText className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-                    <Input
-                      placeholder="Coach cue (e.g. 3s eccentric, pause at bottom)"
-                      value={exercise.notes}
-                      onChange={(e) => handleUpdateExerciseNotes(exercise.id, e.target.value)}
-                      onBlur={() => handleSaveExerciseNotes(exercise.id)}
-                      className="pl-8 h-9 text-xs border-border/30 bg-transparent"
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+              </CollapsibleContent>
+            </Collapsible>
           );
         })}
-
-        {/* Add Exercise Button */}
-        <Button
-          variant="outline"
-          className="w-full h-14 gap-3 border-dashed border-2 border-primary/30 hover:border-primary/60 hover:bg-primary/5 text-primary"
-          onClick={() => setExerciseSearchOpen(true)}
-          disabled={addingExercise}
-        >
-          {addingExercise ? <Loader2 className="h-5 w-5 animate-spin" /> : <Plus className="h-5 w-5" />}
-          <span className="text-base font-medium">Add Exercise</span>
-        </Button>
 
         {/* Empty State */}
         {exercises.length === 0 && !addingExercise && (
           <div className="text-center py-12 space-y-3">
             <Dumbbell className="h-12 w-12 text-muted-foreground/30 mx-auto" />
             <p className="text-muted-foreground">No exercises yet</p>
-            <p className="text-xs text-muted-foreground/60">Click "Add Exercise" to start building this workout</p>
+            <p className="text-xs text-muted-foreground/60">Click "Add" in any section to start building this workout</p>
           </div>
         )}
 
@@ -800,6 +848,7 @@ export default function AdminWorkoutBuilderPage() {
         onOpenChange={setExerciseSearchOpen}
         onSelectExercise={handleAddExercise}
         recentExercises={exercises.map(e => e.exercise_name)}
+        section={exerciseSearchSection}
       />
 
       <ExerciseSearch
