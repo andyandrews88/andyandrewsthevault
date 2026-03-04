@@ -282,7 +282,7 @@ export function AdminDetailDrawer({
       ];
 
       return (
-        <div className="overflow-y-auto overscroll-y-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
+        <div>
           <UserStatCards users={allUsers} />
           {/* Filter bar */}
           <div className="flex flex-wrap gap-1 mb-3">
