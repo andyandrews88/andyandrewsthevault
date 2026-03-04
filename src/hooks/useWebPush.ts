@@ -2,15 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
 
-// PushManager types are available at runtime but may not be in TS lib
-declare global {
-  interface ServiceWorkerRegistration {
-    pushManager: {
-      getSubscription(): Promise<PushSubscription | null>;
-      subscribe(options: { userVisibleOnly: boolean; applicationServerKey: Uint8Array }): Promise<PushSubscription>;
-    };
-  }
-}
+// PushManager types are available at runtime in modern browsers
 
 const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY || 'BAip0odqgT1HxAeqNVCEizm88HQv_K6qnPSnZ3UJn6TxuF4VqJx7J2idd5vLpjHQo99H0BDy25tbvLSz-kPOmUs';
 
@@ -67,9 +59,10 @@ export function useWebPush() {
       }
 
       const registration = await navigator.serviceWorker.ready;
+      const appServerKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
       const sub = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+        applicationServerKey: appServerKey.buffer as ArrayBuffer,
       });
 
       const key = sub.getKey('p256dh');
