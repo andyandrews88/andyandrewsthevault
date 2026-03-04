@@ -721,7 +721,11 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
     
     if (get().isEditing) return;
 
-    set({ isLoading: true });
+    // Soft refresh: don't show loading spinner if we already have a workout loaded
+    const hasExistingWorkout = !!get().activeWorkout;
+    if (!hasExistingWorkout) {
+      set({ isLoading: true });
+    }
     
     const today = format(new Date(), 'yyyy-MM-dd');
 

@@ -19,7 +19,7 @@ export function useWorkoutRealtime() {
         "postgres_changes",
         { event: "*", schema: "public", table: "workouts", filter: `user_id=eq.${user.id}` },
         () => {
-          // Refetch active workout and history
+          // Always refetch on workout-level changes (admin creating/completing workouts)
           useWorkoutStore.getState().fetchActiveWorkout();
           useWorkoutStore.getState().fetchWorkoutHistory();
           useWorkoutStore.getState().fetchWorkoutDays();
@@ -29,14 +29,22 @@ export function useWorkoutRealtime() {
         "postgres_changes",
         { event: "*", schema: "public", table: "workout_exercises" },
         () => {
-          useWorkoutStore.getState().fetchActiveWorkout();
+          // Skip if user has an active workout – local state is already up-to-date
+          const { activeWorkout } = useWorkoutStore.getState();
+          if (!activeWorkout) {
+            useWorkoutStore.getState().fetchActiveWorkout();
+          }
         }
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "exercise_sets" },
         () => {
-          useWorkoutStore.getState().fetchActiveWorkout();
+          // Skip – user's own set changes are handled optimistically
+          const { activeWorkout } = useWorkoutStore.getState();
+          if (!activeWorkout) {
+            useWorkoutStore.getState().fetchActiveWorkout();
+          }
         }
       )
       .subscribe();
