@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -38,11 +38,6 @@ interface ExerciseSearchProps {
 
 type CategoryKey = keyof typeof EXERCISE_CATEGORIES;
 
-const ALL_KNOWN_EXERCISES = new Set([
-  ...STRENGTH_EXERCISES.map(e => e.toLowerCase()),
-  ...CONDITIONING_EXERCISES.map(e => e.toLowerCase()),
-]);
-
 export function ExerciseSearch({ 
   open, 
   onOpenChange, 
@@ -54,6 +49,29 @@ export function ExerciseSearch({
   const [search, setSearch] = useState("");
   const [exerciseType, setExerciseType] = useState<'strength' | 'conditioning'>('strength');
   const [selectedCategory, setSelectedCategory] = useState<CategoryKey | 'all'>('all');
+  const [dbExercises, setDbExercises] = useState<{ name: string; category: string }[]>([]);
+
+  // Fetch approved exercises from DB when dialog opens
+  useEffect(() => {
+    if (!open) return;
+    supabase
+      .from('exercise_library')
+      .select('name, category')
+      .eq('status', 'approved')
+      .then(({ data }) => {
+        if (data) setDbExercises(data);
+      });
+  }, [open]);
+
+  // Build a combined set of all known exercises (hardcoded + DB)
+  const allKnownExercises = useMemo(() => {
+    const s = new Set([
+      ...STRENGTH_EXERCISES.map(e => e.toLowerCase()),
+      ...CONDITIONING_EXERCISES.map(e => e.toLowerCase()),
+      ...dbExercises.map(e => e.name.toLowerCase()),
+    ]);
+    return s;
+  }, [dbExercises]);
 
   const categories: (CategoryKey | 'all')[] = useMemo(() => {
     if (exerciseType === 'conditioning') return ['all', 'conditioning'];
@@ -61,6 +79,7 @@ export function ExerciseSearch({
   }, [exerciseType]);
 
   const filteredExercises = useMemo(() => {
+    // Start with hardcoded list
     let exercises: string[] = exerciseType === 'conditioning' 
       ? [...CONDITIONING_EXERCISES] 
       : [...STRENGTH_EXERCISES];
@@ -68,19 +87,32 @@ export function ExerciseSearch({
     if (selectedCategory !== 'all' && selectedCategory in EXERCISE_CATEGORIES) {
       exercises = [...EXERCISE_CATEGORIES[selectedCategory as CategoryKey]];
     }
+
+    // Merge DB exercises that aren't already in the hardcoded list
+    const existingLower = new Set(exercises.map(e => e.toLowerCase()));
+    const dbExtras = dbExercises
+      .filter(e => {
+        if (existingLower.has(e.name.toLowerCase())) return false;
+        if (exerciseType === 'conditioning') return e.category === 'conditioning';
+        return e.category !== 'conditioning';
+      })
+      .map(e => e.name);
+
+    // Only add DB extras when showing 'all' (no specific muscle group filter)
+    if (selectedCategory === 'all') {
+      exercises = [...exercises, ...dbExtras];
+    }
     
     return exercises;
-  }, [exerciseType, selectedCategory]);
+  }, [exerciseType, selectedCategory, dbExercises]);
 
   const handleSelect = async (name: string) => {
-    const isCustom = !ALL_KNOWN_EXERCISES.has(name.toLowerCase());
+    const isCustom = !allKnownExercises.has(name.toLowerCase());
 
     if (isCustom) {
-      // Submit as pending exercise to the library
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          // Check if it already exists in the library
           const { data: existing } = await supabase
             .from('exercise_library')
             .select('id')
@@ -100,7 +132,7 @@ export function ExerciseSearch({
           }
         }
       } catch {
-        // Don't block the workout – silently continue
+        // Don't block the workout
       }
     }
 
