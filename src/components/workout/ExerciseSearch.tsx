@@ -23,6 +23,8 @@ import {
   CONDITIONING_EXERCISES,
   CATEGORY_LABELS 
 } from "@/types/workout";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface ExerciseSearchProps {
   open: boolean;
@@ -34,6 +36,11 @@ interface ExerciseSearchProps {
 }
 
 type CategoryKey = keyof typeof EXERCISE_CATEGORIES;
+
+const ALL_KNOWN_EXERCISES = new Set([
+  ...STRENGTH_EXERCISES.map(e => e.toLowerCase()),
+  ...CONDITIONING_EXERCISES.map(e => e.toLowerCase()),
+]);
 
 export function ExerciseSearch({ 
   open, 
@@ -64,7 +71,38 @@ export function ExerciseSearch({
     return exercises;
   }, [exerciseType, selectedCategory]);
 
-  const handleSelect = (name: string) => {
+  const handleSelect = async (name: string) => {
+    const isCustom = !ALL_KNOWN_EXERCISES.has(name.toLowerCase());
+
+    if (isCustom) {
+      // Submit as pending exercise to the library
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          // Check if it already exists in the library
+          const { data: existing } = await supabase
+            .from('exercise_library')
+            .select('id')
+            .ilike('name', name.trim())
+            .maybeSingle();
+
+          if (!existing) {
+            await supabase
+              .from('exercise_library')
+              .insert({
+                name: name.trim(),
+                category: exerciseType,
+                status: 'pending',
+                submitted_by: user.id,
+              } as any);
+            toast.success("Exercise added! Coach will review shortly.");
+          }
+        }
+      } catch {
+        // Don't block the workout – silently continue
+      }
+    }
+
     onSelectExercise(name);
     setSearch("");
     onOpenChange(false);
@@ -83,7 +121,6 @@ export function ExerciseSearch({
         </DialogHeader>
         
         <div className="px-4 pb-2">
-          {/* Type Toggle */}
           <Tabs value={exerciseType} onValueChange={(v) => {
             setExerciseType(v as 'strength' | 'conditioning');
             setSelectedCategory('all');
@@ -101,7 +138,6 @@ export function ExerciseSearch({
           </Tabs>
         </div>
 
-        {/* Category Pills */}
         {exerciseType === 'strength' && (
           <ScrollArea className="w-full px-4 pb-2">
             <div className="flex gap-2 pb-1">
@@ -120,7 +156,6 @@ export function ExerciseSearch({
           </ScrollArea>
         )}
 
-        {/* Command-based search + list */}
         <Command shouldFilter={true} className="border-t border-border">
           <CommandInput 
             placeholder="Search or type custom exercise..." 
@@ -143,7 +178,6 @@ export function ExerciseSearch({
               )}
             </CommandEmpty>
 
-            {/* Recent exercises */}
             {recentExercises.length > 0 && !search && selectedCategory === 'all' && (
               <CommandGroup heading="Recent">
                 {recentExercises.slice(0, 5).map(name => (
@@ -162,7 +196,6 @@ export function ExerciseSearch({
               ))}
             </CommandGroup>
 
-            {/* Custom exercise option at the bottom when typing */}
             {search.trim() && !filteredExercises.some(e => e.toLowerCase() === search.toLowerCase()) && (
               <CommandGroup>
                 <CommandItem value={`custom-${search.trim()}`} onSelect={() => handleSelect(search.trim())}>

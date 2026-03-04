@@ -28,7 +28,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Pencil, Trash2, Search, Video, BookOpen } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Video, BookOpen, CheckCircle2, Clock } from "lucide-react";
 import { toast } from "sonner";
 
 export interface ExerciseLibraryEntry {
@@ -42,6 +42,8 @@ export interface ExerciseLibraryEntry {
   equipment_type: string | null;
   created_at: string;
   updated_at: string;
+  status?: string;
+  submitted_by?: string | null;
 }
 
 const CATEGORIES = ["strength", "conditioning", "olympic", "functional"] as const;
@@ -173,6 +175,7 @@ export function ExerciseLibraryAdmin() {
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [showForm, setShowForm] = useState(false);
   const [editingExercise, setEditingExercise] = useState<ExerciseLibraryEntry | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -183,11 +186,13 @@ export function ExerciseLibraryAdmin() {
       .from('exercise_library')
       .select('*')
       .order('name');
-    if (!error && data) setExercises(data as ExerciseLibraryEntry[]);
+    if (!error && data) setExercises(data as unknown as ExerciseLibraryEntry[]);
     setIsLoading(false);
   };
 
   useEffect(() => { loadExercises(); }, []);
+
+  const pendingCount = exercises.filter(e => e.status === 'pending').length;
 
   const handleSave = async (form: typeof EMPTY_FORM) => {
     const row = {
@@ -213,6 +218,16 @@ export function ExerciseLibraryAdmin() {
     loadExercises();
   };
 
+  const handleApprove = async (ex: ExerciseLibraryEntry) => {
+    const { error } = await supabase
+      .from('exercise_library')
+      .update({ status: 'approved' } as any)
+      .eq('id', ex.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success(`${ex.name} approved`);
+    loadExercises();
+  };
+
   const handleDelete = async () => {
     if (!deletingId) return;
     const { error } = await supabase.from('exercise_library').delete().eq('id', deletingId);
@@ -232,12 +247,20 @@ export function ExerciseLibraryAdmin() {
     setShowForm(true);
   };
 
-  const filtered = exercises.filter(ex => {
-    const matchesSearch = ex.name.toLowerCase().includes(search.toLowerCase()) ||
-      (ex.muscle_group || "").toLowerCase().includes(search.toLowerCase());
-    const matchesCategory = categoryFilter === "all" || ex.category === categoryFilter;
-    return matchesSearch && matchesCategory;
-  });
+  const filtered = exercises
+    .filter(ex => {
+      const matchesSearch = ex.name.toLowerCase().includes(search.toLowerCase()) ||
+        (ex.muscle_group || "").toLowerCase().includes(search.toLowerCase());
+      const matchesCategory = categoryFilter === "all" || ex.category === categoryFilter;
+      const matchesStatus = statusFilter === "all" || ex.status === statusFilter;
+      return matchesSearch && matchesCategory && matchesStatus;
+    })
+    .sort((a, b) => {
+      // Pending exercises always first
+      if (a.status === 'pending' && b.status !== 'pending') return -1;
+      if (a.status !== 'pending' && b.status === 'pending') return 1;
+      return a.name.localeCompare(b.name);
+    });
 
   const categoryCount = (cat: string) => exercises.filter(e => e.category === cat).length;
 
@@ -248,12 +271,53 @@ export function ExerciseLibraryAdmin() {
         <div className="flex items-center gap-2">
           <BookOpen className="w-4 h-4 text-primary" />
           <span className="font-semibold text-sm">{exercises.length} exercises in library</span>
+          {pendingCount > 0 && (
+            <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30 text-xs">
+              {pendingCount} pending
+            </Badge>
+          )}
         </div>
         <Button size="sm" onClick={openAdd}>
           <Plus className="w-3.5 h-3.5 mr-1.5" />
           Add Exercise
         </Button>
       </div>
+
+      {/* Status filter pills */}
+      {pendingCount > 0 && (
+        <div className="flex gap-2">
+          <button
+            onClick={() => setStatusFilter("all")}
+            className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+              statusFilter === "all"
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted text-muted-foreground hover:bg-muted/80"
+            }`}
+          >
+            All
+          </button>
+          <button
+            onClick={() => setStatusFilter("pending")}
+            className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+              statusFilter === "pending"
+                ? "bg-yellow-500 text-yellow-950"
+                : "bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30"
+            }`}
+          >
+            Pending ({pendingCount})
+          </button>
+          <button
+            onClick={() => setStatusFilter("approved")}
+            className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+              statusFilter === "approved"
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted text-muted-foreground hover:bg-muted/80"
+            }`}
+          >
+            Approved
+          </button>
+        </div>
+      )}
 
       {/* Category pills */}
       <div className="flex flex-wrap gap-2">
@@ -310,11 +374,21 @@ export function ExerciseLibraryAdmin() {
           {filtered.map(ex => (
             <div
               key={ex.id}
-              className="flex items-center justify-between p-3 rounded-md border border-border bg-card hover:bg-accent/5 transition-colors gap-3"
+              className={`flex items-center justify-between p-3 rounded-md border transition-colors gap-3 ${
+                ex.status === 'pending'
+                  ? 'border-yellow-500/30 bg-yellow-500/5'
+                  : 'border-border bg-card hover:bg-accent/5'
+              }`}
             >
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-medium text-sm">{ex.name}</span>
+                  {ex.status === 'pending' && (
+                    <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30 text-[10px] gap-1">
+                      <Clock className="w-2.5 h-2.5" />
+                      Pending
+                    </Badge>
+                  )}
                   <Badge variant="outline" className="text-xs capitalize">{ex.category}</Badge>
                   {ex.movement_pattern && (
                     <Badge variant="secondary" className="text-[10px] capitalize">{PATTERN_LABELS[ex.movement_pattern] || ex.movement_pattern}</Badge>
@@ -336,6 +410,17 @@ export function ExerciseLibraryAdmin() {
                 )}
               </div>
               <div className="flex items-center gap-1 shrink-0">
+                {ex.status === 'pending' && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-xs gap-1 text-green-400 hover:text-green-300"
+                    onClick={() => handleApprove(ex)}
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    Approve
+                  </Button>
+                )}
                 <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openEdit(ex)}>
                   <Pencil className="w-3.5 h-3.5" />
                 </Button>

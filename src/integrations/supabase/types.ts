@@ -419,6 +419,8 @@ export type Database = {
           name: string
           notes: string | null
           plyo_metric: string | null
+          status: string
+          submitted_by: string | null
           updated_at: string
           video_url: string | null
         }
@@ -435,6 +437,8 @@ export type Database = {
           name: string
           notes?: string | null
           plyo_metric?: string | null
+          status?: string
+          submitted_by?: string | null
           updated_at?: string
           video_url?: string | null
         }
@@ -451,6 +455,8 @@ export type Database = {
           name?: string
           notes?: string | null
           plyo_metric?: string | null
+          status?: string
+          submitted_by?: string | null
           updated_at?: string
           video_url?: string | null
         }
