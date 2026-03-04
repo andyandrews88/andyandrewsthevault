@@ -8,6 +8,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { useAuthStore } from "./stores/authStore";
 import { useUserDataSync } from "./hooks/useUserDataSync";
+import { useServiceWorkerUpdate } from "./hooks/useServiceWorkerUpdate";
 
 // Lazy-loaded route components
 const Index = lazy(() => import("./pages/Index"));
@@ -45,6 +46,7 @@ function AppContent() {
   }, [initialize]);
 
   useUserDataSync();
+  useServiceWorkerUpdate();
 
   return (
     <Suspense fallback={<RouteLoader />}>
