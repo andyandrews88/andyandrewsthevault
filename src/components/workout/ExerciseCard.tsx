@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
@@ -97,6 +97,7 @@ export function ExerciseCard({ exercise, onRemove, allExercises = [], onMoveUp, 
   const [isPlyometric, setIsPlyometric] = useState(false);
   const [plyoMetric, setPlyoMetric] = useState<PlyoMetric>('standard');
   const isBW = isBodyweightExercise(exercise.exercise_name);
+  const metadataManuallySet = useRef(false);
   const [showVideo, setShowVideo] = useState(false);
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [showReplaceSearch, setShowReplaceSearch] = useState(false);
@@ -116,6 +117,11 @@ export function ExerciseCard({ exercise, onRemove, allExercises = [], onMoveUp, 
   const isSupersetted = !!exercise.superset_group;
 
   useEffect(() => {
+    // Skip DB fetch if metadata was just set locally (prevents overwriting optimistic state)
+    if (metadataManuallySet.current) {
+      metadataManuallySet.current = false;
+      return;
+    }
     let cancelled = false;
     const fetchLibrary = async () => {
       const { data } = await supabase
@@ -238,6 +244,7 @@ export function ExerciseCard({ exercise, onRemove, allExercises = [], onMoveUp, 
                   onReplace={() => setShowReplaceSearch(true)}
                   onRemove={onRemove}
                    onMetadataChange={(field, value) => {
+                    metadataManuallySet.current = true;
                     if (field === 'isTimed') setIsTimed(value);
                     if (field === 'isUnilateral') setIsUnilateral(value);
                     if (field === 'videoUrl') setVideoUrl(value);
@@ -284,6 +291,7 @@ export function ExerciseCard({ exercise, onRemove, allExercises = [], onMoveUp, 
                     Replace Exercise
                   </DropdownMenuItem>
                   <AdminExerciseMenu exerciseName={exercise.exercise_name} isAdmin={isAdmin} onMetadataChange={(field, value) => {
+                    metadataManuallySet.current = true;
                     if (field === 'isTimed') setIsTimed(value);
                     if (field === 'isUnilateral') setIsUnilateral(value);
                     if (field === 'videoUrl') setVideoUrl(value);
