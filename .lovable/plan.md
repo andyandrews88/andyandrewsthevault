@@ -1,35 +1,26 @@
 
 
-# Plan: Fix Exercise Videos, Library Search, and Performance
+# Fix: ExerciseCard Video Button Triggering Collapse
 
-## Three Issues
+## Root Cause
 
-### Issue 1: Exercise videos in warmup/cooldown sections
-The video demo feature already works in `ExerciseCard.tsx` -- it fetches from `exercise_library` by name and shows a Play button when `video_url` exists. This works identically regardless of which section (`warmup`, `main`, `cooldown`) the exercise is in. Both the user-side `ExerciseCard` and admin-side builder already support this.
+The `CardHeader` on line 173 has an `onClick` handler that toggles collapse state. All buttons in the header (video play, move up/down, menu, collapse icon) are children of this header. While the exercise name area (left side) correctly calls `e.stopPropagation()`, the **right-side button container** (line 199) does NOT stop propagation. 
 
-**No code changes needed** for this issue -- videos are already functional across all sections. If a specific exercise has no video assigned in the library, the coach needs to add one via the Exercise Library admin panel.
+So when you click the Play/Video button, two things happen simultaneously:
+1. `setShowVideo(!showVideo)` toggles the video on
+2. The click bubbles up to `CardHeader`, which calls `setIsCollapsed(!isCollapsed)` and collapses the card
 
-### Issue 2: Approved exercises not showing in search
-**Root cause**: `ExerciseSearch.tsx` uses only hardcoded arrays (`STRENGTH_EXERCISES`, `CONDITIONING_EXERCISES`) from `types/workout.ts`. Exercises approved in the `exercise_library` database table (like "Ring Support Hold") are never fetched or displayed. The search only shows the static list.
+The video opens but the card collapses at the same time, making the video invisible inside `CollapsibleContent`.
 
-**Fix**: Modify `ExerciseSearch.tsx` to:
-1. On open, fetch all approved exercises from `exercise_library` table
-2. Merge database exercises with the hardcoded list (deduplicate by name)
-3. Show the combined list so any approved exercise appears in search results
-4. Update `ALL_KNOWN_EXERCISES` to include DB exercises so they aren't treated as "custom"
+## Fix
 
-### Issue 3: Loading screen flashing on every interaction
-**Root cause**: `useWorkoutRealtime.ts` listens to changes on `workout_exercises` and `exercise_sets`. Every time a set is updated, completed, or an exercise is moved, the realtime listener fires `fetchActiveWorkout()`, which sets `isLoading: true` and shows the full-page spinner. This happens on the user's OWN changes, creating a jarring flash.
+Add `onClick={(e) => e.stopPropagation()}` to the right-side button container div (line 199). This prevents clicks on ANY header button (video, move, menu, collapse chevron) from bubbling up to the `CardHeader` collapse handler.
 
-**Fix**: Two changes:
-1. **`useWorkoutRealtime.ts`**: Skip refetching when there's an active workout in progress (the user's local state is already up-to-date from optimistic updates). Only refetch when no active workout exists (meaning changes came from the admin side).
-2. **`workoutStore.ts` `fetchActiveWorkout`**: Don't set `isLoading: true` if there's already an active workout loaded (soft refresh instead of hard reload with spinner).
+Then make the `ChevronsUpDown` icon (line 301) a proper clickable element that explicitly toggles collapse, since it's currently just a passive icon relying on the header click.
 
-## Files to modify
+## File Changes
 
-| File | Change |
-|------|--------|
-| `src/components/workout/ExerciseSearch.tsx` | Fetch approved exercises from DB on open, merge with hardcoded list |
-| `src/hooks/useWorkoutRealtime.ts` | Guard against refetching during active workout sessions |
-| `src/stores/workoutStore.ts` | Prevent `isLoading: true` flash during soft refetches |
+**`src/components/workout/ExerciseCard.tsx`**:
+- Line 199: Add `onClick={(e) => e.stopPropagation()}` to the buttons container div
+- This single change fixes the video button, move buttons, and menu button all accidentally toggling collapse
 
