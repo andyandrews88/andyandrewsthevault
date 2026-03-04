@@ -25,7 +25,8 @@ Deno.serve(async (req) => {
     const { data: roleData } = await admin.from("user_roles").select("role").eq("user_id", user.id).eq("role", "admin").maybeSingle();
     if (!roleData) throw new Error("Not admin");
 
-    const { action, targetUserId } = await req.json();
+    const body = await req.json();
+    const { action, targetUserId, enabled } = body;
     if (!action || !targetUserId) throw new Error("Missing action or targetUserId");
 
     // Prevent self-actions
@@ -72,6 +73,11 @@ Deno.serve(async (req) => {
     } else if (action === "remove_role") {
       await admin.from("user_roles").delete().eq("user_id", targetUserId);
       result = { success: true, message: "All roles removed" };
+    } else if (action === "toggle_coaching") {
+      const newValue = !!enabled;
+      const { error: updateErr } = await admin.from("user_profiles").update({ private_coaching_enabled: newValue }).eq("id", targetUserId);
+      if (updateErr) throw updateErr;
+      result = { success: true, enabled: newValue, message: newValue ? "Private coaching enabled" : "Private coaching disabled" };
     } else {
       throw new Error("Invalid action");
     }

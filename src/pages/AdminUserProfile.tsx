@@ -163,13 +163,17 @@ export default function AdminUserProfile() {
 
   const togglePrivateCoaching = async (checked: boolean) => {
     setPrivateCoaching(checked);
-    const { error } = await supabase.from("user_profiles").update({ private_coaching_enabled: checked } as any).eq("id", userId!);
-    if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+    try {
+      const { data: result, error } = await supabase.functions.invoke("admin-manage-user", {
+        body: { action: "toggle_coaching", targetUserId: userId, enabled: checked },
+      });
+      if (error) throw error;
+      if (result?.error) throw new Error(result.error);
+      toast({ title: checked ? "Private coaching enabled" : "Private coaching disabled" });
+    } catch (e: any) {
+      toast({ title: "Error", description: e?.message || "Failed to update", variant: "destructive" });
       setPrivateCoaching(!checked);
-      return;
     }
-    toast({ title: checked ? "Private coaching enabled" : "Private coaching disabled" });
   };
 
   const handleDeleteWorkout = async (workoutId: string) => {
