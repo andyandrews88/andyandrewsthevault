@@ -27,6 +27,7 @@ function castExercises(exercisesData: any[]): WorkoutExercise[] {
     ...e,
     exercise_type: (e.exercise_type as 'strength' | 'conditioning') || 'strength',
     superset_group: e.superset_group || null,
+    workout_section: (e.workout_section as 'warmup' | 'main' | 'cooldown') || 'main',
     sets: castSets(e.sets || []).sort((a, b) => a.set_number - b.set_number),
     conditioning_sets: (e.conditioning_sets || []).map((cs: any) => ({
       ...cs,
@@ -72,7 +73,7 @@ interface WorkoutState {
   
   // Workout session actions
   startWorkout: (name: string, date?: Date) => Promise<void>;
-  addExercise: (name: string) => Promise<void>;
+  addExercise: (name: string, section?: 'warmup' | 'main' | 'cooldown') => Promise<void>;
   removeExercise: (exerciseId: string) => Promise<void>;
   addSet: (exerciseId: string, setType?: 'warmup' | 'working', isUnilateral?: boolean) => Promise<void>;
   removeSet: (setId: string) => Promise<void>;
@@ -193,7 +194,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
     set({ activeWorkout: workout, exercises: [], isSaving: false });
   },
   
-  addExercise: async (name: string) => {
+  addExercise: async (name: string, section: 'warmup' | 'main' | 'cooldown' = 'main') => {
     const { activeWorkout, exercises } = get();
     if (!activeWorkout) return;
     
@@ -206,7 +207,8 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
         exercise_name: name,
         order_index: exercises.length,
         exercise_type: exerciseType,
-      })
+        workout_section: section,
+      } as any)
       .select()
       .single();
     
@@ -231,6 +233,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
         ...exercise, 
         exercise_type: 'conditioning',
         superset_group: exercise.superset_group || null,
+        workout_section: (exercise.workout_section as 'warmup' | 'main' | 'cooldown') || 'main',
         conditioning_sets: firstSet ? [{...firstSet, distance_unit: (firstSet.distance_unit as 'miles' | 'km' | 'meters') || 'miles'}] : [],
         sets: []
       };
@@ -257,6 +260,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
           ...exercise, 
           exercise_type: 'strength',
           superset_group: exercise.superset_group || null,
+          workout_section: (exercise.workout_section as 'warmup' | 'main' | 'cooldown') || 'main',
           sets: firstSets ? castSets(firstSets) : [],
           conditioning_sets: []
         };
@@ -272,6 +276,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
           ...exercise, 
           exercise_type: 'strength',
           superset_group: exercise.superset_group || null,
+          workout_section: (exercise.workout_section as 'warmup' | 'main' | 'cooldown') || 'main',
           sets: firstSet ? [castSet(firstSet)] : [],
           conditioning_sets: []
         };

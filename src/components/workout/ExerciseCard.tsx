@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { 
@@ -13,7 +14,7 @@ import {
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
-import { Plus, MoreVertical, History, Trash2, Percent, Play, ChevronUp, ChevronDown, Link, Unlink, ArrowUp, ArrowDown, RefreshCw } from "lucide-react";
+import { Plus, MoreVertical, History, Trash2, Percent, Play, ChevronUp, ChevronDown, Link, Unlink, ArrowUp, ArrowDown, RefreshCw, ChevronsUpDown } from "lucide-react";
 import { WorkoutExercise } from "@/types/workout";
 import { SetRow } from "./SetRow";
 import { ExerciseSearch } from "./ExerciseSearch";
@@ -101,6 +102,16 @@ export function ExerciseCard({ exercise, onRemove, allExercises = [], onMoveUp, 
   const [showReplaceSearch, setShowReplaceSearch] = useState(false);
   const [showActionSheet, setShowActionSheet] = useState(false);
 
+  // Auto-collapse when all sets completed
+  const allSetsCompleted = useMemo(() => {
+    const sets = exercise.sets || [];
+    return sets.length > 0 && sets.every(s => s.is_completed);
+  }, [exercise.sets]);
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  useEffect(() => {
+    if (allSetsCompleted) setIsCollapsed(true);
+  }, [allSetsCompleted]);
+
   const percentageHint = parsePercentageHint(exercise.notes);
   const isSupersetted = !!exercise.superset_group;
 
@@ -154,13 +165,14 @@ export function ExerciseCard({ exercise, onRemove, allExercises = [], onMoveUp, 
   );
 
   return (
+    <Collapsible open={!isCollapsed} onOpenChange={(open) => setIsCollapsed(!open)}>
     <Card variant="elevated" className={cn(
       "overflow-hidden",
       isSupersetted && "border-l-4 border-l-primary"
     )}>
-      <CardHeader className="py-3 px-4 bg-secondary/30">
+      <CardHeader className="py-3 px-4 bg-secondary/30 cursor-pointer" onClick={() => setIsCollapsed(!isCollapsed)}>
         <div className="flex items-center justify-between">
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-2">
               <h3 className="font-semibold text-base uppercase tracking-wide">
                 {exercise.exercise_name}
@@ -286,10 +298,12 @@ export function ExerciseCard({ exercise, onRemove, allExercises = [], onMoveUp, 
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
+          <ChevronsUpDown className={`h-4 w-4 text-muted-foreground transition-transform ${isCollapsed ? '' : 'rotate-90'}`} />
           </div>
         </div>
       </CardHeader>
 
+      <CollapsibleContent>
       {/* Collapsible Video Embed */}
       {videoUrl && showVideo && (
         <div className="px-4 pb-2">
@@ -333,7 +347,6 @@ export function ExerciseCard({ exercise, onRemove, allExercises = [], onMoveUp, 
         {/* Sets */}
         <div className="px-4">
           {exercise.sets?.map((set, index) => {
-            // For unilateral sets, match previous data by set_number & side
             const prevIndex = isUnilateral
               ? exercise.sets!.filter(s => s.side === set.side).indexOf(set)
               : index;
@@ -376,7 +389,7 @@ export function ExerciseCard({ exercise, onRemove, allExercises = [], onMoveUp, 
           </Button>
         </div>
 
-        {/* Superset Row — always visible when linkable exercises exist */}
+        {/* Superset Row */}
         {linkableExercises.length > 0 && !isSupersetted && (
           <SupersetLinkButton exercise={exercise} linkableExercises={linkableExercises} linkSuperset={linkSuperset} />
         )}
@@ -394,6 +407,7 @@ export function ExerciseCard({ exercise, onRemove, allExercises = [], onMoveUp, 
           </div>
         )}
       </CardContent>
+      </CollapsibleContent>
 
       {/* Replace Exercise Search */}
       <ExerciseSearch
@@ -403,5 +417,6 @@ export function ExerciseCard({ exercise, onRemove, allExercises = [], onMoveUp, 
         mode="replace"
       />
     </Card>
+    </Collapsible>
   );
 }

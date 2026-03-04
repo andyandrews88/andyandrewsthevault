@@ -1532,6 +1532,7 @@ export type Database = {
           order_index: number
           superset_group: string | null
           workout_id: string
+          workout_section: string
         }
         Insert: {
           created_at?: string
@@ -1542,6 +1543,7 @@ export type Database = {
           order_index?: number
           superset_group?: string | null
           workout_id: string
+          workout_section?: string
         }
         Update: {
           created_at?: string
@@ -1552,6 +1554,7 @@ export type Database = {
           order_index?: number
           superset_group?: string | null
           workout_id?: string
+          workout_section?: string
         }
         Relationships: [
           {

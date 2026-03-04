@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,6 +20,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { 
   ArrowLeft, 
   Plus, 
@@ -28,7 +29,10 @@ import {
   Clock,
   TrendingUp,
   FileText,
-  Timer
+  Timer,
+  ChevronDown,
+  Flame,
+  Snowflake,
 } from "lucide-react";
 import { useWorkoutStore } from "@/stores/workoutStore";
 import { ExerciseCard } from "./ExerciseCard";
@@ -46,11 +50,20 @@ import { format } from "date-fns";
 import { convertWeight } from "@/lib/weightConversion";
 import { BodyweightBanner } from "./BodyweightBanner";
 import { classifyExercise, PATTERN_COLORS, MOVEMENT_PATTERN_SHORT, type MovementPattern } from "@/lib/movementPatterns";
+import { WorkoutExercise } from "@/types/workout";
 
 
 interface WorkoutLoggerProps {
   onBack: () => void;
 }
+
+type WorkoutSection = 'warmup' | 'main' | 'cooldown';
+
+const SECTION_CONFIG: Record<WorkoutSection, { label: string; icon: React.ReactNode; defaultOpen: boolean }> = {
+  warmup: { label: 'WARM UP', icon: <Flame className="h-4 w-4" />, defaultOpen: true },
+  main: { label: 'EXERCISES', icon: <Dumbbell className="h-4 w-4" />, defaultOpen: true },
+  cooldown: { label: 'COOL DOWN', icon: <Snowflake className="h-4 w-4" />, defaultOpen: true },
+};
 
 export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
   const { 
@@ -82,6 +95,7 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
   } = useWorkoutStore();
   
   const [isExerciseSearchOpen, setIsExerciseSearchOpen] = useState(false);
+  const [exerciseSearchSection, setExerciseSearchSection] = useState<WorkoutSection>('main');
   const [showStartDialog, setShowStartDialog] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
@@ -89,6 +103,7 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
   const [startTime] = useState(new Date());
   const [programWorkoutsForDate, setProgramWorkoutsForDate] = useState<UserCalendarWorkout[]>([]);
   const [showRestTimer, setShowRestTimer] = useState(false);
+  const [sectionOpen, setSectionOpen] = useState<Record<WorkoutSection, boolean>>({ warmup: true, main: true, cooldown: true });
 
   const fetchProgramWorkoutsForDate = async (date: Date) => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -155,7 +170,12 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
   };
 
   const handleAddExercise = async (name: string) => {
-    await addExercise(name);
+    await addExercise(name, exerciseSearchSection);
+  };
+
+  const openExerciseSearchForSection = (section: WorkoutSection) => {
+    setExerciseSearchSection(section);
+    setIsExerciseSearchOpen(true);
   };
 
   // Calculate total volume (working sets only)
@@ -172,6 +192,15 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
   const displayVolume = preferredUnit === 'kg' 
     ? convertWeight(totalVolume, 'lbs', 'kg') 
     : totalVolume;
+
+  const exercisesBySection = useMemo(() => {
+    const sections: Record<WorkoutSection, WorkoutExercise[]> = { warmup: [], main: [], cooldown: [] };
+    exercises.forEach(ex => {
+      const s = (ex.workout_section || 'main') as WorkoutSection;
+      sections[s].push(ex);
+    });
+    return sections;
+  }, [exercises]);
 
   const elapsedMinutes = Math.floor((new Date().getTime() - startTime.getTime()) / 60000);
 
@@ -318,11 +347,11 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
     );
   }
 
-  // Group exercises by superset
-  const renderExercises = () => {
+  // Render exercises for a given section
+  const renderExercisesForSection = (sectionExercises: WorkoutExercise[]) => {
     const rendered = new Set<string>();
     const elements: JSX.Element[] = [];
-    const sorted = [...exercises].sort((a, b) => a.order_index - b.order_index);
+    const sorted = [...sectionExercises].sort((a, b) => a.order_index - b.order_index);
 
     sorted.forEach((exercise, globalIdx) => {
       if (rendered.has(exercise.id)) return;
@@ -335,15 +364,14 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
 
       if (exercise.superset_group) {
         const group = sorted.filter(e => e.superset_group === exercise.superset_group);
-        const groupIds = group.map(e => e.id);
-        groupIds.forEach(id => rendered.add(id));
+        group.map(e => e.id).forEach(id => rendered.add(id));
 
         elements.push(
           <div key={`ss-${exercise.superset_group}`} className="space-y-0">
             <div className="text-xs font-medium text-primary uppercase tracking-wider px-1 mb-1">
               ⚡ Superset
             </div>
-            {group.map((ex, i) => {
+            {group.map((ex) => {
               const gIdx = sorted.indexOf(ex);
               return ex.exercise_type === 'conditioning' ? (
                 <ConditioningCard
@@ -401,6 +429,8 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
     return elements;
   };
 
+  // exercisesBySection moved to before early returns
+
   return (
     <div className="space-y-4">
       {/* PR Celebration */}
@@ -437,23 +467,52 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
         </Button>
       </div>
       
-      {/* Exercise Cards */}
-      <div className="space-y-4">
-        {renderExercises()}
-      </div>
+      {/* Section-grouped Exercise Cards */}
+      {(['warmup', 'main', 'cooldown'] as WorkoutSection[]).map(section => {
+        const config = SECTION_CONFIG[section];
+        const sectionExercises = exercisesBySection[section];
+        const isOpen = sectionOpen[section];
+        
+        return (
+          <Collapsible
+            key={section}
+            open={isOpen}
+            onOpenChange={(open) => setSectionOpen(prev => ({ ...prev, [section]: open }))}
+          >
+            <div className="flex items-center justify-between py-2">
+              <CollapsibleTrigger asChild>
+                <button className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors">
+                  {config.icon}
+                  {config.label}
+                  {sectionExercises.length > 0 && (
+                    <span className="text-[10px] font-mono bg-muted px-1.5 py-0.5 rounded">
+                      {sectionExercises.length}
+                    </span>
+                  )}
+                  <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isOpen ? '' : '-rotate-90'}`} />
+                </button>
+              </CollapsibleTrigger>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs text-primary"
+                onClick={() => openExerciseSearchForSection(section)}
+              >
+                <Plus className="h-3.5 w-3.5 mr-1" />
+                Add
+              </Button>
+            </div>
+            <CollapsibleContent>
+              <div className="space-y-3">
+                {renderExercisesForSection(sectionExercises)}
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+        );
+      })}
       
       {/* Bodyweight Banner */}
       <BodyweightBanner />
-
-      {/* Add Exercise Button */}
-      <Button 
-        variant="outline" 
-        className="w-full" 
-        onClick={() => setIsExerciseSearchOpen(true)}
-      >
-        <Plus className="h-4 w-4 mr-2" />
-        Add Exercise
-      </Button>
 
       {/* Session Notes */}
       <div className="space-y-1.5">
