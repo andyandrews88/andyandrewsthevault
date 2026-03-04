@@ -1,65 +1,35 @@
 
 
-# Plan: Warmup/Cooldown Sections + Collapsible Exercise Cards
+# Plan: Fix Exercise Videos, Library Search, and Performance
 
-## Two Changes
+## Three Issues
 
-### 1. Warmup & Cooldown Sections
+### Issue 1: Exercise videos in warmup/cooldown sections
+The video demo feature already works in `ExerciseCard.tsx` -- it fetches from `exercise_library` by name and shows a Play button when `video_url` exists. This works identically regardless of which section (`warmup`, `main`, `cooldown`) the exercise is in. Both the user-side `ExerciseCard` and admin-side builder already support this.
 
-Add a `workout_section` column to `workout_exercises` with values `'warmup'`, `'main'` (default), and `'cooldown'`. Exercises are then grouped and rendered under labeled section headers.
+**No code changes needed** for this issue -- videos are already functional across all sections. If a specific exercise has no video assigned in the library, the coach needs to add one via the Exercise Library admin panel.
 
-**Database migration:**
-- Add `workout_section text DEFAULT 'main' CHECK (workout_section IN ('warmup', 'main', 'cooldown'))` to `workout_exercises`
-- Backfill all existing rows as `'main'`
+### Issue 2: Approved exercises not showing in search
+**Root cause**: `ExerciseSearch.tsx` uses only hardcoded arrays (`STRENGTH_EXERCISES`, `CONDITIONING_EXERCISES`) from `types/workout.ts`. Exercises approved in the `exercise_library` database table (like "Ring Support Hold") are never fetched or displayed. The search only shows the static list.
 
-**Affected workout builders:**
+**Fix**: Modify `ExerciseSearch.tsx` to:
+1. On open, fetch all approved exercises from `exercise_library` table
+2. Merge database exercises with the hardcoded list (deduplicate by name)
+3. Show the combined list so any approved exercise appears in search results
+4. Update `ALL_KNOWN_EXERCISES` to include DB exercises so they aren't treated as "custom"
 
-| Location | File | Change |
-|----------|------|--------|
-| User workout logger | `WorkoutLogger.tsx` | Group exercises by section, render 3 collapsible sections with headers ("Warm Up", "Exercises", "Cool Down"), each with its own "Add Exercise" button |
-| Admin workout builder | `AdminWorkoutBuilderPage.tsx` | Same 3-section layout with section-aware add-exercise |
-| Template editor | `TemplateEditor.tsx` | Add section field to template exercises so programs can prescribe warmup/cooldown |
-| Exercise search | `ExerciseSearch.tsx` | Accept optional `section` prop so the inserted exercise gets the correct section tag |
+### Issue 3: Loading screen flashing on every interaction
+**Root cause**: `useWorkoutRealtime.ts` listens to changes on `workout_exercises` and `exercise_sets`. Every time a set is updated, completed, or an exercise is moved, the realtime listener fires `fetchActiveWorkout()`, which sets `isLoading: true` and shows the full-page spinner. This happens on the user's OWN changes, creating a jarring flash.
 
-**Store changes (`workoutStore.ts`):**
-- `addExercise` accepts an optional `section` parameter (defaults to `'main'`)
-- When inserting, pass `workout_section` to the database
+**Fix**: Two changes:
+1. **`useWorkoutRealtime.ts`**: Skip refetching when there's an active workout in progress (the user's local state is already up-to-date from optimistic updates). Only refetch when no active workout exists (meaning changes came from the admin side).
+2. **`workoutStore.ts` `fetchActiveWorkout`**: Don't set `isLoading: true` if there's already an active workout loaded (soft refresh instead of hard reload with spinner).
 
-**How it looks:**
-```text
-── WARM UP ──────────────── [+ Add] [▾]
-   Foam Rolling
-   Band Pull-Apart
+## Files to modify
 
-── EXERCISES ────────────── [+ Add] [▾]
-   Bench Press (Barbell)
-   Incline DB Press
-   Cable Fly
-
-── COOL DOWN ────────────── [+ Add] [▾]
-   Stretching
-   Foam Rolling
-```
-
-### 2. Collapsible Exercise Cards
-
-Make each `ExerciseCard` and `ConditioningCard` collapsible in the user-facing workout logger so users can collapse completed exercises while working out.
-
-**Changes:**
-- `ExerciseCard.tsx`: Wrap the `CardContent` (sets, add-set button) in a `Collapsible`. The header stays visible; tapping the card header or a chevron toggles the body. Auto-collapse when all sets are completed.
-- `ConditioningCard.tsx`: Same pattern.
-- Track collapsed state locally per card (no persistence needed -- all expand on page load).
-
-The admin builder does NOT need collapsible cards (coach needs to see everything while building).
-
-### Files to modify
-1. **Migration SQL** — add `workout_section` column
-2. **`src/types/workout.ts`** — add `workout_section` to `WorkoutExercise` type
-3. **`src/stores/workoutStore.ts`** — update `addExercise` and `castExercises` for section
-4. **`src/components/workout/WorkoutLogger.tsx`** — group exercises into 3 sections with headers and per-section add buttons
-5. **`src/components/workout/ExerciseCard.tsx`** — wrap content in Collapsible
-6. **`src/components/workout/ConditioningCard.tsx`** — wrap content in Collapsible
-7. **`src/pages/AdminWorkoutBuilderPage.tsx`** — group exercises into 3 sections
-8. **`src/components/admin/TemplateEditor.tsx`** — add section field to template exercise schema
-9. **`src/components/workout/ExerciseSearch.tsx`** — pass section context through
+| File | Change |
+|------|--------|
+| `src/components/workout/ExerciseSearch.tsx` | Fetch approved exercises from DB on open, merge with hardcoded list |
+| `src/hooks/useWorkoutRealtime.ts` | Guard against refetching during active workout sessions |
+| `src/stores/workoutStore.ts` | Prevent `isLoading: true` flash during soft refetches |
 
