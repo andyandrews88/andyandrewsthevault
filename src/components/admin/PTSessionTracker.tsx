@@ -80,11 +80,31 @@ export function PTSessionTracker({ clientUserId, clientDisplayName }: PTSessionT
   const [reportOpen, setReportOpen] = useState(false);
   const [editSessionOpen, setEditSessionOpen] = useState(false);
   const [editingSession, setEditingSession] = useState<PTSession | null>(null);
+  const [editPkgOpen, setEditPkgOpen] = useState(false);
+  const [editingPkg, setEditingPkg] = useState<PTPackage | null>(null);
+  const [editInvoiceOpen, setEditInvoiceOpen] = useState(false);
+  const [editingInvoice, setEditingInvoice] = useState<PTInvoice | null>(null);
 
   // Edit session form
   const [editDate, setEditDate] = useState<Date>(new Date());
   const [editWorkoutId, setEditWorkoutId] = useState("");
   const [editNotes, setEditNotes] = useState("");
+
+  // Edit package form
+  const [editPkgName, setEditPkgName] = useState("");
+  const [editPkgSessions, setEditPkgSessions] = useState("");
+  const [editPkgDate, setEditPkgDate] = useState<Date>(new Date());
+  const [editPkgStatus, setEditPkgStatus] = useState("active");
+  const [editPkgNotes, setEditPkgNotes] = useState("");
+
+  // Edit invoice form
+  const [editInvUrl, setEditInvUrl] = useState("");
+  const [editInvAmount, setEditInvAmount] = useState("");
+  const [editInvCurrency, setEditInvCurrency] = useState("AUD");
+  const [editInvStatus, setEditInvStatus] = useState("pending");
+  const [editInvDate, setEditInvDate] = useState<Date>(new Date());
+  const [editInvPkgId, setEditInvPkgId] = useState("");
+  const [editInvNotes, setEditInvNotes] = useState("");
 
   // New package form
   const [pkgName, setPkgName] = useState("");
@@ -157,9 +177,7 @@ export function PTSessionTracker({ clientUserId, clientDisplayName }: PTSessionT
       notes: sessionNotes || null,
     } as any);
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
-    // Increment sessions_used
     await supabase.from("pt_packages").update({ sessions_used: (pkg?.sessions_used || 0) + 1 } as any).eq("id", sessionPkgId);
-    // Auto-complete if full
     if (pkg && (pkg.sessions_used + 1) >= pkg.sessions_purchased) {
       await supabase.from("pt_packages").update({ status: "completed" } as any).eq("id", sessionPkgId);
     }
@@ -188,6 +206,47 @@ export function PTSessionTracker({ clientUserId, clientDisplayName }: PTSessionT
     fetchAll();
   };
 
+  // --- Edit Package ---
+  const openEditPkg = (p: PTPackage) => {
+    setEditingPkg(p);
+    setEditPkgName(p.package_name);
+    setEditPkgSessions(String(p.sessions_purchased));
+    setEditPkgDate(new Date(p.purchase_date));
+    setEditPkgStatus(p.status);
+    setEditPkgNotes(p.notes || "");
+    setEditPkgOpen(true);
+  };
+
+  const handleEditPackage = async () => {
+    if (!editingPkg) return;
+    const newPurchased = parseInt(editPkgSessions) || editingPkg.sessions_purchased;
+    const { error } = await supabase.from("pt_packages").update({
+      package_name: editPkgName.trim(),
+      sessions_purchased: newPurchased,
+      purchase_date: format(editPkgDate, "yyyy-MM-dd"),
+      status: editPkgStatus,
+      notes: editPkgNotes || null,
+    } as any).eq("id", editingPkg.id);
+    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Package updated" });
+    setEditPkgOpen(false);
+    setEditingPkg(null);
+    fetchAll();
+  };
+
+  const handleDeletePackage = async (id: string) => {
+    const pkgSessions = sessions.filter(s => s.package_id === id);
+    if (pkgSessions.length > 0) {
+      toast({ title: "Cannot delete", description: `This package has ${pkgSessions.length} logged session(s). Delete those first.`, variant: "destructive" });
+      return;
+    }
+    const { error } = await supabase.from("pt_packages").delete().eq("id", id);
+    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Package deleted" });
+    fetchAll();
+  };
+
+  // --- Edit Session ---
   const openEditSession = (s: PTSession) => {
     setEditingSession(s);
     setEditDate(new Date(s.session_date));
@@ -216,6 +275,37 @@ export function PTSessionTracker({ clientUserId, clientDisplayName }: PTSessionT
     if (pkg && pkg.sessions_used > 0) {
       await supabase.from("pt_packages").update({ sessions_used: pkg.sessions_used - 1, status: "active" } as any).eq("id", pkgId);
     }
+    fetchAll();
+  };
+
+  // --- Edit Invoice ---
+  const openEditInvoice = (inv: PTInvoice) => {
+    setEditingInvoice(inv);
+    setEditInvUrl(inv.invoice_url);
+    setEditInvAmount(String(inv.amount));
+    setEditInvCurrency(inv.currency);
+    setEditInvStatus(inv.status);
+    setEditInvDate(new Date(inv.invoice_date));
+    setEditInvPkgId(inv.package_id || "");
+    setEditInvNotes(inv.notes || "");
+    setEditInvoiceOpen(true);
+  };
+
+  const handleEditInvoice = async () => {
+    if (!editingInvoice) return;
+    const { error } = await supabase.from("pt_invoices").update({
+      invoice_url: editInvUrl.trim(),
+      amount: parseFloat(editInvAmount) || 0,
+      currency: editInvCurrency,
+      status: editInvStatus,
+      invoice_date: format(editInvDate, "yyyy-MM-dd"),
+      package_id: editInvPkgId || null,
+      notes: editInvNotes || null,
+    } as any).eq("id", editingInvoice.id);
+    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Invoice updated" });
+    setEditInvoiceOpen(false);
+    setEditingInvoice(null);
     fetchAll();
   };
 
@@ -275,9 +365,14 @@ export function PTSessionTracker({ clientUserId, clientDisplayName }: PTSessionT
                 <p className="font-semibold text-sm">{activePackage.package_name}</p>
                 <p className="text-xs text-muted-foreground">Purchased {format(new Date(activePackage.purchase_date), "MMM d, yyyy")}</p>
               </div>
-              <div className="text-right">
-                <p className="text-3xl font-bold font-mono text-primary">{remaining}</p>
-                <p className="text-xs text-muted-foreground">sessions remaining</p>
+              <div className="flex items-center gap-2">
+                <div className="text-right">
+                  <p className="text-3xl font-bold font-mono text-primary">{remaining}</p>
+                  <p className="text-xs text-muted-foreground">sessions remaining</p>
+                </div>
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditPkg(activePackage)} title="Edit package">
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
               </div>
             </div>
             <div className="space-y-1">
@@ -287,6 +382,9 @@ export function PTSessionTracker({ clientUserId, clientDisplayName }: PTSessionT
               </div>
               <Progress value={progressPct} className="h-2" />
             </div>
+            {activePackage.notes && (
+              <p className="text-xs text-muted-foreground italic">{activePackage.notes}</p>
+            )}
           </CardContent>
         </Card>
       ) : (
@@ -354,7 +452,7 @@ export function PTSessionTracker({ clientUserId, clientDisplayName }: PTSessionT
         </Card>
       )}
 
-      {/* Past Packages */}
+      {/* All Packages (non-active) */}
       {packages.filter(p => p.status !== "active").length > 0 && (
         <Card className="glass border-border/50">
           <CardHeader className="pb-2">
@@ -368,6 +466,7 @@ export function PTSessionTracker({ clientUserId, clientDisplayName }: PTSessionT
                   <TableHead>Sessions</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Date</TableHead>
+                  <TableHead className="w-20"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -377,6 +476,16 @@ export function PTSessionTracker({ clientUserId, clientDisplayName }: PTSessionT
                     <TableCell className="text-sm">{p.sessions_used}/{p.sessions_purchased}</TableCell>
                     <TableCell><Badge variant="secondary" className="text-[10px] capitalize">{p.status}</Badge></TableCell>
                     <TableCell className="text-sm text-muted-foreground">{format(new Date(p.purchase_date), "MMM d, yyyy")}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-0.5">
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditPkg(p)} title="Edit package">
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive/60 hover:text-destructive" onClick={() => handleDeletePackage(p.id)} title="Delete package">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -409,6 +518,7 @@ export function PTSessionTracker({ clientUserId, clientDisplayName }: PTSessionT
                           <Button variant="outline" size="sm" className="h-6 text-xs gap-1"><ExternalLink className="h-3 w-3" />View</Button>
                         </a>
                       )}
+                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => openEditInvoice(inv)}><Pencil className="h-3 w-3" /></Button>
                       <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive/60" onClick={() => handleDeleteInvoice(inv.id)}><Trash2 className="h-3 w-3" /></Button>
                     </div>
                   </div>
@@ -423,8 +533,9 @@ export function PTSessionTracker({ clientUserId, clientDisplayName }: PTSessionT
                     <TableHead>Date</TableHead>
                     <TableHead>Amount</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Package</TableHead>
                     <TableHead>Link</TableHead>
-                    <TableHead className="w-10"></TableHead>
+                    <TableHead className="w-20"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -437,6 +548,9 @@ export function PTSessionTracker({ clientUserId, clientDisplayName }: PTSessionT
                           <span className="flex items-center gap-1">{statusIcon(inv.status)}{inv.status}</span>
                         </Badge>
                       </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {inv.package_id ? packages.find(p => p.id === inv.package_id)?.package_name || "—" : "—"}
+                      </TableCell>
                       <TableCell>
                         {inv.invoice_url && (
                           <a href={inv.invoice_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
@@ -445,9 +559,14 @@ export function PTSessionTracker({ clientUserId, clientDisplayName }: PTSessionT
                         )}
                       </TableCell>
                       <TableCell>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive/60 hover:text-destructive" onClick={() => handleDeleteInvoice(inv.id)}>
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
+                        <div className="flex items-center gap-0.5">
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditInvoice(inv)} title="Edit invoice">
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive/60 hover:text-destructive" onClick={() => handleDeleteInvoice(inv.id)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -494,6 +613,68 @@ export function PTSessionTracker({ clientUserId, clientDisplayName }: PTSessionT
           <DialogFooter>
             <Button variant="ghost" onClick={() => setNewPkgOpen(false)}>Cancel</Button>
             <Button onClick={handleCreatePackage} disabled={!pkgName.trim()}>Create Package</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Package Dialog */}
+      <Dialog open={editPkgOpen} onOpenChange={setEditPkgOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit PT Package</DialogTitle>
+            <DialogDescription>Update package details for {clientDisplayName}.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Package Name</Label>
+              <Input value={editPkgName} onChange={e => setEditPkgName(e.target.value)} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Total Sessions</Label>
+                <Input type="number" min={1} value={editPkgSessions} onChange={e => setEditPkgSessions(e.target.value)} />
+              </div>
+              <div>
+                <Label>Sessions Used</Label>
+                <Input type="number" value={editingPkg?.sessions_used ?? 0} disabled className="opacity-60" />
+                <p className="text-[10px] text-muted-foreground mt-0.5">Managed by session log</p>
+              </div>
+            </div>
+            <div>
+              <Label>Status</Label>
+              <Select value={editPkgStatus} onValueChange={setEditPkgStatus}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="paused">Paused</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Purchase Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full justify-start text-left font-normal">
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {format(editPkgDate, "PPP")}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={editPkgDate} onSelect={d => d && setEditPkgDate(d)} /></PopoverContent>
+              </Popover>
+            </div>
+            <div>
+              <Label>Notes (optional)</Label>
+              <Textarea value={editPkgNotes} onChange={e => setEditPkgNotes(e.target.value)} placeholder="Package notes..." />
+            </div>
+          </div>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="destructive" size="sm" className="mr-auto" onClick={() => { setEditPkgOpen(false); handleDeletePackage(editingPkg!.id); }}>
+              <Trash2 className="h-3.5 w-3.5 mr-1" />Delete
+            </Button>
+            <Button variant="ghost" onClick={() => setEditPkgOpen(false)}>Cancel</Button>
+            <Button onClick={handleEditPackage} disabled={!editPkgName.trim()}>Save Changes</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -625,6 +806,82 @@ export function PTSessionTracker({ clientUserId, clientDisplayName }: PTSessionT
           <DialogFooter>
             <Button variant="ghost" onClick={() => setAddInvoiceOpen(false)}>Cancel</Button>
             <Button onClick={handleAddInvoice} disabled={!invUrl.trim()}>Add Invoice</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Invoice Dialog */}
+      <Dialog open={editInvoiceOpen} onOpenChange={setEditInvoiceOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Invoice</DialogTitle>
+            <DialogDescription>Update invoice details for {clientDisplayName}.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Invoice URL (Stripe)</Label>
+              <Input value={editInvUrl} onChange={e => setEditInvUrl(e.target.value)} placeholder="https://invoice.stripe.com/..." />
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <Label>Amount</Label>
+                <Input type="number" value={editInvAmount} onChange={e => setEditInvAmount(e.target.value)} />
+              </div>
+              <div>
+                <Label>Currency</Label>
+                <Select value={editInvCurrency} onValueChange={setEditInvCurrency}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="AUD">AUD ($)</SelectItem>
+                    <SelectItem value="USD">USD ($)</SelectItem>
+                    <SelectItem value="LKR">LKR (Rs)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Status</Label>
+                <Select value={editInvStatus} onValueChange={setEditInvStatus}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="paid">Paid</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="overdue">Overdue</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div>
+              <Label>Link to Package (optional)</Label>
+              <Select value={editInvPkgId || "none"} onValueChange={v => setEditInvPkgId(v === "none" ? "" : v)}>
+                <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {packages.map(p => (
+                    <SelectItem key={p.id} value={p.id}>{p.package_name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Invoice Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full justify-start text-left font-normal">
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {format(editInvDate, "PPP")}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={editInvDate} onSelect={d => d && setEditInvDate(d)} /></PopoverContent>
+              </Popover>
+            </div>
+            <div>
+              <Label>Notes (optional)</Label>
+              <Textarea value={editInvNotes} onChange={e => setEditInvNotes(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setEditInvoiceOpen(false)}>Cancel</Button>
+            <Button onClick={handleEditInvoice}>Save Changes</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
