@@ -35,7 +35,7 @@ import {
   Snowflake,
 } from "lucide-react";
 import { useWorkoutStore } from "@/stores/workoutStore";
-import { ExerciseCard } from "./ExerciseCard";
+import { ExerciseCard, ExerciseLibraryMeta } from "./ExerciseCard";
 import { ConditioningCard } from "./ConditioningCard";
 import { ExerciseSearch } from "./ExerciseSearch";
 import { PRCelebration } from "./PRCelebration";
@@ -104,6 +104,7 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
   const [programWorkoutsForDate, setProgramWorkoutsForDate] = useState<UserCalendarWorkout[]>([]);
   const [showRestTimer, setShowRestTimer] = useState(false);
   const [sectionOpen, setSectionOpen] = useState<Record<WorkoutSection, boolean>>({ warmup: true, main: true, cooldown: true });
+  const [libraryMetaMap, setLibraryMetaMap] = useState<Record<string, ExerciseLibraryMeta>>({});
 
   const fetchProgramWorkoutsForDate = async (date: Date) => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -127,6 +128,37 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
     fetchPersonalRecords();
     fetchWorkoutDays(12);
   }, [fetchActiveWorkout, fetchPersonalRecords, fetchWorkoutDays]);
+
+  // Batch-fetch exercise library metadata for all exercises in the active workout
+  useEffect(() => {
+    if (!exercises.length) return;
+    const names = [...new Set(exercises.map(e => e.exercise_name))];
+    // Only fetch names not already cached
+    const missing = names.filter(n => !libraryMetaMap[n.toLowerCase()]);
+    if (!missing.length) return;
+    const fetchMeta = async () => {
+      const { data } = await supabase
+        .from('exercise_library')
+        .select('name, video_url, is_timed, is_unilateral, is_plyometric, plyo_metric')
+        .in('name', missing);
+      if (data) {
+        const map: Record<string, ExerciseLibraryMeta> = { ...libraryMetaMap };
+        data.forEach(d => {
+          map[d.name.toLowerCase()] = {
+            video_url: d.video_url,
+            is_timed: d.is_timed,
+            is_unilateral: d.is_unilateral,
+            is_plyometric: d.is_plyometric,
+            plyo_metric: d.plyo_metric,
+          };
+        });
+        // Mark missing names with no DB entry as null-resolved
+        missing.forEach(n => { if (!map[n.toLowerCase()]) map[n.toLowerCase()] = { video_url: null, is_timed: false, is_unilateral: false, is_plyometric: false, plyo_metric: null }; });
+        setLibraryMetaMap(map);
+      }
+    };
+    fetchMeta();
+  }, [exercises.map(e => e.exercise_name).join(',')]);
 
   useEffect(() => {
     fetchWorkoutByDate(selectedDate);
@@ -393,6 +425,7 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
                   onMoveDown={() => moveExercise(ex.id, 'down')}
                   canMoveUp={gIdx > 0}
                   canMoveDown={gIdx < sorted.length - 1}
+                  libraryMeta={libraryMetaMap[ex.exercise_name.toLowerCase()] ?? undefined}
                 />
               );
             })}
@@ -420,6 +453,7 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
               onMoveDown={moveDown}
               canMoveUp={canUp}
               canMoveDown={canDown}
+              libraryMeta={libraryMetaMap[exercise.exercise_name.toLowerCase()] ?? undefined}
             />
           )
         );

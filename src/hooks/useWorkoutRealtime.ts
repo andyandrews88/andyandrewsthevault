@@ -29,18 +29,7 @@ export function useWorkoutRealtime() {
         "postgres_changes",
         { event: "*", schema: "public", table: "workout_exercises" },
         () => {
-          // Skip if user has an active workout – local state is already up-to-date
-          const { activeWorkout } = useWorkoutStore.getState();
-          if (!activeWorkout) {
-            useWorkoutStore.getState().fetchActiveWorkout();
-          }
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "exercise_sets" },
-        () => {
-          // Skip – user's own set changes are handled optimistically
+          // Debounce: skip if user has an active workout – local state is already up-to-date
           const { activeWorkout } = useWorkoutStore.getState();
           if (!activeWorkout) {
             useWorkoutStore.getState().fetchActiveWorkout();

@@ -29,6 +29,14 @@ import { useAdminCheck } from "@/hooks/useAdminCheck";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 
+export interface ExerciseLibraryMeta {
+  video_url: string | null;
+  is_timed: boolean;
+  is_unilateral: boolean;
+  is_plyometric: boolean;
+  plyo_metric: string | null;
+}
+
 interface ExerciseCardProps {
   exercise: WorkoutExercise;
   onRemove: () => void;
@@ -37,6 +45,7 @@ interface ExerciseCardProps {
   onMoveDown?: () => void;
   canMoveUp?: boolean;
   canMoveDown?: boolean;
+  libraryMeta?: ExerciseLibraryMeta | null;
 }
 
 function parsePercentageHint(notes: string | null | undefined): string | null {
@@ -85,7 +94,7 @@ function SupersetLinkButton({ exercise, linkableExercises, linkSuperset }: { exe
   );
 }
 
-export function ExerciseCard({ exercise, onRemove, allExercises = [], onMoveUp, onMoveDown, canMoveUp = false, canMoveDown = false }: ExerciseCardProps) {
+export function ExerciseCard({ exercise, onRemove, allExercises = [], onMoveUp, onMoveDown, canMoveUp = false, canMoveDown = false, libraryMeta }: ExerciseCardProps) {
   const { addSet, removeSet, updateSet, completeSet, loadLastSession, getLastSessionSets, preferredUnit, linkSuperset, unlinkSuperset, replaceExercise } = useWorkoutStore();
   const { isAdmin } = useAdminCheck();
   const isMobile = useIsMobile();
@@ -122,6 +131,17 @@ export function ExerciseCard({ exercise, onRemove, allExercises = [], onMoveUp, 
       metadataManuallySet.current = false;
       return;
     }
+    // If parent provided batch-fetched metadata, use it directly
+    if (libraryMeta !== undefined) {
+      if (libraryMeta) {
+        if (libraryMeta.video_url) setVideoUrl(libraryMeta.video_url);
+        setIsTimed(isTimedExercise(exercise.exercise_name, libraryMeta.is_timed));
+        setIsUnilateral(isUnilateralExercise(exercise.exercise_name, libraryMeta.is_unilateral));
+        setIsPlyometric(isPlyometricExercise(exercise.exercise_name, libraryMeta.is_plyometric));
+        setPlyoMetric(getPlyoMetric(libraryMeta.plyo_metric));
+      }
+      return;
+    }
     let cancelled = false;
     const fetchLibrary = async () => {
       const { data } = await supabase
@@ -139,7 +159,7 @@ export function ExerciseCard({ exercise, onRemove, allExercises = [], onMoveUp, 
     };
     fetchLibrary();
     return () => { cancelled = true; };
-  }, [exercise.exercise_name]);
+  }, [exercise.exercise_name, libraryMeta]);
 
   useEffect(() => {
     let cancelled = false;

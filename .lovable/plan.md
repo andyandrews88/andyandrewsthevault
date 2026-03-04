@@ -1,61 +1,40 @@
 
 
-# Performance Audit & Deployment Sync — Remediation Plan
+# Fix: Time-Based Metrics Not Updating + Admin Drawer Scroll Frozen on Mobile
 
-## Findings
+## Issue 1: Time-Based Toggle Not Reflecting
 
-### 1. Performance — Expensive Dashboard Queries (HIGH IMPACT)
+**Root cause**: Two problems working together:
 
-**`src/stores/dashboardStore.ts` lines 103-105**: The conditioning and RIR queries fetch ALL rows from `conditioning_sets` and `exercise_sets` across ALL users, then filter client-side. With growing data, these become progressively slower and return massive payloads.
+1. In `ExerciseActionSheet` (mobile), the `handleAction` wrapper calls `onMetadataChange` and then immediately closes the drawer via `onOpenChange(false)`. While the `setIsTimed(true)` call happens synchronously, closing the drawer triggers a re-render cascade. The Radix Drawer unmount animation can cause React to batch these state updates in a way where the parent's `isTimed` state update is effectively swallowed by the drawer close re-render.
 
-```text
-Current:  SELECT * FROM conditioning_sets (ALL ROWS) → filter JS-side by user_id
-Should:   SELECT ... FROM conditioning_sets WHERE user_id=X AND date>=Y (server-side)
-```
+2. The `ExerciseCard` useEffect on lines 118-136 fetches from the DB on mount based on `exercise.exercise_name`. The `upsertExerciseLibraryField` call is async and NOT awaited in the action handler, so if there's any re-mount triggered by the drawer close, the useEffect re-fetches from DB before the upsert has completed, overwriting the optimistic state with the old DB value.
 
-**Fix**: Rewrite these two queries to use proper `.eq('exercise.workout.user_id', user.id)` filters or restructure as a joined query that filters at the DB level. Alternatively, use a dedicated database view or RPC function.
+**Fix in `ExerciseActionSheet.tsx`**:
+- Make metadata actions NOT close the drawer immediately. Instead, call `onMetadataChange` and let the user see the change, then close manually. Or: delay the close until after the upsert completes.
+- Simplest fix: Remove `handleAction` wrapping for metadata changes. Call `onMetadataChange` synchronously, await the upsert, then close the sheet.
 
-### 2. Performance — Per-Exercise DB Calls in ExerciseCard (MEDIUM IMPACT)
+**Fix in `ExerciseCard.tsx`**:
+- Add a `metadataVersion` counter state that increments when `onMetadataChange` is called. This prevents the mount useEffect from overwriting optimistic state.
+- Make the useEffect skip fetching if metadata was just locally updated (guard with a ref).
 
-**`src/components/workout/ExerciseCard.tsx` lines 119-148**: Every `ExerciseCard` instance fires TWO independent Supabase queries on mount (`exercise_library` fetch + `getLastSessionSets`). A workout with 8 exercises = 16 concurrent API calls on page load.
+## Issue 2: Admin Drawer Frozen / Can't Scroll on Mobile
 
-**Fix**: Batch-fetch exercise library metadata once at the `WorkoutLogger` level and pass it down as props, eliminating N+1 queries.
+**Root cause**: The `SheetContent` component uses `fixed inset-y-0` positioning with `overflow-y-auto` applied directly. On mobile browsers (especially iOS Safari), scroll inside fixed-position elements often fails because:
 
-### 3. Performance — Realtime Channel Overfiring (MEDIUM IMPACT)
+1. The Sheet overlay intercepts touch events
+2. The `SheetContent` doesn't have a proper flex layout — the header and content area are both inside the scrollable container, but there's no explicit height constraint forcing the content to overflow
 
-**`src/hooks/useWorkoutRealtime.ts`**: The `workout_exercises` and `exercise_sets` channels have no user filter — they fire on ALL changes across ALL users. Each event triggers `fetchActiveWorkout()` which is another multi-query call.
+**Fix in `AdminDetailDrawer.tsx`**:
+- Restructure SheetContent to use `flex flex-col` with the header as a fixed section and the content area as `flex-1 overflow-y-auto`
+- Add `overscroll-behavior-y: contain` and `-webkit-overflow-scrolling: touch` to the scrollable content area
+- Move `overflow-y-auto` from SheetContent to the inner content div, and give SheetContent `overflow-hidden` instead
 
-**Fix**: Add `filter: user_id=eq.${user.id}` to the `workout_exercises` channel. For `exercise_sets`, filter via a DB function or debounce the handler.
+## Files to Modify
 
-### 4. Performance — Redundant Fetches on Mount (LOW-MEDIUM IMPACT)
-
-**`src/components/workout/WorkoutLogger.tsx` line 126-129**: Calls `fetchActiveWorkout()`, `fetchPersonalRecords()`, and `fetchWorkoutDays(12)` on every mount with no staleness guard. Tab-switching between Logger/Calendar/Analytics re-mounts and re-fires all three.
-
-**Fix**: Add a timestamp-based fetch guard (similar to what `programStore` already uses — 30s window) to `fetchActiveWorkout`, `fetchPersonalRecords`, and `fetchWorkoutDays`.
-
-### 5. Build/Deployment — PWA Cache Serving Stale Code (HIGH IMPACT)
-
-**`vite.config.ts` lines 24-26**: The Workbox config uses `globPatterns: ["**/*.{html,ico,png,svg,woff2}"]` which correctly excludes JS/CSS from precache. However, the `NetworkFirst` runtime cache for JS/CSS (lines 29-38) has a 24-hour expiration. After a deploy, the service worker may serve cached JS chunks until the SW itself updates, which can take up to 1 hour with `registerType: "autoUpdate"`.
-
-**Fix**: 
-- Add `skipWaiting: true` and `clientsClaim: true` to the Workbox config so the new SW activates immediately
-- Reduce the JS/CSS cache `maxAgeSeconds` from 24 hours to 1 hour
-- Add a `navigateFallback` to ensure the root HTML is always fresh
-
-### 6. Build/Deployment — No SW Update Prompt (MEDIUM IMPACT)
-
-There is no mechanism to notify the user that a new version is available. The app silently waits for the SW to update in the background.
-
-**Fix**: Add a `useRegisterSW` hook from `vite-plugin-pwa` that shows a toast prompting the user to refresh when a new build is available.
-
-## Remediation Steps (Ordered by Impact)
-
-| # | File | Change | Impact |
-|---|------|--------|--------|
-| 1 | `vite.config.ts` | Add `skipWaiting: true`, `clientsClaim: true`, reduce JS cache to 1hr | Fixes stale production deploys |
-| 2 | `src/stores/dashboardStore.ts` | Rewrite conditioning/RIR queries to filter server-side by user_id and date range | Eliminates full-table scans |
-| 3 | `src/hooks/useWorkoutRealtime.ts` | Add user_id filter to workout_exercises channel; debounce exercise_sets handler | Reduces unnecessary refetches |
-| 4 | `src/stores/workoutStore.ts` | Add 30s staleness guard to `fetchActiveWorkout`, `fetchPersonalRecords`, `fetchWorkoutDays` | Prevents redundant API calls on tab switch |
-| 5 | `src/components/workout/WorkoutLogger.tsx` | Batch-fetch exercise library metadata and pass to ExerciseCards | Eliminates N+1 queries |
-| 6 | `src/App.tsx` or new `src/hooks/useServiceWorkerUpdate.ts` | Add SW update toast using `useRegisterSW` | Forces users to load latest code |
+| File | Change |
+|------|--------|
+| `src/components/workout/ExerciseActionSheet.tsx` | Stop immediately closing drawer for metadata actions; await upsert then close |
+| `src/components/workout/ExerciseCard.tsx` | Add guard to prevent useEffect from overwriting optimistic metadata state |
+| `src/components/admin/AdminDetailDrawer.tsx` | Fix flex layout for proper mobile scrolling inside Sheet |
 
