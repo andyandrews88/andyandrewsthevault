@@ -59,6 +59,7 @@ export default function AdminDashboard() {
   const [drawerSection, setDrawerSection] = useState<Section | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [quickAssignOpen, setQuickAssignOpen] = useState(false);
+  const [pendingExerciseCount, setPendingExerciseCount] = useState(0);
 
   const openDrawer = (s: Section) => {
     setDrawerSection(s);
@@ -81,6 +82,15 @@ export default function AdminDashboard() {
       }
     }
     fetchAnalytics();
+
+    // Fetch pending exercise count  
+    (supabase
+      .from('exercise_library')
+      .select('id', { count: 'exact', head: true }) as any)
+      .eq('status', 'pending')
+      .then((res: any) => {
+        if (res.count != null) setPendingExerciseCount(res.count);
+      });
   }, [isAdmin, adminLoading, navigate]);
 
   if (adminLoading || loading) {
@@ -134,6 +144,11 @@ export default function AdminDashboard() {
               <Dumbbell className="h-4 w-4" />
               My Templates
             </Button>
+            {pendingExerciseCount > 0 && (
+              <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30 text-xs animate-pulse">
+                {pendingExerciseCount} exercise{pendingExerciseCount !== 1 ? 's' : ''} pending review
+              </Badge>
+            )}
           </div>
         </div>
 
