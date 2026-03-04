@@ -1,53 +1,65 @@
 
 
-# Plan: Exercise Request & Approval System
+# Plan: Warmup/Cooldown Sections + Collapsible Exercise Cards
 
-## Problem
-Many movements aren't in the exercise library. Currently, when a user types a custom exercise name, it gets added with no metadata. The admin has no visibility into what's been added and can't efficiently review/configure new exercises.
+## Two Changes
 
-## Solution
-When a user adds a custom exercise (one not in the predefined list), automatically create a pending entry in the `exercise_library` table and surface it to the admin for review.
+### 1. Warmup & Cooldown Sections
 
-### Database Changes
-- Add a `status` column to `exercise_library` with values `'approved'` (default for existing) and `'pending'`
-- Add a `submitted_by` column (nullable uuid) to track who requested it
-- Update RLS: allow authenticated users to INSERT with `status = 'pending'` (currently admin-only)
-- Migration backfills all existing rows as `'approved'`
+Add a `workout_section` column to `workout_exercises` with values `'warmup'`, `'main'` (default), and `'cooldown'`. Exercises are then grouped and rendered under labeled section headers.
 
-### How It Works
+**Database migration:**
+- Add `workout_section text DEFAULT 'main' CHECK (workout_section IN ('warmup', 'main', 'cooldown'))` to `workout_exercises`
+- Backfill all existing rows as `'main'`
 
-**User side (ExerciseSearch.tsx):**
-- When a user types a custom name and selects "Add [name]", the system inserts a row into `exercise_library` with `status: 'pending'` and `submitted_by: user.id`
-- User gets a toast: "Exercise added. Your coach will configure it shortly."
-- The exercise still works in their workout immediately (no blocking)
+**Affected workout builders:**
 
-**Admin side (AdminDashboard.tsx / ExerciseLibraryAdmin.tsx):**
-- New badge on the admin dashboard: "X exercises pending review"
-- In the Exercise Library admin panel, pending exercises appear at the top with a yellow "Pending" badge
-- Admin clicks to edit, fills in movement pattern / equipment / video URL, then marks as approved
-- Optionally: push notification to admin when new exercises are submitted
+| Location | File | Change |
+|----------|------|--------|
+| User workout logger | `WorkoutLogger.tsx` | Group exercises by section, render 3 collapsible sections with headers ("Warm Up", "Exercises", "Cool Down"), each with its own "Add Exercise" button |
+| Admin workout builder | `AdminWorkoutBuilderPage.tsx` | Same 3-section layout with section-aware add-exercise |
+| Template editor | `TemplateEditor.tsx` | Add section field to template exercises so programs can prescribe warmup/cooldown |
+| Exercise search | `ExerciseSearch.tsx` | Accept optional `section` prop so the inserted exercise gets the correct section tag |
 
-### Files to Modify
+**Store changes (`workoutStore.ts`):**
+- `addExercise` accepts an optional `section` parameter (defaults to `'main'`)
+- When inserting, pass `workout_section` to the database
 
-1. **Migration SQL** - Add `status` and `submitted_by` columns, update RLS for user INSERT of pending exercises
-2. **`src/components/workout/ExerciseSearch.tsx`** - On custom exercise selection, insert pending row into `exercise_library`
-3. **`src/components/admin/ExerciseLibraryAdmin.tsx`** - Show pending exercises at top with review UI, add approve button
-4. **`src/pages/AdminDashboard.tsx`** - Add pending exercise count badge
-5. **`src/lib/exerciseLibraryUpsert.ts`** - Minor update so upsert respects status field
-
-### User Experience Flow
-
+**How it looks:**
 ```text
-User types "Zercher Squat" → not in list
-  → Taps "Add Zercher Squat"
-  → Row created: { name: "Zercher Squat", status: "pending", submitted_by: user_id }
-  → Toast: "Exercise added! Coach will review shortly."
-  → Exercise works in their workout immediately
+── WARM UP ──────────────── [+ Add] [▾]
+   Foam Rolling
+   Band Pull-Apart
 
-Admin Dashboard shows: "3 exercises pending review"
-  → Opens Exercise Library
-  → Sees "Zercher Squat" with yellow PENDING badge at top
-  → Sets movement pattern, equipment, video URL
-  → Clicks "Approve" → status becomes 'approved'
+── EXERCISES ────────────── [+ Add] [▾]
+   Bench Press (Barbell)
+   Incline DB Press
+   Cable Fly
+
+── COOL DOWN ────────────── [+ Add] [▾]
+   Stretching
+   Foam Rolling
 ```
+
+### 2. Collapsible Exercise Cards
+
+Make each `ExerciseCard` and `ConditioningCard` collapsible in the user-facing workout logger so users can collapse completed exercises while working out.
+
+**Changes:**
+- `ExerciseCard.tsx`: Wrap the `CardContent` (sets, add-set button) in a `Collapsible`. The header stays visible; tapping the card header or a chevron toggles the body. Auto-collapse when all sets are completed.
+- `ConditioningCard.tsx`: Same pattern.
+- Track collapsed state locally per card (no persistence needed -- all expand on page load).
+
+The admin builder does NOT need collapsible cards (coach needs to see everything while building).
+
+### Files to modify
+1. **Migration SQL** — add `workout_section` column
+2. **`src/types/workout.ts`** — add `workout_section` to `WorkoutExercise` type
+3. **`src/stores/workoutStore.ts`** — update `addExercise` and `castExercises` for section
+4. **`src/components/workout/WorkoutLogger.tsx`** — group exercises into 3 sections with headers and per-section add buttons
+5. **`src/components/workout/ExerciseCard.tsx`** — wrap content in Collapsible
+6. **`src/components/workout/ConditioningCard.tsx`** — wrap content in Collapsible
+7. **`src/pages/AdminWorkoutBuilderPage.tsx`** — group exercises into 3 sections
+8. **`src/components/admin/TemplateEditor.tsx`** — add section field to template exercise schema
+9. **`src/components/workout/ExerciseSearch.tsx`** — pass section context through
 
