@@ -425,6 +425,7 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
                   onMoveDown={() => moveExercise(ex.id, 'down')}
                   canMoveUp={gIdx > 0}
                   canMoveDown={gIdx < sorted.length - 1}
+                  libraryMeta={libraryMetaMap[ex.exercise_name.toLowerCase()] ?? undefined}
                 />
               );
             })}
