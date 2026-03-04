@@ -157,7 +157,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
     if (workout) {
       const { data: exercisesData } = await supabase
         .from('workout_exercises')
-        .select('*, sets:exercise_sets(*)')
+        .select('*, sets:exercise_sets(*), conditioning_sets:conditioning_sets(*)')
         .eq('workout_id', workout.id)
         .order('order_index');
       

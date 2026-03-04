@@ -269,7 +269,7 @@ export function AdminPanel() {
 
         {/* Content tabs */}
         <Tabs defaultValue="resources">
-          <TabsList>
+          <TabsList className="w-full overflow-x-auto flex-nowrap justify-start">
             <TabsTrigger value="resources">
               Resources ({filteredResources.length})
             </TabsTrigger>

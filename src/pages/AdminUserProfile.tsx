@@ -169,6 +169,8 @@ export default function AdminUserProfile() {
       });
       if (error) throw error;
       if (result?.error) throw new Error(result.error);
+      // Sync local data state so re-renders don't revert the toggle
+      setData((prev: any) => prev ? { ...prev, profile: { ...prev.profile, private_coaching_enabled: checked } } : prev);
       toast({ title: checked ? "Private coaching enabled" : "Private coaching disabled" });
     } catch (e: any) {
       toast({ title: "Error", description: e?.message || "Failed to update", variant: "destructive" });
