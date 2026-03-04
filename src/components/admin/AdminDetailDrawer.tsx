@@ -598,8 +598,8 @@ export function AdminDetailDrawer({
   return (
     <>
       <Sheet open={open} onOpenChange={(isOpen) => { if (!isOpen) { prevKeyRef.current = null; setData(null); setIsMaximized(false); setUserFilter("all"); onClose(); } }}>
-        <SheetContent className={`overflow-y-auto transition-all duration-200 ${isMobile ? "w-full" : isMaximized ? "w-full sm:max-w-[95vw]" : "w-full sm:max-w-2xl"}`}>
-          <SheetHeader className="flex flex-row items-center justify-between pr-8">
+        <SheetContent className={`flex flex-col overflow-hidden transition-all duration-200 ${isMobile ? "w-full" : isMaximized ? "w-full sm:max-w-[95vw]" : "w-full sm:max-w-2xl"}`}>
+          <SheetHeader className="flex flex-row items-center justify-between pr-8 shrink-0">
             <SheetTitle>{section ? titles[section] : ""}</SheetTitle>
             {!isMobile && (
               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsMaximized(!isMaximized)}>
@@ -607,7 +607,7 @@ export function AdminDetailDrawer({
               </Button>
             )}
           </SheetHeader>
-          <div className="mt-4">
+          <div className="flex-1 overflow-y-auto overscroll-y-contain mt-4" style={{ WebkitOverflowScrolling: 'touch' }}>
             {renderContent()}
           </div>
         </SheetContent>

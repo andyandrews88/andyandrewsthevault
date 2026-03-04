@@ -120,6 +120,13 @@ export function ExerciseActionSheet({
     onOpenChange(false);
   };
 
+  /** For metadata actions: call onMetadataChange synchronously, await upsert, then close */
+  const handleMetadataAction = async (upsertFn: () => Promise<void>, metadataFn: () => void) => {
+    metadataFn();
+    await upsertFn();
+    onOpenChange(false);
+  };
+
   const handleSaveVideo = async () => {
     const url = videoUrlInput.trim() || null;
     await upsertExerciseLibraryField(exercise.exercise_name, {
@@ -190,16 +197,18 @@ export function ExerciseActionSheet({
                     <button
                       key={key}
                       onClick={() =>
-                        handleAction(() => {
-                          upsertExerciseLibraryField(exercise.exercise_name, {
+                        handleMetadataAction(
+                          () => upsertExerciseLibraryField(exercise.exercise_name, {
                             movement_pattern: key,
                             is_plyometric: false,
                             plyo_metric: 'standard',
-                          });
-                          onMetadataChange?.("movementPattern", key);
-                          onMetadataChange?.("isPlyometric", false);
-                          onMetadataChange?.("plyoMetric", "standard");
-                        })
+                          }),
+                          () => {
+                            onMetadataChange?.("movementPattern", key);
+                            onMetadataChange?.("isPlyometric", false);
+                            onMetadataChange?.("plyoMetric", "standard");
+                          }
+                        )
                       }
                       className="w-full rounded-md px-3 py-2.5 text-left text-sm text-foreground hover:bg-accent active:bg-accent/60"
                     >
@@ -212,17 +221,22 @@ export function ExerciseActionSheet({
                       <button
                         key={key}
                         onClick={() =>
-                          handleAction(() => {
-                            const isPlyometric = key !== 'standard';
-                            upsertExerciseLibraryField(exercise.exercise_name, {
-                              movement_pattern: 'plyometric',
-                              is_plyometric: isPlyometric,
-                              plyo_metric: key,
-                            });
-                            onMetadataChange?.("movementPattern", "plyometric");
-                            onMetadataChange?.("isPlyometric", isPlyometric);
-                            onMetadataChange?.("plyoMetric", key);
-                          })
+                          handleMetadataAction(
+                            () => {
+                              const isPlyometric = key !== 'standard';
+                              return upsertExerciseLibraryField(exercise.exercise_name, {
+                                movement_pattern: 'plyometric',
+                                is_plyometric: isPlyometric,
+                                plyo_metric: key,
+                              });
+                            },
+                            () => {
+                              const isPlyometric = key !== 'standard';
+                              onMetadataChange?.("movementPattern", "plyometric");
+                              onMetadataChange?.("isPlyometric", isPlyometric);
+                              onMetadataChange?.("plyoMetric", key);
+                            }
+                          )
                         }
                         className="w-full rounded-md px-3 py-2.5 text-left text-sm text-foreground hover:bg-accent active:bg-accent/60"
                       >
@@ -237,12 +251,12 @@ export function ExerciseActionSheet({
                     <button
                       key={key}
                       onClick={() =>
-                        handleAction(() => {
-                          upsertExerciseLibraryField(exercise.exercise_name, {
+                        handleMetadataAction(
+                          () => upsertExerciseLibraryField(exercise.exercise_name, {
                             equipment_type: key,
-                          });
-                          onMetadataChange?.("equipmentType", key);
-                        })
+                          }),
+                          () => onMetadataChange?.("equipmentType", key)
+                        )
                       }
                       className="w-full rounded-md px-3 py-2.5 text-left text-sm text-foreground hover:bg-accent active:bg-accent/60"
                     >
@@ -254,12 +268,10 @@ export function ExerciseActionSheet({
                 <ExpandableSection icon={Timer} label="Time-Based">
                   <button
                     onClick={() =>
-                      handleAction(() => {
-                        upsertExerciseLibraryField(exercise.exercise_name, {
-                          is_timed: true,
-                        });
-                        onMetadataChange?.("isTimed", true);
-                      })
+                      handleMetadataAction(
+                        () => upsertExerciseLibraryField(exercise.exercise_name, { is_timed: true }),
+                        () => onMetadataChange?.("isTimed", true)
+                      )
                     }
                     className="w-full rounded-md px-3 py-2.5 text-left text-sm text-foreground hover:bg-accent active:bg-accent/60"
                   >
@@ -267,12 +279,10 @@ export function ExerciseActionSheet({
                   </button>
                   <button
                     onClick={() =>
-                      handleAction(() => {
-                        upsertExerciseLibraryField(exercise.exercise_name, {
-                          is_timed: false,
-                        });
-                        onMetadataChange?.("isTimed", false);
-                      })
+                      handleMetadataAction(
+                        () => upsertExerciseLibraryField(exercise.exercise_name, { is_timed: false }),
+                        () => onMetadataChange?.("isTimed", false)
+                      )
                     }
                     className="w-full rounded-md px-3 py-2.5 text-left text-sm text-foreground hover:bg-accent active:bg-accent/60"
                   >
@@ -283,12 +293,10 @@ export function ExerciseActionSheet({
                 <ExpandableSection icon={ArrowLeftRight} label="Unilateral (L/R)">
                   <button
                     onClick={() =>
-                      handleAction(() => {
-                        upsertExerciseLibraryField(exercise.exercise_name, {
-                          is_unilateral: true,
-                        });
-                        onMetadataChange?.("isUnilateral", true);
-                      })
+                      handleMetadataAction(
+                        () => upsertExerciseLibraryField(exercise.exercise_name, { is_unilateral: true }),
+                        () => onMetadataChange?.("isUnilateral", true)
+                      )
                     }
                     className="w-full rounded-md px-3 py-2.5 text-left text-sm text-foreground hover:bg-accent active:bg-accent/60"
                   >
@@ -296,12 +304,10 @@ export function ExerciseActionSheet({
                   </button>
                   <button
                     onClick={() =>
-                      handleAction(() => {
-                        upsertExerciseLibraryField(exercise.exercise_name, {
-                          is_unilateral: false,
-                        });
-                        onMetadataChange?.("isUnilateral", false);
-                      })
+                      handleMetadataAction(
+                        () => upsertExerciseLibraryField(exercise.exercise_name, { is_unilateral: false }),
+                        () => onMetadataChange?.("isUnilateral", false)
+                      )
                     }
                     className="w-full rounded-md px-3 py-2.5 text-left text-sm text-foreground hover:bg-accent active:bg-accent/60"
                   >
