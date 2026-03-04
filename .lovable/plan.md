@@ -1,26 +1,40 @@
 
 
-# Fix: ExerciseCard Video Button Triggering Collapse
+# Fix: Time-Based Metrics Not Updating + Admin Drawer Scroll Frozen on Mobile
 
-## Root Cause
+## Issue 1: Time-Based Toggle Not Reflecting
 
-The `CardHeader` on line 173 has an `onClick` handler that toggles collapse state. All buttons in the header (video play, move up/down, menu, collapse icon) are children of this header. While the exercise name area (left side) correctly calls `e.stopPropagation()`, the **right-side button container** (line 199) does NOT stop propagation. 
+**Root cause**: Two problems working together:
 
-So when you click the Play/Video button, two things happen simultaneously:
-1. `setShowVideo(!showVideo)` toggles the video on
-2. The click bubbles up to `CardHeader`, which calls `setIsCollapsed(!isCollapsed)` and collapses the card
+1. In `ExerciseActionSheet` (mobile), the `handleAction` wrapper calls `onMetadataChange` and then immediately closes the drawer via `onOpenChange(false)`. While the `setIsTimed(true)` call happens synchronously, closing the drawer triggers a re-render cascade. The Radix Drawer unmount animation can cause React to batch these state updates in a way where the parent's `isTimed` state update is effectively swallowed by the drawer close re-render.
 
-The video opens but the card collapses at the same time, making the video invisible inside `CollapsibleContent`.
+2. The `ExerciseCard` useEffect on lines 118-136 fetches from the DB on mount based on `exercise.exercise_name`. The `upsertExerciseLibraryField` call is async and NOT awaited in the action handler, so if there's any re-mount triggered by the drawer close, the useEffect re-fetches from DB before the upsert has completed, overwriting the optimistic state with the old DB value.
 
-## Fix
+**Fix in `ExerciseActionSheet.tsx`**:
+- Make metadata actions NOT close the drawer immediately. Instead, call `onMetadataChange` and let the user see the change, then close manually. Or: delay the close until after the upsert completes.
+- Simplest fix: Remove `handleAction` wrapping for metadata changes. Call `onMetadataChange` synchronously, await the upsert, then close the sheet.
 
-Add `onClick={(e) => e.stopPropagation()}` to the right-side button container div (line 199). This prevents clicks on ANY header button (video, move, menu, collapse chevron) from bubbling up to the `CardHeader` collapse handler.
+**Fix in `ExerciseCard.tsx`**:
+- Add a `metadataVersion` counter state that increments when `onMetadataChange` is called. This prevents the mount useEffect from overwriting optimistic state.
+- Make the useEffect skip fetching if metadata was just locally updated (guard with a ref).
 
-Then make the `ChevronsUpDown` icon (line 301) a proper clickable element that explicitly toggles collapse, since it's currently just a passive icon relying on the header click.
+## Issue 2: Admin Drawer Frozen / Can't Scroll on Mobile
 
-## File Changes
+**Root cause**: The `SheetContent` component uses `fixed inset-y-0` positioning with `overflow-y-auto` applied directly. On mobile browsers (especially iOS Safari), scroll inside fixed-position elements often fails because:
 
-**`src/components/workout/ExerciseCard.tsx`**:
-- Line 199: Add `onClick={(e) => e.stopPropagation()}` to the buttons container div
-- This single change fixes the video button, move buttons, and menu button all accidentally toggling collapse
+1. The Sheet overlay intercepts touch events
+2. The `SheetContent` doesn't have a proper flex layout — the header and content area are both inside the scrollable container, but there's no explicit height constraint forcing the content to overflow
+
+**Fix in `AdminDetailDrawer.tsx`**:
+- Restructure SheetContent to use `flex flex-col` with the header as a fixed section and the content area as `flex-1 overflow-y-auto`
+- Add `overscroll-behavior-y: contain` and `-webkit-overflow-scrolling: touch` to the scrollable content area
+- Move `overflow-y-auto` from SheetContent to the inner content div, and give SheetContent `overflow-hidden` instead
+
+## Files to Modify
+
+| File | Change |
+|------|--------|
+| `src/components/workout/ExerciseActionSheet.tsx` | Stop immediately closing drawer for metadata actions; await upsert then close |
+| `src/components/workout/ExerciseCard.tsx` | Add guard to prevent useEffect from overwriting optimistic metadata state |
+| `src/components/admin/AdminDetailDrawer.tsx` | Fix flex layout for proper mobile scrolling inside Sheet |
 
