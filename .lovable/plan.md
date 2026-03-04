@@ -1,110 +1,53 @@
 
 
-# Plan: Rebuild Direct Messaging System
+# Plan: Exercise Request & Approval System
 
-## The Core Problems
-1. No concept of "conversations" - all DMs are dumped into a single pane
-2. Admin sees messages from multiple clients mixed together
-3. Replies go to a random recipient
-4. No gate on `private_coaching_enabled` - anyone can receive DMs
-5. RLS blocks user replies but UI shows a reply box
+## Problem
+Many movements aren't in the exercise library. Currently, when a user types a custom exercise name, it gets added with no metadata. The admin has no visibility into what's been added and can't efficiently review/configure new exercises.
 
-## Option A: Per-Client Conversation Threads (Recommended)
+## Solution
+When a user adds a custom exercise (one not in the predefined list), automatically create a pending entry in the `exercise_library` table and surface it to the admin for review.
 
-The DM section in the sidebar becomes expandable, showing each client as a separate conversation. This keeps DMs inside the existing community page.
+### Database Changes
+- Add a `status` column to `exercise_library` with values `'approved'` (default for existing) and `'pending'`
+- Add a `submitted_by` column (nullable uuid) to track who requested it
+- Update RLS: allow authenticated users to INSERT with `status = 'pending'` (currently admin-only)
+- Migration backfills all existing rows as `'approved'`
+
+### How It Works
+
+**User side (ExerciseSearch.tsx):**
+- When a user types a custom name and selects "Add [name]", the system inserts a row into `exercise_library` with `status: 'pending'` and `submitted_by: user.id`
+- User gets a toast: "Exercise added. Your coach will configure it shortly."
+- The exercise still works in their workout immediately (no blocking)
+
+**Admin side (AdminDashboard.tsx / ExerciseLibraryAdmin.tsx):**
+- New badge on the admin dashboard: "X exercises pending review"
+- In the Exercise Library admin panel, pending exercises appear at the top with a yellow "Pending" badge
+- Admin clicks to edit, fills in movement pattern / equipment / video URL, then marks as approved
+- Optionally: push notification to admin when new exercises are submitted
+
+### Files to Modify
+
+1. **Migration SQL** - Add `status` and `submitted_by` columns, update RLS for user INSERT of pending exercises
+2. **`src/components/workout/ExerciseSearch.tsx`** - On custom exercise selection, insert pending row into `exercise_library`
+3. **`src/components/admin/ExerciseLibraryAdmin.tsx`** - Show pending exercises at top with review UI, add approve button
+4. **`src/pages/AdminDashboard.tsx`** - Add pending exercise count badge
+5. **`src/lib/exerciseLibraryUpsert.ts`** - Minor update so upsert respects status field
+
+### User Experience Flow
 
 ```text
-DIRECT MESSAGES
-  ▸ Shannon          (2 unread)
-  ▸ Marcus
-  ▸ Jordan           (1 unread)
+User types "Zercher Squat" → not in list
+  → Taps "Add Zercher Squat"
+  → Row created: { name: "Zercher Squat", status: "pending", submitted_by: user_id }
+  → Toast: "Exercise added! Coach will review shortly."
+  → Exercise works in their workout immediately
+
+Admin Dashboard shows: "3 exercises pending review"
+  → Opens Exercise Library
+  → Sees "Zercher Squat" with yellow PENDING badge at top
+  → Sets movement pattern, equipment, video URL
+  → Clicks "Approve" → status becomes 'approved'
 ```
-
-Clicking a name opens that specific 1-on-1 conversation.
-
-### What changes
-
-**Database:**
-- Add RLS policy allowing private coaching clients to INSERT DMs (reply to their coach)
-- Add RLS policy allowing admins to read ALL DMs (not just their own)
-- Gate DM visibility: only users with `private_coaching_enabled = true` see the DM section
-
-**Store (`communityStore.ts`):**
-- Replace flat `directMessages` array with a grouped structure: `Map<userId, DirectMessage[]>`
-- Add `activeDmConversationUserId` to track which conversation is open
-- Fetch DM conversation partners (distinct user IDs) separately from messages
-- `sendDirectMessage` stays the same but now both admin and client can call it
-
-**Sidebar (`ChannelSidebar.tsx`):**
-- Replace single "Coach Messages" button with a list of conversation partners
-- For regular users: show just "Coach" (their coach)
-- For admins: show each private coaching client as a separate entry
-- Each entry shows unread badge per conversation
-- Only visible when `private_coaching_enabled = true` (for clients) or `isAdmin` (for coaches)
-
-**DM Pane (`DirectMessagePane.tsx`):**
-- Rewrite to accept a `conversationPartnerId` prop
-- Filter messages to only that specific partner
-- Show correct header (partner name, not generic "Coach")
-- Reply goes to that specific partner
-
-**Admin Profile (`AdminUserProfile.tsx`):**
-- DM composer stays, but now properly opens the per-client conversation
-
-### Effort: Medium (4-5 files, 1 migration)
-
----
-
-## Option B: Separate Inbox Page
-
-Create a dedicated `/inbox` route with a proper two-panel inbox (conversation list on left, messages on right). Fully decoupled from the community tab.
-
-### What changes
-- New `/inbox` route and page component
-- Conversation list panel with search/filter
-- Message thread panel per conversation
-- Nav link added to main tabs or navbar
-- Same database and RLS changes as Option A
-- Same `private_coaching_enabled` gate
-
-### Effort: High (new page, new components, nav changes)
-### Downside: Adds another top-level tab, more UI surface to maintain, and splits communication across two places
-
----
-
-## Option C: Keep Single Pane, Add Conversation Switcher
-
-Minimal change: keep the DM pane but add a dropdown/tabs at the top to switch between conversation partners. The sidebar still shows one "Messages" entry.
-
-### What changes
-- Fetch distinct conversation partners
-- Add a partner selector dropdown at top of DM pane
-- Filter messages by selected partner
-- Same database and RLS changes
-
-### Effort: Low-Medium (2-3 files, 1 migration)
-### Downside: Less discoverable than Option A; admin won't see at a glance who has unread messages
-
----
-
-## Recommendation
-
-**Option A** is the right balance. It keeps everything in the community tab (no clutter), gives clear per-client conversations, shows unread counts per person, and gates access to private coaching clients only. It's also the pattern users expect from any messaging app.
-
-### Technical details for Option A
-
-**Migration SQL:**
-- Add INSERT policy on `direct_messages` for users where `private_coaching_enabled = true` in their profile
-- Add SELECT policy so admins can read all DMs (they currently can't - only sender/recipient can)
-
-**Files to modify:**
-- `src/stores/communityStore.ts` - grouped conversations, per-partner fetching
-- `src/components/community/ChannelSidebar.tsx` - per-client DM entries
-- `src/components/community/DirectMessagePane.tsx` - full rewrite for per-conversation view
-- `src/components/community/CommunityFeed.tsx` - pass conversation partner ID to DM pane
-- `src/hooks/useCommunityRealtime.ts` - update DM subscription for conversation grouping
-
-**Files unchanged:**
-- `AdminUserProfile.tsx` DM composer works as-is (sends to specific user)
-- Database schema (no new tables needed)
 
