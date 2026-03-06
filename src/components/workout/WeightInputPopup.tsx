@@ -54,12 +54,11 @@ export function WeightInputPopup({
 
   const handleLog = () => {
     const value = parseFloat(displayValue);
-    if (!isNaN(value) && value >= 0) {
-      // Convert to lbs for storage if user entered in kg
-      const storedValue = inputUnit === 'kg' ? convertWeight(value, 'kg', 'lbs') : value;
-      onLog(storedValue);
-      onOpenChange(false);
-    }
+    if (isNaN(value) || value < 0) return;
+    // Convert to lbs for storage if user entered in kg
+    const storedValue = value === 0 ? 0 : (inputUnit === 'kg' ? convertWeight(value, 'kg', 'lbs') : value);
+    onLog(storedValue);
+    onOpenChange(false);
   };
 
   const handleBodyweightOnly = () => {
@@ -166,7 +165,7 @@ export function WeightInputPopup({
                 variant="hero"
                 size="lg"
                 onClick={handleLog}
-                disabled={!displayValue || parseFloat(displayValue) < 0}
+                disabled={displayValue === '' || parseFloat(displayValue) < 0}
                 className="h-14 font-semibold"
               >
                 Log
