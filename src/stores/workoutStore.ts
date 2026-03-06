@@ -440,7 +440,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
   completeSet: async (setId: string, exerciseName: string, weight: number, reps: number, rir?: number | null) => {
     console.log('[completeSet] setId:', setId, 'exercise:', exerciseName, 'weight:', weight, 'reps:', reps, 'rir:', rir);
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.user || !weight) { console.log('[completeSet] no session or weight'); return false; }
+    if (!session?.user || (weight === undefined || weight === null)) { console.log('[completeSet] no session or weight is null/undefined'); return false; }
     const user = session.user;
     
     const { exercises, activeWorkout, personalRecords } = get();
@@ -598,12 +598,41 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
   },
   
   finishWorkout: async () => {
-    const { activeWorkout } = get();
+    const { activeWorkout, exercises } = get();
     if (!activeWorkout) return;
     
     set({ isSaving: true });
-    
-    await supabase.from('workouts').update({ is_completed: true }).eq('id', activeWorkout.id);
+
+    // Calculate total volume using proper BW-aware formula
+    const { calculateSetVolume } = await import('@/lib/movementPatterns');
+    // Fetch latest bodyweight for volume calc
+    const { data: { session } } = await supabase.auth.getSession();
+    let bodyWeightKg: number | null = null;
+    if (session?.user) {
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('weight_kg')
+        .eq('id', session.user.id)
+        .maybeSingle();
+      bodyWeightKg = profile?.weight_kg ?? null;
+    }
+
+    let totalVolume = 0;
+    for (const ex of exercises) {
+      for (const s of (ex.sets || [])) {
+        if (s.is_completed && s.set_type !== 'warmup') {
+          totalVolume += calculateSetVolume(
+            ex.exercise_name,
+            s.weight ?? null,
+            s.reps ?? null,
+            bodyWeightKg,
+            s.duration_seconds ?? null,
+          );
+        }
+      }
+    }
+
+    await supabase.from('workouts').update({ is_completed: true, total_volume: Math.round(totalVolume) }).eq('id', activeWorkout.id);
     
     const wasEditing = get().isEditing;
     const currentSelectedDate = get().selectedDate;
