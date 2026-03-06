@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useAuditStore, AuditData } from "@/stores/auditStore";
 import { useNavigate } from "react-router-dom";
 import { ArrowRight, ArrowLeft, User, Dumbbell, Timer, CheckCircle, Heart, Calculator, Apple, Activity, Info, AlertCircle } from "lucide-react";
@@ -315,16 +315,16 @@ export function AuditForm() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Label className="text-sm font-medium">{label}</Label>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
-                </TooltipTrigger>
-                <TooltipContent className="max-w-xs">
-                  <p className="text-xs">{movementTooltips[tooltipKey]}</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <Popover>
+              <PopoverTrigger asChild>
+                <button type="button" className="inline-flex items-center justify-center rounded-full h-5 w-5 bg-muted text-muted-foreground hover:bg-primary/20 hover:text-primary transition-colors">
+                  <Info className="w-3 h-3" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent side="top" className="max-w-xs p-3">
+                <p className="text-xs text-foreground">{movementTooltips[tooltipKey]}</p>
+              </PopoverContent>
+            </Popover>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground">Skip</span>

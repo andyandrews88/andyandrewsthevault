@@ -440,7 +440,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
   completeSet: async (setId: string, exerciseName: string, weight: number, reps: number, rir?: number | null) => {
     console.log('[completeSet] setId:', setId, 'exercise:', exerciseName, 'weight:', weight, 'reps:', reps, 'rir:', rir);
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.user || !weight) { console.log('[completeSet] no session or weight'); return false; }
+    if (!session?.user || (weight === undefined || weight === null)) { console.log('[completeSet] no session or weight is null/undefined'); return false; }
     const user = session.user;
     
     const { exercises, activeWorkout, personalRecords } = get();
