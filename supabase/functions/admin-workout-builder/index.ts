@@ -757,10 +757,45 @@ Deno.serve(async (req) => {
         const completed = allWorkouts?.filter((w: any) => w.is_completed).length || 0;
         const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
 
+        // Per-movement volume breakdown
+        const { data: workoutIds } = await serviceClient
+          .from("workouts")
+          .select("id")
+          .eq("user_id", userId)
+          .eq("is_completed", true)
+          .gte("date", from)
+          .lte("date", to);
+
+        let movementVolume: { exercise_name: string; total_volume: number; total_sets: number }[] = [];
+        if (workoutIds && workoutIds.length > 0) {
+          const wIds = workoutIds.map((w: any) => w.id);
+          const { data: exData } = await serviceClient
+            .from("workout_exercises")
+            .select("exercise_name, sets:exercise_sets(weight, reps, is_completed, set_type)")
+            .in("workout_id", wIds);
+
+          const volMap: Record<string, { volume: number; sets: number }> = {};
+          for (const ex of (exData || [])) {
+            const name = ex.exercise_name;
+            if (!volMap[name]) volMap[name] = { volume: 0, sets: 0 };
+            for (const s of (ex.sets || [])) {
+              if (s.is_completed && s.set_type === "working") {
+                volMap[name].volume += (s.weight || 0) * (s.reps || 0);
+                volMap[name].sets += 1;
+              }
+            }
+          }
+          movementVolume = Object.entries(volMap)
+            .map(([exercise_name, d]) => ({ exercise_name, total_volume: Math.round(d.volume), total_sets: d.sets }))
+            .filter(m => m.total_volume > 0)
+            .sort((a, b) => b.total_volume - a.total_volume);
+        }
+
         return new Response(JSON.stringify({
           weeklyVolume: volumeData || [],
           weeklyRir: rirData || [],
           compliance: { completed, total, incomplete: total - completed, percentage },
+          movementVolume,
         }), { headers: corsHeaders });
       }
 
