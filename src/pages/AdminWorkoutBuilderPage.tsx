@@ -10,6 +10,7 @@ import {
   FileText, Timer, Save, Video, ChevronDown, ChevronUp, RotateCcw,
   MoreVertical, RefreshCw, ArrowRightLeft, Flame, Snowflake, Link, Unlink,
 } from "lucide-react";
+import { convertWeight, type WeightUnit, getStoredUnit, setStoredUnit } from "@/lib/weightConversion";
 import {
   DropdownMenu,
   DropdownMenuContent,
