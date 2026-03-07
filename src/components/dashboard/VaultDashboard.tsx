@@ -41,7 +41,7 @@ export function VaultDashboard() {
   const { checkForNewAnnouncements, loadNotificationPrefs } = useNotificationStore();
   const { user } = useAuthStore();
   const [editMode, setEditMode] = useState(false);
-  const { order, moveUp, moveDown, toggleCollapse, isCollapsed, resetLayout } = useDashboardLayout("vault-dashboard-layout", DEFAULT_ORDER);
+  const { order, moveUp, moveDown, toggleCollapse, isCollapsed, toggleHidden, isHidden, resetLayout } = useDashboardLayout("vault-dashboard-layout", DEFAULT_ORDER);
 
   useEffect(() => {
     fetchAll();
@@ -94,6 +94,7 @@ export function VaultDashboard() {
         const meta = SECTION_META[id];
         const render = SECTION_COMPONENTS[id];
         if (!meta || !render) return null;
+        if (!editMode && isHidden(id)) return null;
         return (
           <CollapsibleDashboardSection
             key={id}
@@ -106,6 +107,8 @@ export function VaultDashboard() {
             isFirst={idx === 0}
             isLast={idx === order.length - 1}
             editMode={editMode}
+            isHidden={isHidden(id)}
+            onToggleHidden={() => toggleHidden(id)}
           >
             {render()}
           </CollapsibleDashboardSection>

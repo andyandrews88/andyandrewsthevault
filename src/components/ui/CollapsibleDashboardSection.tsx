@@ -1,5 +1,5 @@
 import { ReactNode } from "react";
-import { ChevronDown, ChevronUp, ArrowUp, ArrowDown } from "lucide-react";
+import { ChevronDown, ArrowUp, ArrowDown, Eye, EyeOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
@@ -17,24 +17,35 @@ interface Props {
   isFirst?: boolean;
   isLast?: boolean;
   editMode?: boolean;
+  isHidden?: boolean;
+  onToggleHidden?: () => void;
 }
 
 export function CollapsibleDashboardSection({
   title, icon, badge, children, isOpen, onToggle,
   onMoveUp, onMoveDown, isFirst, isLast, editMode,
+  isHidden, onToggleHidden,
 }: Props) {
   return (
     <Collapsible open={isOpen} onOpenChange={onToggle}>
-      <div className="flex items-center gap-2 group">
+      <div className={cn("flex items-center gap-2 group", isHidden && editMode && "opacity-50")}>
         <CollapsibleTrigger asChild>
           <button className="flex items-center gap-2 flex-1 text-left py-1.5 px-1 -mx-1 rounded-md hover:bg-secondary/50 transition-colors">
             {icon}
             {badge || <span className="text-sm font-semibold tracking-wide uppercase text-muted-foreground">{title}</span>}
+            {isHidden && editMode && (
+              <span className="text-[10px] text-muted-foreground/60 ml-1">(hidden)</span>
+            )}
             <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform duration-200 ml-auto", isOpen && "rotate-180")} />
           </button>
         </CollapsibleTrigger>
         {editMode && (
           <div className="flex items-center gap-0.5 shrink-0">
+            {onToggleHidden && (
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onToggleHidden} title={isHidden ? "Show section" : "Hide section"}>
+                {isHidden ? <EyeOff className="h-3.5 w-3.5 text-muted-foreground" /> : <Eye className="h-3.5 w-3.5" />}
+              </Button>
+            )}
             <Button variant="ghost" size="icon" className="h-7 w-7" disabled={isFirst} onClick={onMoveUp}>
               <ArrowUp className="h-3.5 w-3.5" />
             </Button>

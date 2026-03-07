@@ -3,12 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  AreaChart, Area, LineChart, Line, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+  AreaChart, Area, LineChart, Line, PieChart, Pie, Cell, BarChart, Bar,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
-import { TrendingUp, Activity, CheckCircle } from "lucide-react";
+import { TrendingUp, Activity, CheckCircle, BarChart3 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { DateRangeSelector, computeRange, type PresetKey } from "@/components/ui/DateRangeSelector";
+import { DateRangeSelector, computeRange } from "@/components/ui/DateRangeSelector";
 import { format } from "date-fns";
 
 interface Props {
@@ -64,6 +64,13 @@ export function CoachingAnalyticsDashboard({ userId, displayName }: Props) {
   ];
   const DONUT_COLORS = ["hsl(var(--primary))", "hsl(var(--muted))"];
 
+  const movementData = (data?.movementVolume || []).slice(0, 15).map((m: any) => ({
+    name: m.exercise_name.length > 18 ? m.exercise_name.slice(0, 16) + "…" : m.exercise_name,
+    fullName: m.exercise_name,
+    volume: m.total_volume,
+    sets: m.total_sets,
+  }));
+
   const formatVolume = (v: number) => (v >= 1000 ? `${(v / 1000).toFixed(1)}k` : String(v));
 
   return (
@@ -84,117 +91,160 @@ export function CoachingAnalyticsDashboard({ userId, displayName }: Props) {
           <Skeleton className="h-72" />
         </div>
       ) : (
-        <div className="grid md:grid-cols-3 gap-4">
-          {/* Volume Trend */}
-          <Card className="glass border-border/50 md:col-span-1">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-primary" />
-                Volume Trend
-              </CardTitle>
-              <CardDescription className="text-xs">Weekly tonnage (weight × reps)</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {volumeChartData.length === 0 ? (
-                <div className="h-48 flex items-center justify-center text-xs text-muted-foreground">No data</div>
-              ) : (
-                <div className="h-48">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={volumeChartData}>
-                      <defs>
-                        <linearGradient id="volGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-                          <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                      <XAxis dataKey="week" tick={{ fontSize: 10 }} />
-                      <YAxis tick={{ fontSize: 10 }} tickFormatter={formatVolume} />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: "hsl(var(--card))",
-                          border: "1px solid hsl(var(--border))",
-                          borderRadius: "8px",
-                          fontSize: "12px",
-                        }}
-                        formatter={(v: number) => [`${v.toLocaleString()} kg`, "Volume"]}
-                      />
-                      <Area type="monotone" dataKey="volume" stroke="hsl(var(--primary))" fill="url(#volGrad)" strokeWidth={2} />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* RIR / Proximity to Failure */}
-          <Card className="glass border-border/50 md:col-span-1">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <Activity className="h-4 w-4 text-primary" />
-                Proximity to Failure
-              </CardTitle>
-              <CardDescription className="text-xs">Avg RIR per week (lower = harder)</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {rirChartData.length === 0 ? (
-                <div className="h-48 flex items-center justify-center text-xs text-muted-foreground">No RIR data recorded</div>
-              ) : (
-                <div className="h-48">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={rirChartData}>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                      <XAxis dataKey="week" tick={{ fontSize: 10 }} />
-                      <YAxis tick={{ fontSize: 10 }} reversed domain={[0, "auto"]} />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: "hsl(var(--card))",
-                          border: "1px solid hsl(var(--border))",
-                          borderRadius: "8px",
-                          fontSize: "12px",
-                        }}
-                        formatter={(v: number, name: string) => {
-                          if (name === "rir") return [`${v} RIR`, "Avg RIR"];
-                          return [v, name];
-                        }}
-                      />
-                      <Line type="monotone" dataKey="rir" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Compliance Donut */}
-          <Card className="glass border-border/50 md:col-span-1">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <CheckCircle className="h-4 w-4 text-primary" />
-                Compliance
-              </CardTitle>
-              <CardDescription className="text-xs">{compliance.completed}/{compliance.total} workouts completed</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="h-48 flex items-center justify-center">
-                {compliance.total === 0 ? (
-                  <span className="text-xs text-muted-foreground">No workouts in range</span>
+        <>
+          <div className="grid md:grid-cols-3 gap-4">
+            {/* Volume Trend */}
+            <Card className="glass border-border/50 md:col-span-1">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-primary" />
+                  Volume Trend
+                </CardTitle>
+                <CardDescription className="text-xs">Weekly tonnage (weight × reps)</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {volumeChartData.length === 0 ? (
+                  <div className="h-48 flex items-center justify-center text-xs text-muted-foreground">No data</div>
                 ) : (
+                  <div className="h-48">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={volumeChartData}>
+                        <defs>
+                          <linearGradient id="volGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                            <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                        <XAxis dataKey="week" tick={{ fontSize: 10 }} />
+                        <YAxis tick={{ fontSize: 10 }} tickFormatter={formatVolume} />
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: "hsl(var(--card))",
+                            border: "1px solid hsl(var(--border))",
+                            borderRadius: "8px",
+                            fontSize: "12px",
+                          }}
+                          formatter={(v: number) => [`${v.toLocaleString()} lbs`, "Volume"]}
+                        />
+                        <Area type="monotone" dataKey="volume" stroke="hsl(var(--primary))" fill="url(#volGrad)" strokeWidth={2} />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* RIR / Proximity to Failure */}
+            <Card className="glass border-border/50 md:col-span-1">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Activity className="h-4 w-4 text-primary" />
+                  Proximity to Failure
+                </CardTitle>
+                <CardDescription className="text-xs">Avg RIR per week (lower = harder)</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {rirChartData.length === 0 ? (
+                  <div className="h-48 flex items-center justify-center text-xs text-muted-foreground">No RIR data recorded</div>
+                ) : (
+                  <div className="h-48">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={rirChartData}>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                        <XAxis dataKey="week" tick={{ fontSize: 10 }} />
+                        <YAxis tick={{ fontSize: 10 }} reversed domain={[0, "auto"]} />
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: "hsl(var(--card))",
+                            border: "1px solid hsl(var(--border))",
+                            borderRadius: "8px",
+                            fontSize: "12px",
+                          }}
+                          formatter={(v: number, name: string) => {
+                            if (name === "rir") return [`${v} RIR`, "Avg RIR"];
+                            return [v, name];
+                          }}
+                        />
+                        <Line type="monotone" dataKey="rir" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Compliance Donut */}
+            <Card className="glass border-border/50 md:col-span-1">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-primary" />
+                  Compliance
+                </CardTitle>
+                <CardDescription className="text-xs">{compliance.completed}/{compliance.total} workouts completed</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="h-48 flex items-center justify-center">
+                  {compliance.total === 0 ? (
+                    <span className="text-xs text-muted-foreground">No workouts in range</span>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={donutData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={50}
+                          outerRadius={70}
+                          dataKey="value"
+                          paddingAngle={2}
+                        >
+                          {donutData.map((_, i) => (
+                            <Cell key={i} fill={DONUT_COLORS[i]} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: "hsl(var(--card))",
+                            border: "1px solid hsl(var(--border))",
+                            borderRadius: "8px",
+                            fontSize: "12px",
+                          }}
+                        />
+                        <text
+                          x="50%"
+                          y="50%"
+                          textAnchor="middle"
+                          dominantBaseline="middle"
+                          className="fill-foreground text-xl font-bold"
+                        >
+                          {compliance.percentage}%
+                        </text>
+                      </PieChart>
+                    </ResponsiveContainer>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Movement Volume Breakdown */}
+          {movementData.length > 0 && (
+            <Card className="glass border-border/50">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4 text-primary" />
+                  Volume by Movement
+                </CardTitle>
+                <CardDescription className="text-xs">Total volume per exercise in period (top 15)</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[320px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={donutData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={50}
-                        outerRadius={70}
-                        dataKey="value"
-                        paddingAngle={2}
-                      >
-                        {donutData.map((_, i) => (
-                          <Cell key={i} fill={DONUT_COLORS[i]} />
-                        ))}
-                      </Pie>
+                    <BarChart data={movementData} layout="vertical" margin={{ left: 10, right: 20 }}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" horizontal={false} />
+                      <XAxis type="number" tick={{ fontSize: 10 }} tickFormatter={formatVolume} />
+                      <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={120} />
                       <Tooltip
                         contentStyle={{
                           backgroundColor: "hsl(var(--card))",
@@ -202,23 +252,19 @@ export function CoachingAnalyticsDashboard({ userId, displayName }: Props) {
                           borderRadius: "8px",
                           fontSize: "12px",
                         }}
+                        formatter={(v: number, _: string, entry: any) => [
+                          `${v.toLocaleString()} lbs (${entry.payload.sets} sets)`,
+                          entry.payload.fullName,
+                        ]}
                       />
-                      <text
-                        x="50%"
-                        y="50%"
-                        textAnchor="middle"
-                        dominantBaseline="middle"
-                        className="fill-foreground text-xl font-bold"
-                      >
-                        {compliance.percentage}%
-                      </text>
-                    </PieChart>
+                      <Bar dataKey="volume" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                    </BarChart>
                   </ResponsiveContainer>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </>
       )}
     </section>
   );

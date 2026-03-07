@@ -10,6 +10,7 @@ import {
   FileText, Timer, Save, Video, ChevronDown, ChevronUp, RotateCcw,
   MoreVertical, RefreshCw, ArrowRightLeft, Flame, Snowflake, Link, Unlink,
 } from "lucide-react";
+import { convertWeight, type WeightUnit, getStoredUnit, setStoredUnit } from "@/lib/weightConversion";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -103,9 +104,34 @@ export default function AdminWorkoutBuilderPage() {
   const [replacingExerciseId, setReplacingExerciseId] = useState<string | null>(null);
   const [addingExercise, setAddingExercise] = useState(false);
   const [savingSetId, setSavingSetId] = useState<string | null>(null);
+  const [preferredUnit, setPreferredUnit] = useState<WeightUnit>(getStoredUnit);
   const [collapsedSections, setCollapsedSections] = useState<Record<WorkoutSection, boolean>>({
     warmup: false, main: false, cooldown: false,
   });
+
+  const toggleUnit = () => {
+    setPreferredUnit(prev => {
+      const next = prev === 'kg' ? 'lbs' : 'kg';
+      setStoredUnit(next);
+      return next;
+    });
+  };
+
+  const displayWeight = (storedLbs: number | null): string => {
+    if (storedLbs == null) return "";
+    if (preferredUnit === 'lbs') return String(storedLbs);
+    return String(convertWeight(storedLbs, 'lbs', 'kg'));
+  };
+
+  const parseWeightToLbs = (inputValue: string): number | null => {
+    if (!inputValue) return null;
+    const num = Number(inputValue);
+    if (isNaN(num)) return null;
+    if (preferredUnit === 'lbs') return num;
+    return convertWeight(num, 'kg', 'lbs');
+  };
+
+  const formatVolumeUnit = () => preferredUnit;
 
   const toggleSection = (section: WorkoutSection) => {
     setCollapsedSections(prev => ({ ...prev, [section]: !prev[section] }));
@@ -238,11 +264,12 @@ export default function AdminWorkoutBuilderPage() {
   const stats = useMemo(() => {
     const totalSets = exercises.reduce((a, e) => a + e.sets.length, 0);
     const completedSets = exercises.reduce((a, e) => a + e.sets.filter(s => s.is_completed).length, 0);
-    const totalVolume = exercises.reduce(
+    const totalVolumeLbs = exercises.reduce(
       (a, e) => a + e.sets.reduce((sa, s) => sa + (s.weight || 0) * (s.reps || 0), 0), 0
     );
-    return { totalSets, completedSets, totalVolume, exerciseCount: exercises.length };
-  }, [exercises]);
+    const displayVolume = preferredUnit === 'lbs' ? totalVolumeLbs : Math.round(convertWeight(totalVolumeLbs, 'lbs', 'kg'));
+    return { totalSets, completedSets, totalVolume: displayVolume, exerciseCount: exercises.length };
+  }, [exercises, preferredUnit]);
 
   const handleAddExercise = async (name: string) => {
     if (!workoutId) return;
@@ -663,7 +690,7 @@ export default function AdminWorkoutBuilderPage() {
 
           <div className="grid grid-cols-[40px_1fr_1fr_1fr_44px_36px] gap-1.5 items-center py-2.5 px-4 border-b border-border/50 bg-muted/30">
             <span className="text-[11px] font-semibold text-muted-foreground text-center uppercase">Set</span>
-            <span className="text-[11px] font-semibold text-muted-foreground text-center uppercase">{exercise.isTimed ? "+Load" : "Kg"}</span>
+            <span className="text-[11px] font-semibold text-muted-foreground text-center uppercase">{exercise.isTimed ? "+Load" : preferredUnit.toUpperCase()}</span>
             <span className="text-[11px] font-semibold text-muted-foreground text-center uppercase">{exercise.isTimed ? "Sec" : "Reps"}</span>
             <span className="text-[11px] font-semibold text-muted-foreground text-center uppercase">RIR</span>
             <span className="text-[11px] font-semibold text-muted-foreground text-center uppercase">Done</span>
@@ -683,8 +710,8 @@ export default function AdminWorkoutBuilderPage() {
                 </span>
                 <Input
                   type="number" inputMode="decimal" placeholder="—"
-                  value={s.weight ?? ""}
-                  onChange={(e) => handleUpdateSet(s.id, "weight", e.target.value ? Number(e.target.value) : null)}
+                  value={displayWeight(s.weight)}
+                  onChange={(e) => handleUpdateSet(s.id, "weight", parseWeightToLbs(e.target.value))}
                   onBlur={() => handleSaveSet(s.id)}
                   className="h-10 text-center text-sm font-mono border-border/50 bg-secondary/20"
                 />
@@ -785,7 +812,7 @@ export default function AdminWorkoutBuilderPage() {
                     {stats.completedSets}/{stats.totalSets} sets
                   </Badge>
                   <Badge variant="secondary" className="font-mono text-xs">
-                    {stats.totalVolume.toLocaleString()} kg
+                    {stats.totalVolume.toLocaleString()} {preferredUnit}
                   </Badge>
                 </div>
               )}
@@ -794,6 +821,9 @@ export default function AdminWorkoutBuilderPage() {
                   <RotateCcw className="h-3.5 w-3.5" />Reopen
                 </Button>
               )}
+              <Button variant="outline" size="sm" onClick={toggleUnit} className="font-mono text-xs w-16">
+                {preferredUnit.toUpperCase()}
+              </Button>
               <Button variant="outline" size="sm" onClick={handleCancel}>Back</Button>
               <Button size="sm" onClick={handleFinish} disabled={isSaving || exercises.length === 0} className="gap-2">
                 {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
@@ -812,7 +842,7 @@ export default function AdminWorkoutBuilderPage() {
               {stats.completedSets}/{stats.totalSets} sets
             </Badge>
             <Badge variant="secondary" className="font-mono text-xs flex-1 justify-center py-1.5">
-              {stats.totalVolume.toLocaleString()} kg
+              {stats.totalVolume.toLocaleString()} {preferredUnit}
             </Badge>
             <Badge variant="secondary" className="font-mono text-xs flex-1 justify-center py-1.5">
               {stats.exerciseCount} exercises
@@ -903,7 +933,7 @@ export default function AdminWorkoutBuilderPage() {
                 </div>
                 <div>
                   <p className="text-2xl font-bold font-mono text-primary">{stats.totalVolume.toLocaleString()}</p>
-                  <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Volume (kg)</p>
+                  <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Volume ({preferredUnit})</p>
                 </div>
               </div>
             </CardContent>
