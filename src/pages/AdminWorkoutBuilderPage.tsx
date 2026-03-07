@@ -842,7 +842,7 @@ export default function AdminWorkoutBuilderPage() {
               {stats.completedSets}/{stats.totalSets} sets
             </Badge>
             <Badge variant="secondary" className="font-mono text-xs flex-1 justify-center py-1.5">
-              {stats.totalVolume.toLocaleString()} kg
+              {stats.totalVolume.toLocaleString()} {preferredUnit}
             </Badge>
             <Badge variant="secondary" className="font-mono text-xs flex-1 justify-center py-1.5">
               {stats.exerciseCount} exercises
