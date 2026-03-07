@@ -155,6 +155,7 @@ export default function AdminWorkoutBuilderPage() {
               isTimed,
               isUnilateral,
               workout_section: ex.workout_section || 'main',
+              superset_group: ex.superset_group || null,
             });
           }
           setExercises(loadedExercises);
@@ -210,6 +211,7 @@ export default function AdminWorkoutBuilderPage() {
                   sets: newSets, videoUrl: null, videoExpanded: false, videoInput: "", videoSaving: false,
                   isTimed: false, isUnilateral: false,
                   workout_section: srcEx.workout_section || 'main',
+                  superset_group: null,
                 }]);
               }
               toast({ title: "Workout cloned", description: `${sourceExercises.length} exercises loaded` });
@@ -268,6 +270,7 @@ export default function AdminWorkoutBuilderPage() {
         videoUrl, videoExpanded: false, videoInput: videoUrl || "", videoSaving: false,
         isTimed, isUnilateral,
         workout_section: exerciseSearchSection,
+        superset_group: null,
       }]);
     } catch (e: any) {
       toast({ title: "Error", description: e.message, variant: "destructive" });
