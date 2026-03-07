@@ -31,7 +31,7 @@ export function TrendingRow({ resources, onResourceClick }: TrendingRowProps) {
 
   return (
     <div className="space-y-3">
-      <h2 className="font-display text-xl tracking-wide text-foreground">TRENDING NOW</h2>
+      <h2 className="text-lg font-semibold text-foreground">Trending Now</h2>
       <div className="overflow-x-auto scrollbar-hide -mx-1 px-1 pb-2">
         <div className="flex gap-3 w-max">
           {resources.map((resource, i) => {
