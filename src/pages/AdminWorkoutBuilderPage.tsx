@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
   ChevronLeft, Dumbbell, Plus, Trash2, Check, X, Loader2,
   FileText, Timer, Save, Video, ChevronDown, ChevronUp, RotateCcw,
-  MoreVertical, RefreshCw, ArrowRightLeft, Flame, Snowflake,
+  MoreVertical, RefreshCw, ArrowRightLeft, Flame, Snowflake, Link, Unlink,
 } from "lucide-react";
 import {
   DropdownMenu,
