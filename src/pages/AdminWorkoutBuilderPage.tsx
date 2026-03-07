@@ -812,7 +812,7 @@ export default function AdminWorkoutBuilderPage() {
                     {stats.completedSets}/{stats.totalSets} sets
                   </Badge>
                   <Badge variant="secondary" className="font-mono text-xs">
-                    {stats.totalVolume.toLocaleString()} kg
+                    {stats.totalVolume.toLocaleString()} {preferredUnit}
                   </Badge>
                 </div>
               )}
@@ -821,6 +821,9 @@ export default function AdminWorkoutBuilderPage() {
                   <RotateCcw className="h-3.5 w-3.5" />Reopen
                 </Button>
               )}
+              <Button variant="outline" size="sm" onClick={toggleUnit} className="font-mono text-xs w-16">
+                {preferredUnit.toUpperCase()}
+              </Button>
               <Button variant="outline" size="sm" onClick={handleCancel}>Back</Button>
               <Button size="sm" onClick={handleFinish} disabled={isSaving || exercises.length === 0} className="gap-2">
                 {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
