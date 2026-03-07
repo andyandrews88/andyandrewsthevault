@@ -8,13 +8,16 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
   ChevronLeft, Dumbbell, Plus, Trash2, Check, X, Loader2,
   FileText, Timer, Save, Video, ChevronDown, ChevronUp, RotateCcw,
-  MoreVertical, RefreshCw, ArrowRightLeft, Flame, Snowflake,
+  MoreVertical, RefreshCw, ArrowRightLeft, Flame, Snowflake, Link, Unlink,
 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -48,6 +51,7 @@ interface LocalExercise {
   isTimed: boolean;
   isUnilateral: boolean;
   workout_section: 'warmup' | 'main' | 'cooldown';
+  superset_group: string | null;
 }
 
 type WorkoutSection = 'warmup' | 'main' | 'cooldown';
@@ -154,6 +158,7 @@ export default function AdminWorkoutBuilderPage() {
               isTimed,
               isUnilateral,
               workout_section: ex.workout_section || 'main',
+              superset_group: ex.superset_group || null,
             });
           }
           setExercises(loadedExercises);
@@ -209,6 +214,7 @@ export default function AdminWorkoutBuilderPage() {
                   sets: newSets, videoUrl: null, videoExpanded: false, videoInput: "", videoSaving: false,
                   isTimed: false, isUnilateral: false,
                   workout_section: srcEx.workout_section || 'main',
+                  superset_group: null,
                 }]);
               }
               toast({ title: "Workout cloned", description: `${sourceExercises.length} exercises loaded` });
@@ -267,6 +273,7 @@ export default function AdminWorkoutBuilderPage() {
         videoUrl, videoExpanded: false, videoInput: videoUrl || "", videoSaving: false,
         isTimed, isUnilateral,
         workout_section: exerciseSearchSection,
+        superset_group: null,
       }]);
     } catch (e: any) {
       toast({ title: "Error", description: e.message, variant: "destructive" });
@@ -488,17 +495,67 @@ export default function AdminWorkoutBuilderPage() {
     }
   };
 
+  const handleLinkSuperset = async (exerciseIdA: string, exerciseIdB: string) => {
+    try {
+      const result = await invokeBuilder({ action: "link_superset", exerciseIdA, exerciseIdB });
+      const groupId = result.superset_group;
+      setExercises(prev => prev.map(e =>
+        e.id === exerciseIdA || e.id === exerciseIdB
+          ? { ...e, superset_group: groupId }
+          : e
+      ));
+      toast({ title: "Superset linked" });
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    }
+  };
+
+  const handleUnlinkSuperset = async (exerciseId: string) => {
+    const ex = exercises.find(e => e.id === exerciseId);
+    if (!ex?.superset_group) return;
+    const groupId = ex.superset_group;
+    try {
+      await invokeBuilder({ action: "unlink_superset", exerciseId });
+      // Count members in group
+      const groupMembers = exercises.filter(e => e.superset_group === groupId);
+      if (groupMembers.length <= 2) {
+        // Both get unlinked
+        setExercises(prev => prev.map(e =>
+          e.superset_group === groupId ? { ...e, superset_group: null } : e
+        ));
+      } else {
+        setExercises(prev => prev.map(e =>
+          e.id === exerciseId ? { ...e, superset_group: null } : e
+        ));
+      }
+      toast({ title: "Superset unlinked" });
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    }
+  };
+
   // Helper to render an exercise card (reused across sections)
   const renderExerciseCard = (exercise: LocalExercise) => {
     const exCompleted = exercise.sets.filter(s => s.is_completed).length;
     const embedUrl = exercise.videoUrl ? getEmbedUrl(exercise.videoUrl) : null;
+    const isSupersetted = !!exercise.superset_group;
+    const linkableExercises = exercises.filter(e =>
+      e.id !== exercise.id &&
+      e.workout_section === exercise.workout_section &&
+      (!exercise.superset_group || e.superset_group !== exercise.superset_group)
+    );
     return (
-      <Card key={exercise.id} className="overflow-hidden border-border/50">
+      <Card key={exercise.id} className={`overflow-hidden border-border/50 ${isSupersetted ? 'border-l-4 border-l-primary' : ''}`}>
         <CardHeader className="py-3 px-4 bg-secondary/30 border-b border-border/50">
           <div className="flex items-center justify-between">
             <div className="flex-1 min-w-0">
-              <h3 className="font-bold text-sm uppercase tracking-wider text-foreground">
+              <h3 className="font-bold text-sm uppercase tracking-wider text-foreground flex items-center gap-1.5">
                 {exercise.exercise_name}
+                {isSupersetted && (
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-primary/10 text-primary border-primary/30">
+                    SS
+                  </Badge>
+                )}
               </h3>
               <div className="flex items-center gap-2 mt-1">
                 <span className="text-xs text-muted-foreground">
@@ -540,6 +597,27 @@ export default function AdminWorkoutBuilderPage() {
                   <ArrowRightLeft className="h-4 w-4 mr-2" />
                   Replace Exercise
                 </DropdownMenuItem>
+                {linkableExercises.length > 0 && !isSupersetted && (
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger>
+                      <Link className="h-4 w-4 mr-2" />
+                      Link Superset
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent>
+                      {linkableExercises.map(e => (
+                        <DropdownMenuItem key={e.id} onClick={() => handleLinkSuperset(exercise.id, e.id)}>
+                          {e.exercise_name}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
+                )}
+                {isSupersetted && (
+                  <DropdownMenuItem onClick={() => handleUnlinkSuperset(exercise.id)}>
+                    <Unlink className="h-4 w-4 mr-2" />
+                    Unlink Superset
+                  </DropdownMenuItem>
+                )}
                 <AdminExerciseMenu exerciseName={exercise.exercise_name} isAdmin={true} onMetadataChange={(field, value) => handleMetadataChange(exercise.id, field, value)} />
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="text-destructive" onClick={() => handleRemoveExercise(exercise.id)}>
