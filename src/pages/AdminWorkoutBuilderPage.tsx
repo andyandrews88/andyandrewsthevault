@@ -538,13 +538,24 @@ export default function AdminWorkoutBuilderPage() {
   const renderExerciseCard = (exercise: LocalExercise) => {
     const exCompleted = exercise.sets.filter(s => s.is_completed).length;
     const embedUrl = exercise.videoUrl ? getEmbedUrl(exercise.videoUrl) : null;
+    const isSupersetted = !!exercise.superset_group;
+    const linkableExercises = exercises.filter(e =>
+      e.id !== exercise.id &&
+      e.workout_section === exercise.workout_section &&
+      (!exercise.superset_group || e.superset_group !== exercise.superset_group)
+    );
     return (
-      <Card key={exercise.id} className="overflow-hidden border-border/50">
+      <Card key={exercise.id} className={`overflow-hidden border-border/50 ${isSupersetted ? 'border-l-4 border-l-primary' : ''}`}>
         <CardHeader className="py-3 px-4 bg-secondary/30 border-b border-border/50">
           <div className="flex items-center justify-between">
             <div className="flex-1 min-w-0">
-              <h3 className="font-bold text-sm uppercase tracking-wider text-foreground">
+              <h3 className="font-bold text-sm uppercase tracking-wider text-foreground flex items-center gap-1.5">
                 {exercise.exercise_name}
+                {isSupersetted && (
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-primary/10 text-primary border-primary/30">
+                    SS
+                  </Badge>
+                )}
               </h3>
               <div className="flex items-center gap-2 mt-1">
                 <span className="text-xs text-muted-foreground">
@@ -586,6 +597,27 @@ export default function AdminWorkoutBuilderPage() {
                   <ArrowRightLeft className="h-4 w-4 mr-2" />
                   Replace Exercise
                 </DropdownMenuItem>
+                {linkableExercises.length > 0 && !isSupersetted && (
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger>
+                      <Link className="h-4 w-4 mr-2" />
+                      Link Superset
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent>
+                      {linkableExercises.map(e => (
+                        <DropdownMenuItem key={e.id} onClick={() => handleLinkSuperset(exercise.id, e.id)}>
+                          {e.exercise_name}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
+                )}
+                {isSupersetted && (
+                  <DropdownMenuItem onClick={() => handleUnlinkSuperset(exercise.id)}>
+                    <Unlink className="h-4 w-4 mr-2" />
+                    Unlink Superset
+                  </DropdownMenuItem>
+                )}
                 <AdminExerciseMenu exerciseName={exercise.exercise_name} isAdmin={true} onMetadataChange={(field, value) => handleMetadataChange(exercise.id, field, value)} />
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="text-destructive" onClick={() => handleRemoveExercise(exercise.id)}>
