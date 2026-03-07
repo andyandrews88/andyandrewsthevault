@@ -901,6 +901,38 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify({ success: true, updated: totalUpdated, clients: assignments.length }), { headers: corsHeaders });
       }
 
+      case "link_superset": {
+        const { exerciseIdA, exerciseIdB } = body;
+        // Check if A already has a superset_group
+        const { data: exA } = await serviceClient.from("workout_exercises").select("superset_group").eq("id", exerciseIdA).single();
+        const groupId = exA?.superset_group || crypto.randomUUID();
+        await serviceClient.from("workout_exercises").update({ superset_group: groupId }).eq("id", exerciseIdA);
+        await serviceClient.from("workout_exercises").update({ superset_group: groupId }).eq("id", exerciseIdB);
+        return new Response(JSON.stringify({ success: true, superset_group: groupId }), { headers: corsHeaders });
+      }
+
+      case "unlink_superset": {
+        const { exerciseId: unlinkId } = body;
+        // Get exercise's group
+        const { data: exToUnlink } = await serviceClient.from("workout_exercises").select("superset_group").eq("id", unlinkId).single();
+        if (exToUnlink?.superset_group) {
+          // Count others in the group
+          const { data: groupMembers } = await serviceClient.from("workout_exercises")
+            .select("id").eq("superset_group", exToUnlink.superset_group);
+          // Unlink this exercise
+          await serviceClient.from("workout_exercises").update({ superset_group: null }).eq("id", unlinkId);
+          // If only one other member left, unlink them too
+          if (groupMembers && groupMembers.length <= 2) {
+            for (const m of groupMembers) {
+              if (m.id !== unlinkId) {
+                await serviceClient.from("workout_exercises").update({ superset_group: null }).eq("id", m.id);
+              }
+            }
+          }
+        }
+        return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
+      }
+
       default:
         return new Response(
           JSON.stringify({ error: `Unknown action: ${action}` }),
