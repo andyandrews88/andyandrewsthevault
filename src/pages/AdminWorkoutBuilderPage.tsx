@@ -933,7 +933,7 @@ export default function AdminWorkoutBuilderPage() {
                 </div>
                 <div>
                   <p className="text-2xl font-bold font-mono text-primary">{stats.totalVolume.toLocaleString()}</p>
-                  <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Volume (kg)</p>
+                  <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Volume ({preferredUnit})</p>
                 </div>
               </div>
             </CardContent>
