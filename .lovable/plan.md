@@ -1,40 +1,54 @@
 
 
-# Fix: Time-Based Metrics Not Updating + Admin Drawer Scroll Frozen on Mobile
+# Plan: Three Admin Enhancements
 
-## Issue 1: Time-Based Toggle Not Reflecting
+## 1. Admin Workout Builder — Weight Unit Toggle (kg/lbs)
 
-**Root cause**: Two problems working together:
+**Problem**: The admin builder hardcodes "Kg" in set headers and has no unit conversion. The client-side `SetRow` uses `WeightInputPopup` with a kg/lbs toggle and stores everything in lbs internally.
 
-1. In `ExerciseActionSheet` (mobile), the `handleAction` wrapper calls `onMetadataChange` and then immediately closes the drawer via `onOpenChange(false)`. While the `setIsTimed(true)` call happens synchronously, closing the drawer triggers a re-render cascade. The Radix Drawer unmount animation can cause React to batch these state updates in a way where the parent's `isTimed` state update is effectively swallowed by the drawer close re-render.
+**Changes**:
+- **`src/pages/AdminWorkoutBuilderPage.tsx`**:
+  - Add a `preferredUnit` state (`'kg' | 'lbs'`, default `'kg'`) with a toggle button in the builder header (similar to the client side).
+  - Import `convertWeight` from `@/lib/weightConversion`.
+  - In the set header row, change hardcoded "Kg" to display the selected unit dynamically.
+  - When displaying set weights, convert from stored lbs to display unit. When saving, convert from display unit to lbs for storage.
+  - Add a small kg/lbs toggle button near the workout header area so the coach can switch units.
 
-2. The `ExerciseCard` useEffect on lines 118-136 fetches from the DB on mount based on `exercise.exercise_name`. The `upsertExerciseLibraryField` call is async and NOT awaited in the action handler, so if there's any re-mount triggered by the drawer close, the useEffect re-fetches from DB before the upsert has completed, overwriting the optimistic state with the old DB value.
+## 2. Analytics — Per-Movement Volume Breakdown
 
-**Fix in `ExerciseActionSheet.tsx`**:
-- Make metadata actions NOT close the drawer immediately. Instead, call `onMetadataChange` and let the user see the change, then close manually. Or: delay the close until after the upsert completes.
-- Simplest fix: Remove `handleAction` wrapping for metadata changes. Call `onMetadataChange` synchronously, await the upsert, then close the sheet.
+**Problem**: The `CoachingAnalyticsDashboard` only shows aggregate weekly volume. Coaches need to see volume broken down by individual exercise/movement.
 
-**Fix in `ExerciseCard.tsx`**:
-- Add a `metadataVersion` counter state that increments when `onMetadataChange` is called. This prevents the mount useEffect from overwriting optimistic state.
-- Make the useEffect skip fetching if metadata was just locally updated (guard with a ref).
+**Changes**:
+- **`supabase/functions/admin-workout-builder/index.ts`** — In the `get_coaching_dashboard` action:
+  - Add a query that joins `workout_exercises` → `exercise_sets` for the user in the date range, grouping by `exercise_name` and summing volume (`weight * reps` for completed working sets).
+  - Return a new `movementVolume` array: `[{ exercise_name, total_volume, total_sets }]` sorted by volume descending.
 
-## Issue 2: Admin Drawer Frozen / Can't Scroll on Mobile
+- **`src/components/admin/CoachingAnalyticsDashboard.tsx`**:
+  - Add a 4th card (or full-width section below the existing 3): "Volume by Movement" — a horizontal bar chart or sorted table showing each exercise name with its total volume in the date range. Use a `BarChart` from recharts.
 
-**Root cause**: The `SheetContent` component uses `fixed inset-y-0` positioning with `overflow-y-auto` applied directly. On mobile browsers (especially iOS Safari), scroll inside fixed-position elements often fails because:
+## 3. Admin Client Dashboard — Show/Hide Sections Per Client
 
-1. The Sheet overlay intercepts touch events
-2. The `SheetContent` doesn't have a proper flex layout — the header and content area are both inside the scrollable container, but there's no explicit height constraint forcing the content to overflow
+**Problem**: The current `useDashboardLayout` stores layout in localStorage keyed generically (`admin-profile-layout`), meaning all clients share the same layout. The coach needs per-client customization with the ability to hide sections entirely.
 
-**Fix in `AdminDetailDrawer.tsx`**:
-- Restructure SheetContent to use `flex flex-col` with the header as a fixed section and the content area as `flex-1 overflow-y-auto`
-- Add `overscroll-behavior-y: contain` and `-webkit-overflow-scrolling: touch` to the scrollable content area
-- Move `overflow-y-auto` from SheetContent to the inner content div, and give SheetContent `overflow-hidden` instead
+**Changes**:
+- **`src/hooks/useDashboardLayout.ts`**:
+  - Add a `hidden: Record<string, boolean>` field to `LayoutState`.
+  - Add `toggleHidden(id)` and `isHidden(id)` to the returned API.
+  - Update `resetLayout` to also clear hidden state.
 
-## Files to Modify
+- **`src/components/ui/CollapsibleDashboardSection.tsx`**:
+  - In edit mode, add an eye/eye-off toggle button alongside the existing move arrows, allowing sections to be hidden.
 
-| File | Change |
-|------|--------|
-| `src/components/workout/ExerciseActionSheet.tsx` | Stop immediately closing drawer for metadata actions; await upsert then close |
-| `src/components/workout/ExerciseCard.tsx` | Add guard to prevent useEffect from overwriting optimistic metadata state |
-| `src/components/admin/AdminDetailDrawer.tsx` | Fix flex layout for proper mobile scrolling inside Sheet |
+- **`src/pages/AdminUserProfile.tsx`**:
+  - Change the localStorage key from `"admin-profile-layout"` to `"admin-profile-layout-${userId}"` so each client gets their own saved layout.
+  - Use the new `isHidden` check in the render loop to skip hidden sections.
+  - In edit mode, show all sections (including hidden ones) with a visual "hidden" indicator so the coach can re-enable them.
+
+## Implementation Order
+1. Update `useDashboardLayout` with hidden state support
+2. Update `CollapsibleDashboardSection` with hide toggle
+3. Update `AdminUserProfile` with per-client layout key + hidden filtering
+4. Add unit toggle to `AdminWorkoutBuilderPage`
+5. Update edge function with movement volume query
+6. Add movement volume chart to `CoachingAnalyticsDashboard`
 
