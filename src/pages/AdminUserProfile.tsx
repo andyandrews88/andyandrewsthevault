@@ -78,7 +78,7 @@ export default function AdminUserProfile() {
   const [privateCoaching, setPrivateCoaching] = useState(false);
   const [deleteWorkoutId, setDeleteWorkoutId] = useState<string | null>(null);
 
-  const { order, moveUp, moveDown, toggleCollapse, isCollapsed, resetLayout } = useDashboardLayout("admin-profile-layout", DEFAULT_ORDER);
+  const { order, moveUp, moveDown, toggleCollapse, isCollapsed, toggleHidden, isHidden, resetLayout } = useDashboardLayout(`admin-profile-layout-${userId}`, DEFAULT_ORDER);
 
   const dmHistory = directMessages.filter(
     dm => dm.to_user_id === userId || dm.from_user_id === userId
@@ -551,6 +551,8 @@ export default function AdminUserProfile() {
           const meta = SECTION_META[id];
           const render = sections[id];
           if (!meta || !render) return null;
+          // In normal mode, skip hidden sections. In edit mode, show all.
+          if (!editMode && isHidden(id)) return null;
           return (
             <CollapsibleDashboardSection
               key={id}
@@ -563,6 +565,8 @@ export default function AdminUserProfile() {
               isFirst={idx === 0}
               isLast={idx === order.length - 1}
               editMode={editMode}
+              isHidden={isHidden(id)}
+              onToggleHidden={() => toggleHidden(id)}
             >
               {render()}
             </CollapsibleDashboardSection>
