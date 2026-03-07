@@ -104,9 +104,34 @@ export default function AdminWorkoutBuilderPage() {
   const [replacingExerciseId, setReplacingExerciseId] = useState<string | null>(null);
   const [addingExercise, setAddingExercise] = useState(false);
   const [savingSetId, setSavingSetId] = useState<string | null>(null);
+  const [preferredUnit, setPreferredUnit] = useState<WeightUnit>(getStoredUnit);
   const [collapsedSections, setCollapsedSections] = useState<Record<WorkoutSection, boolean>>({
     warmup: false, main: false, cooldown: false,
   });
+
+  const toggleUnit = () => {
+    setPreferredUnit(prev => {
+      const next = prev === 'kg' ? 'lbs' : 'kg';
+      setStoredUnit(next);
+      return next;
+    });
+  };
+
+  const displayWeight = (storedLbs: number | null): string => {
+    if (storedLbs == null) return "";
+    if (preferredUnit === 'lbs') return String(storedLbs);
+    return String(convertWeight(storedLbs, 'lbs', 'kg'));
+  };
+
+  const parseWeightToLbs = (inputValue: string): number | null => {
+    if (!inputValue) return null;
+    const num = Number(inputValue);
+    if (isNaN(num)) return null;
+    if (preferredUnit === 'lbs') return num;
+    return convertWeight(num, 'kg', 'lbs');
+  };
+
+  const formatVolumeUnit = () => preferredUnit;
 
   const toggleSection = (section: WorkoutSection) => {
     setCollapsedSections(prev => ({ ...prev, [section]: !prev[section] }));
