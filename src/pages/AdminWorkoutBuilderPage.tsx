@@ -264,11 +264,12 @@ export default function AdminWorkoutBuilderPage() {
   const stats = useMemo(() => {
     const totalSets = exercises.reduce((a, e) => a + e.sets.length, 0);
     const completedSets = exercises.reduce((a, e) => a + e.sets.filter(s => s.is_completed).length, 0);
-    const totalVolume = exercises.reduce(
+    const totalVolumeLbs = exercises.reduce(
       (a, e) => a + e.sets.reduce((sa, s) => sa + (s.weight || 0) * (s.reps || 0), 0), 0
     );
-    return { totalSets, completedSets, totalVolume, exerciseCount: exercises.length };
-  }, [exercises]);
+    const displayVolume = preferredUnit === 'lbs' ? totalVolumeLbs : Math.round(convertWeight(totalVolumeLbs, 'lbs', 'kg'));
+    return { totalSets, completedSets, totalVolume: displayVolume, exerciseCount: exercises.length };
+  }, [exercises, preferredUnit]);
 
   const handleAddExercise = async (name: string) => {
     if (!workoutId) return;
@@ -689,7 +690,7 @@ export default function AdminWorkoutBuilderPage() {
 
           <div className="grid grid-cols-[40px_1fr_1fr_1fr_44px_36px] gap-1.5 items-center py-2.5 px-4 border-b border-border/50 bg-muted/30">
             <span className="text-[11px] font-semibold text-muted-foreground text-center uppercase">Set</span>
-            <span className="text-[11px] font-semibold text-muted-foreground text-center uppercase">{exercise.isTimed ? "+Load" : "Kg"}</span>
+            <span className="text-[11px] font-semibold text-muted-foreground text-center uppercase">{exercise.isTimed ? "+Load" : preferredUnit.toUpperCase()}</span>
             <span className="text-[11px] font-semibold text-muted-foreground text-center uppercase">{exercise.isTimed ? "Sec" : "Reps"}</span>
             <span className="text-[11px] font-semibold text-muted-foreground text-center uppercase">RIR</span>
             <span className="text-[11px] font-semibold text-muted-foreground text-center uppercase">Done</span>
@@ -709,8 +710,8 @@ export default function AdminWorkoutBuilderPage() {
                 </span>
                 <Input
                   type="number" inputMode="decimal" placeholder="—"
-                  value={s.weight ?? ""}
-                  onChange={(e) => handleUpdateSet(s.id, "weight", e.target.value ? Number(e.target.value) : null)}
+                  value={displayWeight(s.weight)}
+                  onChange={(e) => handleUpdateSet(s.id, "weight", parseWeightToLbs(e.target.value))}
                   onBlur={() => handleSaveSet(s.id)}
                   className="h-10 text-center text-sm font-mono border-border/50 bg-secondary/20"
                 />
