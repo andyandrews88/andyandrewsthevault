@@ -3,6 +3,7 @@ import { useState, useCallback } from "react";
 interface LayoutState {
   order: string[];
   collapsed: Record<string, boolean>;
+  hidden: Record<string, boolean>;
 }
 
 export function useDashboardLayout(storageKey: string, defaultOrder: string[]) {
@@ -11,17 +12,15 @@ export function useDashboardLayout(storageKey: string, defaultOrder: string[]) {
       const saved = localStorage.getItem(storageKey);
       if (saved) {
         const parsed = JSON.parse(saved) as LayoutState;
-        // Merge: keep saved order but add any new sections not yet in saved
         const merged = [...parsed.order];
         for (const id of defaultOrder) {
           if (!merged.includes(id)) merged.push(id);
         }
-        // Remove sections that no longer exist
         const filtered = merged.filter(id => defaultOrder.includes(id));
-        return { order: filtered, collapsed: parsed.collapsed || {} };
+        return { order: filtered, collapsed: parsed.collapsed || {}, hidden: parsed.hidden || {} };
       }
     } catch {}
-    return { order: defaultOrder, collapsed: {} };
+    return { order: defaultOrder, collapsed: {}, hidden: {} };
   });
 
   const persist = (next: LayoutState) => {
@@ -61,12 +60,21 @@ export function useDashboardLayout(storageKey: string, defaultOrder: string[]) {
     });
   }, [storageKey]);
 
+  const toggleHidden = useCallback((id: string) => {
+    setState(prev => {
+      const result = { ...prev, hidden: { ...prev.hidden, [id]: !prev.hidden[id] } };
+      localStorage.setItem(storageKey, JSON.stringify(result));
+      return result;
+    });
+  }, [storageKey]);
+
   const isCollapsed = useCallback((id: string) => !!state.collapsed[id], [state.collapsed]);
+  const isHidden = useCallback((id: string) => !!state.hidden[id], [state.hidden]);
 
   const resetLayout = useCallback(() => {
-    const result = { order: defaultOrder, collapsed: {} };
+    const result = { order: defaultOrder, collapsed: {}, hidden: {} };
     persist(result);
   }, [defaultOrder, storageKey]);
 
-  return { order: state.order, moveUp, moveDown, toggleCollapse, isCollapsed, resetLayout };
+  return { order: state.order, moveUp, moveDown, toggleCollapse, isCollapsed, toggleHidden, isHidden, resetLayout };
 }
