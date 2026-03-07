@@ -15,6 +15,9 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -489,6 +492,45 @@ export default function AdminWorkoutBuilderPage() {
     } finally {
       setReplacingExerciseId(null);
       setReplaceSearchOpen(false);
+    }
+  };
+
+  const handleLinkSuperset = async (exerciseIdA: string, exerciseIdB: string) => {
+    try {
+      const result = await invokeBuilder({ action: "link_superset", exerciseIdA, exerciseIdB });
+      const groupId = result.superset_group;
+      setExercises(prev => prev.map(e =>
+        e.id === exerciseIdA || e.id === exerciseIdB
+          ? { ...e, superset_group: groupId }
+          : e
+      ));
+      toast({ title: "Superset linked" });
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    }
+  };
+
+  const handleUnlinkSuperset = async (exerciseId: string) => {
+    const ex = exercises.find(e => e.id === exerciseId);
+    if (!ex?.superset_group) return;
+    const groupId = ex.superset_group;
+    try {
+      await invokeBuilder({ action: "unlink_superset", exerciseId });
+      // Count members in group
+      const groupMembers = exercises.filter(e => e.superset_group === groupId);
+      if (groupMembers.length <= 2) {
+        // Both get unlinked
+        setExercises(prev => prev.map(e =>
+          e.superset_group === groupId ? { ...e, superset_group: null } : e
+        ));
+      } else {
+        setExercises(prev => prev.map(e =>
+          e.id === exerciseId ? { ...e, superset_group: null } : e
+        ));
+      }
+      toast({ title: "Superset unlinked" });
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
     }
   };
 
