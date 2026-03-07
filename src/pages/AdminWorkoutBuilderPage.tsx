@@ -48,6 +48,7 @@ interface LocalExercise {
   isTimed: boolean;
   isUnilateral: boolean;
   workout_section: 'warmup' | 'main' | 'cooldown';
+  superset_group: string | null;
 }
 
 type WorkoutSection = 'warmup' | 'main' | 'cooldown';
