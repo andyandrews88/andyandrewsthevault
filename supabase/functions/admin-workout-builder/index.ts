@@ -69,10 +69,10 @@ Deno.serve(async (req) => {
       }
 
       case "add_exercise": {
-        const { workoutId, exerciseName, orderIndex, exerciseType } = body;
+        const { workoutId, exerciseName, orderIndex, exerciseType, workoutSection } = body;
         const { data: exercise, error } = await serviceClient
           .from("workout_exercises")
-          .insert({ workout_id: workoutId, exercise_name: exerciseName, order_index: orderIndex || 0, exercise_type: exerciseType || "strength" })
+          .insert({ workout_id: workoutId, exercise_name: exerciseName, order_index: orderIndex || 0, exercise_type: exerciseType || "strength", workout_section: workoutSection || "main" })
           .select()
           .single();
         if (error) throw error;
@@ -224,6 +224,7 @@ Deno.serve(async (req) => {
             exercise_type: ex.exercise_type,
             notes: ex.notes,
             superset_group: ex.superset_group,
+            workout_section: ex.workout_section || "main",
           }).select().single();
           if (exErr) continue;
           // Clone strength sets
@@ -435,7 +436,7 @@ Deno.serve(async (req) => {
               for (let i = 0; i < resolvedExercises.length; i++) {
                 const ex = resolvedExercises[i];
                 const { data: newEx } = await serviceClient.from("workout_exercises").insert({
-                  workout_id: newWorkout.id, exercise_name: ex.name, order_index: i, exercise_type: ex.exercise_type || "strength", notes: ex.notes || "",
+                  workout_id: newWorkout.id, exercise_name: ex.name, order_index: i, exercise_type: ex.exercise_type || "strength", notes: ex.notes || "", workout_section: ex.workout_section || "main",
                 }).select().single();
                 if (newEx) {
                   const numSets = ex.sets || 3;
@@ -693,7 +694,7 @@ Deno.serve(async (req) => {
                   for (let i = 0; i < resolvedExercises.length; i++) {
                     const ex = resolvedExercises[i];
                     const { data: newEx } = await serviceClient.from("workout_exercises").insert({
-                      workout_id: newWorkout.id, exercise_name: ex.name, order_index: i, exercise_type: ex.exercise_type || "strength", notes: ex.notes || "",
+                      workout_id: newWorkout.id, exercise_name: ex.name, order_index: i, exercise_type: ex.exercise_type || "strength", notes: ex.notes || "", workout_section: ex.workout_section || "main",
                     }).select().single();
                     if (newEx) {
                       for (let s = 1; s <= (ex.sets || 3); s++) {
@@ -949,7 +950,7 @@ Deno.serve(async (req) => {
                     const ex = resolvedExercises[i];
                     const { data: newEx } = await serviceClient.from("workout_exercises").insert({
                       workout_id: newWorkout.id, exercise_name: ex.name, order_index: i,
-                      exercise_type: ex.exercise_type || "strength", notes: ex.notes || "",
+                      exercise_type: ex.exercise_type || "strength", notes: ex.notes || "", workout_section: ex.workout_section || "main",
                     }).select().single();
                     if (newEx) {
                       for (let s = 1; s <= (ex.sets || 3); s++) {
