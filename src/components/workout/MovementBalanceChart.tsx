@@ -27,7 +27,11 @@ type ExtendedPatternData = PatternVolumeData & {
   exerciseBreakdown: ExerciseBreakdown[];
 };
 
-export function MovementBalanceChart() {
+interface MovementBalanceChartProps {
+  userId?: string;
+}
+
+export function MovementBalanceChart({ userId: propUserId }: MovementBalanceChartProps = {}) {
   const [view, setView] = useState<'radar' | 'bar' | 'cards'>('radar');
   const [patternData, setPatternData] = useState<Record<MovementPattern, ExtendedPatternData>>({} as any);
   const [weeklyData, setWeeklyData] = useState<WeeklyPatternVolume[]>([]);
@@ -43,8 +47,12 @@ export function MovementBalanceChart() {
 
   const fetchDataByRange = async (from: Date, to: Date) => {
     setIsLoading(true);
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.user) { setIsLoading(false); return; }
+    let targetUserId = propUserId;
+    if (!targetUserId) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) { setIsLoading(false); return; }
+      targetUserId = session.user.id;
+    }
 
     const fromDate = format(from, 'yyyy-MM-dd');
     const toDate = format(to, 'yyyy-MM-dd');
@@ -52,7 +60,7 @@ export function MovementBalanceChart() {
     const { data: bodyEntry } = await supabase
       .from('user_body_entries')
       .select('weight_kg')
-      .eq('user_id', session.user.id)
+      .eq('user_id', targetUserId)
       .not('weight_kg', 'is', null)
       .order('entry_date', { ascending: false })
       .limit(1)
@@ -63,7 +71,7 @@ export function MovementBalanceChart() {
     const { data: workouts } = await supabase
       .from('workouts')
       .select('id, date')
-      .eq('user_id', session.user.id)
+      .eq('user_id', targetUserId)
       .eq('is_completed', true)
       .gte('date', fromDate)
       .lte('date', toDate);
