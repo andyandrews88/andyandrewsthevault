@@ -6,10 +6,11 @@ import {
   AreaChart, Area, LineChart, Line, PieChart, Pie, Cell, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
-import { TrendingUp, Activity, CheckCircle, BarChart3 } from "lucide-react";
+import { TrendingUp, Activity, CheckCircle, Target } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { DateRangeSelector, computeRange } from "@/components/ui/DateRangeSelector";
 import { format } from "date-fns";
+import { MOVEMENT_PATTERN_LABELS, PATTERN_COLORS, type MovementPattern } from "@/lib/movementPatterns";
 
 interface Props {
   userId: string;
@@ -64,11 +65,12 @@ export function CoachingAnalyticsDashboard({ userId, displayName }: Props) {
   ];
   const DONUT_COLORS = ["hsl(var(--primary))", "hsl(var(--muted))"];
 
-  const movementData = (data?.movementVolume || []).slice(0, 15).map((m: any) => ({
-    name: m.exercise_name.length > 18 ? m.exercise_name.slice(0, 16) + "…" : m.exercise_name,
-    fullName: m.exercise_name,
+  const patternData = (data?.patternVolume || []).map((m: any) => ({
+    name: MOVEMENT_PATTERN_LABELS[m.pattern as MovementPattern] || m.pattern,
+    pattern: m.pattern,
     volume: m.total_volume,
     sets: m.total_sets,
+    exercises: m.exercises?.length || 0,
   }));
 
   const formatVolume = (v: number) => (v >= 1000 ? `${(v / 1000).toFixed(1)}k` : String(v));
@@ -228,23 +230,23 @@ export function CoachingAnalyticsDashboard({ userId, displayName }: Props) {
             </Card>
           </div>
 
-          {/* Movement Volume Breakdown */}
-          {movementData.length > 0 && (
+          {/* Volume by Movement Pattern */}
+          {patternData.length > 0 && (
             <Card className="glass border-border/50">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2">
-                  <BarChart3 className="h-4 w-4 text-primary" />
-                  Volume by Movement
+                  <Target className="h-4 w-4 text-primary" />
+                  Volume by Movement Pattern
                 </CardTitle>
-                <CardDescription className="text-xs">Total volume per exercise in period (top 15)</CardDescription>
+                <CardDescription className="text-xs">Total volume per pattern in period</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="h-[320px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={movementData} layout="vertical" margin={{ left: 10, right: 20 }}>
+                    <BarChart data={patternData} layout="vertical" margin={{ left: 10, right: 20 }}>
                       <CartesianGrid strokeDasharray="3 3" className="stroke-muted" horizontal={false} />
                       <XAxis type="number" tick={{ fontSize: 10 }} tickFormatter={formatVolume} />
-                      <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={120} />
+                      <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={100} />
                       <Tooltip
                         contentStyle={{
                           backgroundColor: "hsl(var(--card))",
@@ -253,11 +255,19 @@ export function CoachingAnalyticsDashboard({ userId, displayName }: Props) {
                           fontSize: "12px",
                         }}
                         formatter={(v: number, _: string, entry: any) => [
-                          `${v.toLocaleString()} lbs (${entry.payload.sets} sets)`,
-                          entry.payload.fullName,
+                          `${v.toLocaleString()} lbs · ${entry.payload.sets} sets · ${entry.payload.exercises} exercises`,
+                          entry.payload.name,
                         ]}
                       />
-                      <Bar dataKey="volume" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                      <Bar
+                        dataKey="volume"
+                        radius={[0, 4, 4, 0]}
+                        shape={(props: any) => {
+                          const pattern = props?.payload?.pattern as MovementPattern;
+                          const color = PATTERN_COLORS[pattern] || "hsl(var(--primary))";
+                          return <rect {...props} fill={color} />;
+                        }}
+                      />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
