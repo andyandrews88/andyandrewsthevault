@@ -76,6 +76,14 @@ const tourSteps: TourStep[] = [
     tab: "workouts",
   },
   {
+    icon: Apple,
+    title: "Nutrition",
+    description:
+      "Engineering-grade macro calculator, food diary with barcode scanning, hand portion logging, and a 50+ recipe library — all feeding into your weekly AI review.",
+    tip: "Use the hand portion logger if you don't want to weigh food — it's just as effective for the AI.",
+    tab: "nutrition",
+  },
+  {
     icon: Activity,
     title: "Progress Tracking",
     description:
@@ -83,10 +91,46 @@ const tourSteps: TourStep[] = [
     tab: "progress",
   },
   {
+    icon: Wind,
+    title: "Breathwork & Recovery",
+    description:
+      "Five evidence-based breathing protocols — Box Breathing, 4-7-8, Wim Hof, and more — with visual and audio guidance. All inside the Lifestyle tab.",
+    tab: "lifestyle",
+  },
+  {
+    icon: Library,
+    title: "Library",
+    description:
+      "Curated coaching resources — articles, videos, and guides on training, nutrition, mindset, and lifestyle. New content drops regularly.",
+    tab: "library",
+  },
+  {
+    icon: Radio,
+    title: "Podcast",
+    description:
+      "Listen to coaching episodes directly in the app. New drops land here automatically so you never miss one.",
+    tab: "podcast",
+  },
+  {
+    icon: Users,
+    title: "Community",
+    description:
+      "Share wins, ask questions, and send direct messages to other Vault members. Accountability is the hidden multiplier.",
+    tip: "Post your wins — accountability is the hidden multiplier.",
+    tab: "community",
+  },
+  {
+    icon: Target,
+    title: "Training Programs",
+    description:
+      "Structured programs — follow Foundation or Performance tracks, or browse the free program library. The app schedules your sessions and tracks compliance.",
+    tab: "tracks",
+  },
+  {
     icon: Rocket,
     title: "You're Ready",
     description:
-      "Head to the Lifestyle tab and do your first Daily Check-In. The more you log, the smarter and more specific your coaching gets.",
+      "You've seen everything The Vault has to offer. Head to the Lifestyle tab and do your first Daily Check-In — the more you log, the smarter and more specific your coaching gets.",
     tab: "lifestyle",
   },
 ];
