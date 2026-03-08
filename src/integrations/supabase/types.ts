@@ -378,6 +378,60 @@ export type Database = {
           },
         ]
       }
+      custom_foods: {
+        Row: {
+          barcode: string | null
+          brand: string | null
+          calories: number
+          carbs: number
+          created_at: string
+          created_by: string
+          fats: number
+          fiber: number | null
+          id: string
+          image_url: string | null
+          is_public: boolean
+          name: string
+          protein: number
+          serving_grams: number
+          serving_size: string
+        }
+        Insert: {
+          barcode?: string | null
+          brand?: string | null
+          calories?: number
+          carbs?: number
+          created_at?: string
+          created_by: string
+          fats?: number
+          fiber?: number | null
+          id?: string
+          image_url?: string | null
+          is_public?: boolean
+          name: string
+          protein?: number
+          serving_grams?: number
+          serving_size?: string
+        }
+        Update: {
+          barcode?: string | null
+          brand?: string | null
+          calories?: number
+          carbs?: number
+          created_at?: string
+          created_by?: string
+          fats?: number
+          fiber?: number | null
+          id?: string
+          image_url?: string | null
+          is_public?: boolean
+          name?: string
+          protein?: number
+          serving_grams?: number
+          serving_size?: string
+        }
+        Relationships: []
+      }
       direct_messages: {
         Row: {
           content: string
