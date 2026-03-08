@@ -25,7 +25,7 @@ export function DateNavigator({ selectedDate, onDateChange }: DateNavigatorProps
 
   return (
     <div className="flex items-center justify-between gap-2 p-3 rounded-lg border bg-card">
-      <Button variant="ghost" size="icon" onClick={handlePrevDay} className="h-8 w-8">
+      <Button variant="ghost" size="icon" onClick={handlePrevDay} className="h-10 w-10">
         <ChevronLeft className="h-4 w-4" />
       </Button>
 
@@ -58,13 +58,13 @@ export function DateNavigator({ selectedDate, onDateChange }: DateNavigatorProps
         </ResponsiveSheet>
 
         {!isToday(selectedDate) && (
-          <Button variant="outline" size="sm" onClick={handleToday} className="text-xs h-7">
+          <Button variant="outline" size="sm" onClick={handleToday} className="text-xs h-8 px-3">
             Today
           </Button>
         )}
       </div>
 
-      <Button variant="ghost" size="icon" onClick={handleNextDay} className="h-8 w-8">
+      <Button variant="ghost" size="icon" onClick={handleNextDay} className="h-10 w-10">
         <ChevronRight className="h-4 w-4" />
       </Button>
     </div>

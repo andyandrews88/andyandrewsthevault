@@ -111,7 +111,7 @@ export function HandPortionLogger({ entries, onRemoveFood }: HandPortionLoggerPr
                 <Button
                   variant="outline"
                   size="icon"
-                  className="h-8 w-8 rounded-full"
+                  className="h-10 w-10 rounded-full"
                   disabled={count === 0}
                   onClick={() => {
                     const matching = entries.filter(e => e.mealSlot === activeMealSlot && e.unit === type);
@@ -125,7 +125,7 @@ export function HandPortionLogger({ entries, onRemoveFood }: HandPortionLoggerPr
                 <Button
                   variant="outline"
                   size="icon"
-                  className="h-8 w-8 rounded-full"
+                  className="h-10 w-10 rounded-full"
                   onClick={() => handleAddPortion(type, 1)}
                 >
                   <Plus className="w-4 h-4" />
@@ -133,7 +133,7 @@ export function HandPortionLogger({ entries, onRemoveFood }: HandPortionLoggerPr
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-7 w-7 rounded-full text-muted-foreground"
+                  className="h-9 w-9 rounded-full text-muted-foreground"
                   title="Change food source"
                   onClick={() => {
                     setActivePortionType(type);
@@ -141,7 +141,7 @@ export function HandPortionLogger({ entries, onRemoveFood }: HandPortionLoggerPr
                     setPickerOpen(true);
                   }}
                 >
-                  <Edit2 className="w-3 h-3" />
+                  <Edit2 className="w-3.5 h-3.5" />
                 </Button>
               </div>
             </div>

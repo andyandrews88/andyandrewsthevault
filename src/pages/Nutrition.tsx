@@ -28,17 +28,17 @@ export default function Nutrition() {
       <main className="pt-24 pb-12">
         <div className="container mx-auto px-6 max-w-4xl">
           {/* Header with Logo */}
-          <div className="text-center mb-8">
+          <div className="text-center mb-6">
             <img 
               src={logo} 
               alt="Andy Andrews" 
-              className="h-16 md:h-24 w-auto invert brightness-100 mx-auto mb-4 drop-shadow-[0_0_20px_hsl(var(--primary)/0.3)]"
+              className="h-10 md:h-24 w-auto invert brightness-100 mx-auto mb-3 drop-shadow-[0_0_20px_hsl(var(--primary)/0.3)]"
             />
-            <Badge variant="elite" className="mb-4">THE FUEL SYSTEM</Badge>
-            <h1 className="text-3xl md:text-4xl font-bold mb-3">
-              Engineering-Grade Nutrition Calculator
+            <Badge variant="elite" className="mb-3">THE FUEL SYSTEM</Badge>
+            <h1 className="text-2xl md:text-4xl font-bold mb-2">
+              Nutrition Calculator
             </h1>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
+            <p className="text-muted-foreground max-w-2xl mx-auto text-sm hidden sm:block">
               Calculate your precise calorie and macronutrient targets using multiple scientific formulas. 
               Get personalized meal plans, food recommendations, and actionable nutrition insights.
             </p>
@@ -52,7 +52,7 @@ export default function Nutrition() {
           )}
 
           {/* Footer Info */}
-          <div className="mt-12 text-center text-sm text-muted-foreground">
+          <div className="mt-12 text-center text-sm text-muted-foreground hidden sm:block">
             <p>
               Calculations based on Mifflin-St Jeor, Harris-Benedict, Katch-McArdle, and Cunningham formulas.
             </p>

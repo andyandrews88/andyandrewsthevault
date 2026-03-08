@@ -134,7 +134,7 @@ export function CustomFoodForm({ defaultBarcode, onFoodCreated, onCancel }: Cust
           </div>
         </div>
 
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           <div>
             <Label htmlFor="cf-cal" className="text-xs">Calories</Label>
             <Input id="cf-cal" type="number" value={form.calories} onChange={(e) => update('calories', Number(e.target.value))} />

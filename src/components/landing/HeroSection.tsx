@@ -52,14 +52,14 @@ export function HeroSection() {
 
           {/* CTA buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/audit">
-              <Button variant="hero" size="xl" className="group">
+            <Link to="/audit" className="w-full sm:w-auto">
+              <Button variant="hero" size="xl" className="group w-full sm:w-auto">
                 Begin Structural Audit
                 <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
               </Button>
             </Link>
-            <Link to="/vault">
-              <Button variant="outline" size="xl">
+            <Link to="/vault" className="w-full sm:w-auto">
+              <Button variant="outline" size="xl" className="w-full sm:w-auto">
                 Access The Vault
               </Button>
             </Link>

@@ -43,7 +43,7 @@ export function CalorieSummary({ consumed, targets }: CalorieSummaryProps) {
   ];
 
   return (
-    <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b pb-4 mb-4">
+    <div className="sticky top-16 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b pb-4 pt-3 mb-4">
       {/* Calorie Row */}
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">

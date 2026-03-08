@@ -17,11 +17,11 @@ interface MealSectionProps {
   onUpdateFood: (foodId: string, amount: number, unit: MeasurementUnit) => void;
 }
 
-const slotConfig: Record<MealSlot, { label: string; icon: React.ElementType }> = {
-  breakfast: { label: 'Breakfast', icon: Coffee },
-  lunch: { label: 'Lunch', icon: Sun },
-  dinner: { label: 'Dinner', icon: Moon },
-  snacks: { label: 'Snacks', icon: Cookie },
+const slotConfig: Record<MealSlot, { label: string; icon: React.ElementType; accent: string }> = {
+  breakfast: { label: 'Breakfast', icon: Coffee, accent: 'text-amber-500' },
+  lunch: { label: 'Lunch', icon: Sun, accent: 'text-emerald-500' },
+  dinner: { label: 'Dinner', icon: Moon, accent: 'text-blue-400' },
+  snacks: { label: 'Snacks', icon: Cookie, accent: 'text-primary' },
 };
 
 export function MealSection({ slot, foods, onAddFood, onRemoveFood, onUpdateFood }: MealSectionProps) {
@@ -38,7 +38,7 @@ export function MealSection({ slot, foods, onAddFood, onRemoveFood, onUpdateFood
           <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors py-3 px-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Icon className="w-4 h-4 text-primary" />
+                <Icon className={`w-4 h-4 ${config.accent}`} />
                 <span className="font-semibold">{config.label}</span>
                 {foods.length > 0 && (
                   <span className="text-xs text-muted-foreground">({foods.length})</span>

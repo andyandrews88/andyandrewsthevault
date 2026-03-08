@@ -323,7 +323,7 @@ export function FoodDiary({ targetCalories, targetMacros }: FoodDiaryProps) {
 
       {/* Food Search Dialog */}
       <Dialog open={showFoodSearch} onOpenChange={(open) => { setShowFoodSearch(open); if (!open) { setSearchQuery(''); setShowCustomForm(false); } }}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-lg max-h-[100dvh] sm:max-h-[85vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>
               Add Food to {activeMealSlot.charAt(0).toUpperCase() + activeMealSlot.slice(1)}
@@ -347,7 +347,7 @@ export function FoodDiary({ targetCalories, targetMacros }: FoodDiaryProps) {
                     autoFocus
                   />
                 </div>
-                <div className="max-h-[300px] overflow-y-auto space-y-1">
+                <div className="flex-1 min-h-0 max-h-[50dvh] sm:max-h-[400px] overflow-y-auto space-y-1">
                   {searchQuery.trim() ? (
                     <>
                       {allResults.length > 0 ? (
@@ -355,7 +355,7 @@ export function FoodDiary({ targetCalories, targetMacros }: FoodDiaryProps) {
                           <button
                             key={`${result.source}-${result.food.id}-${idx}`}
                             onClick={() => handleSelectFood(result.food)}
-                            className="w-full p-3 rounded-lg border hover:bg-muted/50 transition-colors text-left flex items-center justify-between"
+                            className="w-full p-3 rounded-lg border hover:bg-muted/50 active:bg-muted transition-colors text-left flex items-center justify-between min-h-[52px]"
                           >
                             <div className="flex items-center gap-2 min-w-0">
                               <div className="min-w-0">
