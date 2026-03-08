@@ -272,7 +272,7 @@ export default function AdminUserProfile() {
                     </div>
                     <div className="flex items-center justify-between text-xs text-muted-foreground">
                       <span>{format(new Date(w.date), "MMM d, yyyy")}</span>
-                      <span>{Number(w.total_volume || 0).toLocaleString()} kg</span>
+                      <span>{Number(w.total_volume || 0).toLocaleString()} lbs</span>
                     </div>
                     <div className="flex items-center gap-1 justify-end">
                       <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); navigate(`/admin/user/${userId}/build-workout?edit=${w.id}&name=${encodeURIComponent(w.workout_name)}&client=${encodeURIComponent(p?.display_name || 'User')}`); }}><Pencil className="h-3 w-3" /></Button>
@@ -319,7 +319,7 @@ export default function AdminUserProfile() {
             <CardContent>
               <div className="space-y-1.5">
                 {data.training.prs.map((pr: any) => (
-                  <div key={pr.id} className="flex justify-between text-sm"><span>{pr.exercise_name}</span><span className="text-muted-foreground">{pr.max_weight}kg × {pr.max_reps || 1} — {format(new Date(pr.achieved_at), "MMM d")}</span></div>
+                  <div key={pr.id} className="flex justify-between text-sm"><span>{pr.exercise_name}</span><span className="text-muted-foreground">{pr.max_weight} lbs × {pr.max_reps || 1} — {format(new Date(pr.achieved_at), "MMM d")}</span></div>
                 ))}
               </div>
             </CardContent>

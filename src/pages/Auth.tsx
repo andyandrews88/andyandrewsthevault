@@ -9,6 +9,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuthStore } from "@/stores/authStore";
 import { lovable } from "@/integrations/lovable/index";
+import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
 
 const emailSchema = z.string().email("Please enter a valid email address");
@@ -259,6 +260,31 @@ export function AuthPage() {
                   <Button variant="hero" className="w-full" disabled={isLoading}>
                     {isLoading ? "Signing in..." : "Sign In"}
                   </Button>
+                  <button
+                    type="button"
+                    className="text-xs text-primary hover:underline w-full text-center"
+                    onClick={async () => {
+                      if (!email) {
+                        toast.error("Enter your email first, then click Forgot Password");
+                        return;
+                      }
+                      const emailResult = emailSchema.safeParse(email);
+                      if (!emailResult.success) {
+                        toast.error("Please enter a valid email address");
+                        return;
+                      }
+                      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                        redirectTo: `${window.location.origin}/reset-password`,
+                      });
+                      if (error) {
+                        toast.error(error.message);
+                      } else {
+                        toast.success("Password reset email sent! Check your inbox.");
+                      }
+                    }}
+                  >
+                    Forgot your password?
+                  </button>
                 </form>
               </CardContent>
             </TabsContent>

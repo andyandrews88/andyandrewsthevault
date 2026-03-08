@@ -60,16 +60,24 @@ export default function ProfileSettings() {
         .eq("id", user.id)
         .single();
       if (data) {
+        const unitPref = (data as any).unit_preference || "metric";
+        let weightDisplay = (data as any).weight_kg?.toString() || "";
+        let heightDisplay = (data as any).height_cm?.toString() || "";
+        // Convert stored metric values to imperial for display
+        if (unitPref === "imperial") {
+          if ((data as any).weight_kg) weightDisplay = (Math.round((data as any).weight_kg * 2.20462 * 10) / 10).toString();
+          if ((data as any).height_cm) heightDisplay = (Math.round((data as any).height_cm / 2.54 * 10) / 10).toString();
+        }
         setForm({
           first_name: (data as any).first_name || "",
           last_name: (data as any).last_name || "",
           display_name: data.display_name || "",
           avatar_url: data.avatar_url || "",
           sex: (data as any).sex || "",
-          weight_kg: (data as any).weight_kg?.toString() || "",
-          height_cm: (data as any).height_cm?.toString() || "",
+          weight_kg: weightDisplay,
+          height_cm: heightDisplay,
           birthday: (data as any).birthday || "",
-          unit_preference: (data as any).unit_preference || "metric",
+          unit_preference: unitPref,
           timezone: (data as any).timezone || "",
           location: (data as any).location || "",
         });
@@ -108,13 +116,21 @@ export default function ProfileSettings() {
     if (!user) return;
     setSaving(true);
 
+    // Convert imperial values to metric for storage
+    let weightKg = form.weight_kg ? parseFloat(form.weight_kg) : null;
+    let heightCm = form.height_cm ? parseFloat(form.height_cm) : null;
+    if (form.unit_preference === "imperial") {
+      if (weightKg !== null) weightKg = Math.round(weightKg * 0.453592 * 10) / 10; // lbs -> kg
+      if (heightCm !== null) heightCm = Math.round(heightCm * 2.54 * 10) / 10; // in -> cm
+    }
+
     const updateData: any = {
       display_name: form.display_name.trim() || form.first_name.trim() || "Anonymous",
       first_name: form.first_name.trim() || null,
       last_name: form.last_name.trim() || null,
       sex: form.sex || null,
-      weight_kg: form.weight_kg ? parseFloat(form.weight_kg) : null,
-      height_cm: form.height_cm ? parseFloat(form.height_cm) : null,
+      weight_kg: weightKg,
+      height_cm: heightCm,
       birthday: form.birthday || null,
       unit_preference: form.unit_preference,
       timezone: form.timezone || null,

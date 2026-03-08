@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { useAuthStore } from "./stores/authStore";
 import { useUserDataSync } from "./hooks/useUserDataSync";
 import { useServiceWorkerUpdate } from "./hooks/useServiceWorkerUpdate";
@@ -24,6 +25,7 @@ const AdminUserProfile = lazy(() => import("./pages/AdminUserProfile"));
 const AdminWorkoutBuilderPage = lazy(() => import("./pages/AdminWorkoutBuilderPage"));
 const AdminTemplates = lazy(() => import("./pages/AdminTemplates"));
 const AdminClientCalendar = lazy(() => import("./pages/AdminClientCalendar"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -53,6 +55,7 @@ function AppContent() {
       <Routes>
         <Route path="/" element={<Index />} />
         <Route path="/auth" element={<AuthPageWrapper />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/results" element={<Results />} />
         <Route path="/audit" element={<ProtectedRoute><Audit /></ProtectedRoute>} />
         <Route path="/vault" element={<ProtectedRoute><VaultPage /></ProtectedRoute>} />
@@ -70,15 +73,17 @@ function AppContent() {
 }
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AppContent />
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
+  <ErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <AppContent />
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  </ErrorBoundary>
 );
 
 export default App;
