@@ -757,7 +757,7 @@ Deno.serve(async (req) => {
         const completed = allWorkouts?.filter((w: any) => w.is_completed).length || 0;
         const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
 
-        // Per-movement volume breakdown
+        // Per-movement-pattern volume breakdown
         const { data: workoutIds } = await serviceClient
           .from("workouts")
           .select("id")
@@ -766,7 +766,42 @@ Deno.serve(async (req) => {
           .gte("date", from)
           .lte("date", to);
 
-        let movementVolume: { exercise_name: string; total_volume: number; total_sets: number }[] = [];
+        // Movement pattern classification (mirrors src/lib/movementPatterns.ts)
+        const PATTERN_MAP: Record<string, string> = {};
+        function addPatterns(names: string[], pattern: string) {
+          for (const n of names) PATTERN_MAP[n.toLowerCase()] = pattern;
+        }
+        addPatterns(['Deadlift (Conventional)','Deadlift (Sumo)','Romanian Deadlift','Stiff-Leg Deadlift','Deficit Deadlift','Rack Pull','Rack Deadlift','Good Morning','Romanian Deadlift (Barbell)','Romanian Deadlift (Dumbbell)','Single-Leg Romanian Deadlift','Cable Pull-Through','Kettlebell Swing','Sumo Deadlift','Trap Bar Deadlift','Back Extension','Hyperextension','Reverse Hyperextension','Nordic Curl','Glute-Ham Raise','Hip Thrust (Barbell)','Hip Thrust (Dumbbell)','Hip Thrust (Single-Leg)','Hip Thrust (Banded)','Glute Bridge','Single-Leg Glute Bridge','Banded Good Morning','Jefferson Deadlift','Snatch Grip Deadlift'], 'hinge');
+        addPatterns(['Back Squat (High Bar)','Back Squat (Low Bar)','Front Squat','Goblet Squat','Zercher Squat','Hack Squat','Safety Bar Squat','Box Squat','Pause Squat','Anderson Squat','Leg Press','Overhead Squat','Cyclist Squat','Heel-Elevated Squat','Sissy Squat','Wall Sit','Thruster','Cluster'], 'squat');
+        addPatterns(['Bench Press (Barbell)','Bench Press (Dumbbell)','Incline Bench Press (Barbell)','Incline Bench Press (Dumbbell)','Decline Bench Press','Close-Grip Bench Press','Floor Press','Push-Up','Diamond Push-Up','Wide Push-Up','Decline Push-Up','Incline Push-Up','Deficit Push-Up','Ring Push-Up','Chest Fly (Dumbbell)','Chest Fly (Cable)','Pec Deck','Machine Chest Press','Svend Press','Landmine Press','Dips (Chest Focus)','Plate Press','Overhead Press (Barbell)','Overhead Press (Dumbbell)','Push Press','Seated Dumbbell Press','Arnold Press','Behind-the-Neck Press','Z Press','Landmine Press (Shoulder)','Machine Shoulder Press','Handstand Push-Up','Bradford Press','Log Press','Bottoms-Up Press','Sots Press','Parallel Bar Dip','Ring Dip','Bench Dip','JM Press','Tate Press','French Press'], 'push');
+        addPatterns(['Pull-Up','Chin-Up','Neutral-Grip Pull-Up','Lat Pulldown (Wide)','Lat Pulldown (Close)','Lat Pulldown (Reverse Grip)','Barbell Row (Overhand)','Barbell Row (Underhand)','Pendlay Row','Dumbbell Row (Single-Arm)','Dumbbell Row (Two-Arm)','Cable Row (Seated)','Cable Row (Standing)','T-Bar Row','Meadows Row','Chest-Supported Row','Seal Row','Inverted Row','Ring Row','Face Pull','Straight-Arm Pulldown','Muscle-Up','Kipping Pull-Up','Strict Pull-Up','Upright Row','Cable Upright Row','Face Pull (Shoulder Focus)','Band Pull-Apart'], 'pull');
+        addPatterns(['Bulgarian Split Squat','Walking Lunge','Reverse Lunge','Forward Lunge','Lateral Lunge','Step-Up','Box Step-Up','Pistol Squat','Leg Press (Single-Leg)','Single-Leg Romanian Deadlift'], 'single_leg');
+        addPatterns(['Plank','Side Plank','Plank (Weighted)','Dead Bug','Bird Dog','Hollow Body Hold','Crunch','Bicycle Crunch','V-Up','Sit-Up','Decline Sit-Up','Russian Twist','Russian Twist (Weighted)','Cable Crunch','Ab Rollout','Ab Wheel','Hanging Leg Raise','Hanging Knee Raise',"Captain's Chair Leg Raise",'Toe Touch','Heel Touch','Mountain Climber','Flutter Kick','Pallof Press','Dragon Flag'], 'core');
+        addPatterns(['Woodchop (Cable)','Woodchop (Dumbbell)','Landmine Rotation','Wall Balls','Medicine Ball Slam','Medicine Ball Throw'], 'rotational');
+        addPatterns(['Box Jump','Broad Jump','Depth Jump','Drop Jump','Tuck Jump','Squat Jump','Split Squat Jump','Bounding','Single-Leg Hop','Lateral Bound','Skater Jump','Hurdle Hop','Plyo Push-Up','Sprint','Sprints (Hill)','Sprints (Track)','Shuttle Run'], 'plyometric');
+        addPatterns(["Farmer's Walk",'Suitcase Carry','Overhead Carry','Sandbag Carry',"Farmer's Walk (Cardio)"], 'carry');
+        addPatterns(['Clean','Clean & Jerk','Power Clean','Hang Clean','Snatch','Power Snatch','Hang Snatch','Clean Pull','Snatch Pull','Muscle Clean','Muscle Snatch','Push Jerk','Split Jerk','Clean High Pull'], 'olympic');
+        // Isolation covers curls, raises, extensions, shrugs, calves, etc.
+        addPatterns(['Leg Extension','Leg Curl (Lying)','Leg Curl (Seated)','Leg Curl (Standing)','Lateral Raise (Dumbbell)','Lateral Raise (Cable)','Lateral Raise (Machine)','Front Raise (Dumbbell)','Front Raise (Barbell)','Front Raise (Cable)','Rear Delt Fly (Dumbbell)','Rear Delt Fly (Cable)','Rear Delt Fly (Machine)','Lu Raise','Bus Driver','Plate Front Raise','Y-T-W Raises','External Rotation','Internal Rotation','Barbell Curl','EZ Bar Curl','Dumbbell Curl (Standing)','Dumbbell Curl (Seated)','Dumbbell Curl (Incline)','Hammer Curl','Cable Curl','Preacher Curl (Barbell)','Preacher Curl (Dumbbell)','Preacher Curl (EZ Bar)','Spider Curl','Concentration Curl','Drag Curl','21s (Barbell Curl)','Cross-Body Hammer Curl','Cable Hammer Curl','Reverse Curl','Zottman Curl','Machine Bicep Curl','Tricep Pushdown (Rope)','Tricep Pushdown (Bar)','Tricep Pushdown (V-Bar)','Overhead Tricep Extension (Cable)','Overhead Tricep Extension (Dumbbell)','Overhead Tricep Extension (EZ Bar)','Skull Crusher (Barbell)','Skull Crusher (Dumbbell)','Skull Crusher (EZ Bar)','Tricep Kickback','Cable Tricep Kickback','Shrug (Barbell)','Shrug (Dumbbell)','Shrug (Trap Bar)','Standing Calf Raise (Machine)','Standing Calf Raise (Smith)','Standing Calf Raise (Dumbbell)','Seated Calf Raise','Leg Press Calf Raise','Donkey Calf Raise','Single-Leg Calf Raise','Tibialis Raise','Hip Abduction (Machine)','Hip Adduction (Machine)','Cable Hip Abduction','Cable Kickback','Donkey Kick','Fire Hydrant','Clamshell','Banded Hip Circle'], 'isolation');
+
+        function classifyExercise(name: string): string {
+          const key = name.toLowerCase().trim();
+          if (PATTERN_MAP[key]) return PATTERN_MAP[key];
+          if (/deadlift|rdl|good\s?morning|swing|hip\s?thrust|glute\s?bridge|pull.?through/i.test(key)) return 'hinge';
+          if (/squat|leg\s?press(?!\s*calf)/i.test(key)) return 'squat';
+          if (/press|push|dip|fly|pec|chest/i.test(key)) return 'push';
+          if (/pull|row|lat|chin|pulldown/i.test(key)) return 'pull';
+          if (/lunge|split\s?squat|step.?up|single.?leg|pistol/i.test(key)) return 'single_leg';
+          if (/plank|crunch|sit.?up|ab\s|core|pallof|rollout|leg\s?raise/i.test(key)) return 'core';
+          if (/woodchop|landmine\s?rot|med(icine)?\s?ball\s?(slam|throw|rotat)/i.test(key)) return 'rotational';
+          if (/box\s?jump|broad\s?jump|depth\s?jump|tuck\s?jump|squat\s?jump|bound|plyo|hurdle|skater|lateral\s?bound|sprint|shuttle/i.test(key)) return 'plyometric';
+          if (/carry|walk|farmer/i.test(key)) return 'carry';
+          if (/clean|snatch|jerk|thruster/i.test(key)) return 'olympic';
+          if (/curl|raise|extension|kickback|fly|shrug|calf/i.test(key)) return 'isolation';
+          return 'isolation';
+        }
+
+        let patternVolume: { pattern: string; total_volume: number; total_sets: number; exercises: string[] }[] = [];
         if (workoutIds && workoutIds.length > 0) {
           const wIds = workoutIds.map((w: any) => w.id);
           const { data: exData } = await serviceClient
@@ -774,19 +809,20 @@ Deno.serve(async (req) => {
             .select("exercise_name, sets:exercise_sets(weight, reps, is_completed, set_type)")
             .in("workout_id", wIds);
 
-          const volMap: Record<string, { volume: number; sets: number }> = {};
+          const patMap: Record<string, { volume: number; sets: number; exercises: Set<string> }> = {};
           for (const ex of (exData || [])) {
-            const name = ex.exercise_name;
-            if (!volMap[name]) volMap[name] = { volume: 0, sets: 0 };
+            const pattern = classifyExercise(ex.exercise_name);
+            if (!patMap[pattern]) patMap[pattern] = { volume: 0, sets: 0, exercises: new Set() };
+            patMap[pattern].exercises.add(ex.exercise_name);
             for (const s of (ex.sets || [])) {
               if (s.is_completed && s.set_type === "working") {
-                volMap[name].volume += (s.weight || 0) * (s.reps || 0);
-                volMap[name].sets += 1;
+                patMap[pattern].volume += (s.weight || 0) * (s.reps || 0);
+                patMap[pattern].sets += 1;
               }
             }
           }
-          movementVolume = Object.entries(volMap)
-            .map(([exercise_name, d]) => ({ exercise_name, total_volume: Math.round(d.volume), total_sets: d.sets }))
+          patternVolume = Object.entries(patMap)
+            .map(([pattern, d]) => ({ pattern, total_volume: Math.round(d.volume), total_sets: d.sets, exercises: Array.from(d.exercises) }))
             .filter(m => m.total_volume > 0)
             .sort((a, b) => b.total_volume - a.total_volume);
         }
@@ -795,7 +831,7 @@ Deno.serve(async (req) => {
           weeklyVolume: volumeData || [],
           weeklyRir: rirData || [],
           compliance: { completed, total, incomplete: total - completed, percentage },
-          movementVolume,
+          patternVolume,
         }), { headers: corsHeaders });
       }
 
