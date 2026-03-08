@@ -77,12 +77,12 @@ export function FoodDiaryItem({ mealFood, onRemove, onUpdate }: FoodDiaryItemPro
           </div>
 
           {/* Action buttons */}
-          <div className="flex gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setIsEditing(true)}>
-              <Edit2 className="w-3 h-3" />
+          <div className="flex gap-0.5 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+            <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setIsEditing(true)}>
+              <Edit2 className="w-3.5 h-3.5" />
             </Button>
-            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={onRemove}>
-              <Trash2 className="w-3 h-3" />
+            <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive hover:text-destructive" onClick={onRemove}>
+              <Trash2 className="w-3.5 h-3.5" />
             </Button>
           </div>
         </div>
