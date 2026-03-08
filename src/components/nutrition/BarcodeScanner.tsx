@@ -12,6 +12,13 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   Camera,
   ScanLine,
   Search,
@@ -26,34 +33,45 @@ import {
   Package,
 } from 'lucide-react';
 import { lookupBarcode, ScannedProduct } from '@/lib/openFoodFacts';
-import { useMealBuilderStore } from '@/stores/mealBuilderStore';
+import { useMealBuilderStore, MealSlotType } from '@/stores/mealBuilderStore';
+import { supabase } from '@/integrations/supabase/client';
+import { CustomFoodForm } from './CustomFoodForm';
 import { Html5Qrcode } from 'html5-qrcode';
+import { toast } from 'sonner';
 
 interface BarcodeScannerProps {
   onProductScanned?: (product: ScannedProduct) => void;
-  mealSlot?: import('@/stores/mealBuilderStore').MealSlotType;
+  mealSlot?: MealSlotType;
 }
 
-export function BarcodeScanner({ onProductScanned, mealSlot = 'snacks' }: BarcodeScannerProps) {
+export function BarcodeScanner({ onProductScanned, mealSlot: externalSlot }: BarcodeScannerProps) {
   const [isScanning, setIsScanning] = useState(false);
   const [manualBarcode, setManualBarcode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [scannedProduct, setScannedProduct] = useState<ScannedProduct | null>(null);
   const [showResultDialog, setShowResultDialog] = useState(false);
-  
+  const [showManualEntry, setShowManualEntry] = useState(false);
+  const [failedBarcode, setFailedBarcode] = useState('');
+  const [selectedSlot, setSelectedSlot] = useState<MealSlotType>(externalSlot || 'snacks');
+
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const scannerContainerId = 'barcode-scanner-container';
-  
+
   const { addDiaryEntry } = useMealBuilderStore();
+
+  // Sync external slot
+  useEffect(() => {
+    if (externalSlot) setSelectedSlot(externalSlot);
+  }, [externalSlot]);
 
   const stopScanner = useCallback(async () => {
     if (scannerRef.current) {
       try {
         await scannerRef.current.stop();
         scannerRef.current.clear();
-      } catch (e) {
-        console.log('Scanner already stopped');
+      } catch {
+        // already stopped
       }
       scannerRef.current = null;
     }
@@ -63,39 +81,102 @@ export function BarcodeScanner({ onProductScanned, mealSlot = 'snacks' }: Barcod
   const handleBarcodeLookup = useCallback(async (barcode: string) => {
     setIsLoading(true);
     setError(null);
-    
+    setShowManualEntry(false);
+
     try {
+      // 1. Check custom_foods DB first
+      const { data: customFoods } = await supabase
+        .from('custom_foods')
+        .select('*')
+        .eq('barcode', barcode)
+        .limit(1);
+
+      if (customFoods && customFoods.length > 0) {
+        const cf = customFoods[0];
+        const product: ScannedProduct = {
+          barcode,
+          name: cf.name,
+          brand: cf.brand || undefined,
+          servingSize: cf.serving_size,
+          servingGrams: Number(cf.serving_grams),
+          calories: Number(cf.calories),
+          protein: Number(cf.protein),
+          carbs: Number(cf.carbs),
+          fats: Number(cf.fats),
+          fiber: cf.fiber ? Number(cf.fiber) : undefined,
+          imageUrl: cf.image_url || undefined,
+        };
+        setScannedProduct(product);
+        setShowResultDialog(true);
+        onProductScanned?.(product);
+        setIsLoading(false);
+        return;
+      }
+
+      // 2. Try Open Food Facts
       const product = await lookupBarcode(barcode);
-      
       if (product) {
         setScannedProduct(product);
         setShowResultDialog(true);
         onProductScanned?.(product);
-      } else {
-        setError(`Product not found for barcode: ${barcode}. Try entering the nutrition info manually.`);
+        setIsLoading(false);
+        return;
       }
-    } catch (err) {
+
+      // 3. Try Nutritionix UPC lookup
+      try {
+        const { data: session } = await supabase.auth.getSession();
+        if (session?.session) {
+          const { data: nxData } = await supabase.functions.invoke('nutritionix-search', {
+            body: { action: 'upc', upc: barcode },
+          });
+          if (nxData?.food) {
+            const nxFood = nxData.food;
+            const product: ScannedProduct = {
+              barcode: nxFood.barcode,
+              name: nxFood.name,
+              brand: nxFood.brand,
+              servingSize: nxFood.servingSize,
+              servingGrams: nxFood.servingGrams,
+              calories: nxFood.calories,
+              protein: nxFood.protein,
+              carbs: nxFood.carbs,
+              fats: nxFood.fats,
+              fiber: nxFood.fiber,
+              imageUrl: nxFood.imageUrl,
+            };
+            setScannedProduct(product);
+            setShowResultDialog(true);
+            onProductScanned?.(product);
+            setIsLoading(false);
+            return;
+          }
+        }
+      } catch {
+        // Nutritionix lookup failed, continue to manual entry
+      }
+
+      // 4. All lookups failed — show manual entry
+      setFailedBarcode(barcode);
+      setShowManualEntry(true);
+      setError(`Product not found for barcode: ${barcode}. Enter the details below to save it.`);
+    } catch {
       setError('Failed to look up product. Please try again.');
     } finally {
       setIsLoading(false);
     }
   }, [onProductScanned]);
 
-  // CRITICAL: Camera access must be called directly from click handler for permission to work
   const startScanner = async () => {
     setError(null);
-    
     try {
-      // Request camera permission directly in click handler context
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'environment' } 
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' },
       });
-      // Stop the test stream immediately - html5-qrcode will request its own
-      stream.getTracks().forEach(track => track.stop());
-      
+      stream.getTracks().forEach((track) => track.stop());
+
       setIsScanning(true);
-      
-      // Small delay to ensure DOM is ready
+
       setTimeout(async () => {
         try {
           const html5QrCode = new Html5Qrcode(scannerContainerId);
@@ -103,26 +184,21 @@ export function BarcodeScanner({ onProductScanned, mealSlot = 'snacks' }: Barcod
 
           await html5QrCode.start(
             { facingMode: 'environment' },
-            {
-              fps: 10,
-              qrbox: { width: 250, height: 100 },
-            },
+            { fps: 10, qrbox: { width: 250, height: 100 } },
             async (decodedText) => {
               await stopScanner();
               handleBarcodeLookup(decodedText);
             },
             () => {}
           );
-        } catch (err) {
-          console.error('Failed to start scanner:', err);
+        } catch {
           setError('Scanner initialization failed. Try entering the barcode manually.');
           setIsScanning(false);
         }
       }, 100);
     } catch (err: any) {
-      console.error('Camera access denied:', err);
       if (err.name === 'NotAllowedError') {
-        setError('Camera access denied. Please grant camera permissions in your browser settings and try again.');
+        setError('Camera access denied. Please grant camera permissions in your browser settings.');
       } else if (err.name === 'NotFoundError') {
         setError('No camera found. Please enter the barcode manually.');
       } else {
@@ -140,7 +216,8 @@ export function BarcodeScanner({ onProductScanned, mealSlot = 'snacks' }: Barcod
 
   const handleAddToMeal = () => {
     if (scannedProduct) {
-      addDiaryEntry(scannedProduct, mealSlot, 1, 'piece');
+      addDiaryEntry(scannedProduct, selectedSlot, 1, 'piece');
+      toast.success(`Added to ${selectedSlot}`);
       setShowResultDialog(false);
       setScannedProduct(null);
       setManualBarcode('');
@@ -151,13 +228,32 @@ export function BarcodeScanner({ onProductScanned, mealSlot = 'snacks' }: Barcod
     setShowResultDialog(false);
     setScannedProduct(null);
     setManualBarcode('');
+    setShowManualEntry(false);
+    setError(null);
   };
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      stopScanner();
+  const handleCustomFoodCreated = (food: any) => {
+    const product: ScannedProduct = {
+      barcode: food.barcode || failedBarcode,
+      name: food.name,
+      brand: food.brand,
+      servingSize: food.servingSize,
+      servingGrams: food.servingGrams,
+      calories: food.calories,
+      protein: food.protein,
+      carbs: food.carbs,
+      fats: food.fats,
+      fiber: food.fiber,
     };
+    setScannedProduct(product);
+    setShowManualEntry(false);
+    setError(null);
+    setShowResultDialog(true);
+    onProductScanned?.(product);
+  };
+
+  useEffect(() => {
+    return () => { stopScanner(); };
   }, [stopScanner]);
 
   return (
@@ -169,43 +265,42 @@ export function BarcodeScanner({ onProductScanned, mealSlot = 'snacks' }: Barcod
             Barcode Scanner
           </CardTitle>
           <CardDescription>
-            Scan product barcodes to get instant nutrition info from Open Food Facts
+            Scan barcodes to get instant nutrition info
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Meal Slot Picker */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Add to:</span>
+            <Select value={selectedSlot} onValueChange={(v) => setSelectedSlot(v as MealSlotType)}>
+              <SelectTrigger className="w-[140px] h-8">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="breakfast">Breakfast</SelectItem>
+                <SelectItem value="lunch">Lunch</SelectItem>
+                <SelectItem value="dinner">Dinner</SelectItem>
+                <SelectItem value="snacks">Snacks</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           {/* Scanner View */}
           {isScanning && (
             <div className="relative rounded-lg overflow-hidden bg-background">
-              <div 
-                id={scannerContainerId} 
-                className="w-full aspect-[4/3]"
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                className="absolute top-2 right-2 bg-background/80"
-                onClick={stopScanner}
-              >
-                <X className="w-4 h-4 mr-1" />
-                Cancel
+              <div id={scannerContainerId} className="w-full aspect-[4/3]" />
+              <Button variant="outline" size="sm" className="absolute top-2 right-2 bg-background/80" onClick={stopScanner}>
+                <X className="w-4 h-4 mr-1" /> Cancel
               </Button>
               <div className="absolute bottom-4 left-0 right-0 text-center">
-                <Badge variant="secondary" className="bg-background/80">
-                  Point camera at barcode
-                </Badge>
+                <Badge variant="secondary" className="bg-background/80">Point camera at barcode</Badge>
               </div>
             </div>
           )}
 
-          {/* Start Scanner Button */}
           {!isScanning && (
-            <Button
-              onClick={startScanner}
-              className="w-full gap-2"
-              disabled={isLoading}
-            >
-              <Camera className="w-4 h-4" />
-              Open Camera Scanner
+            <Button onClick={startScanner} className="w-full gap-2" disabled={isLoading}>
+              <Camera className="w-4 h-4" /> Open Camera Scanner
             </Button>
           )}
 
@@ -217,20 +312,11 @@ export function BarcodeScanner({ onProductScanned, mealSlot = 'snacks' }: Barcod
               onChange={(e) => setManualBarcode(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleManualLookup()}
             />
-            <Button
-              variant="outline"
-              onClick={handleManualLookup}
-              disabled={!manualBarcode.trim() || isLoading}
-            >
-              {isLoading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Search className="w-4 h-4" />
-              )}
+            <Button variant="outline" onClick={handleManualLookup} disabled={!manualBarcode.trim() || isLoading}>
+              {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
             </Button>
           </div>
 
-          {/* Error Message */}
           {error && (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
@@ -238,12 +324,19 @@ export function BarcodeScanner({ onProductScanned, mealSlot = 'snacks' }: Barcod
             </Alert>
           )}
 
-          {/* Loading State */}
           {isLoading && (
             <div className="flex items-center justify-center py-4 gap-2 text-muted-foreground">
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Looking up product...
+              <Loader2 className="w-4 h-4 animate-spin" /> Looking up product...
             </div>
+          )}
+
+          {/* Manual Entry Form (shown when barcode not found) */}
+          {showManualEntry && (
+            <CustomFoodForm
+              defaultBarcode={failedBarcode}
+              onFoodCreated={handleCustomFoodCreated}
+              onCancel={() => { setShowManualEntry(false); setError(null); }}
+            />
           )}
         </CardContent>
       </Card>
@@ -253,37 +346,24 @@ export function BarcodeScanner({ onProductScanned, mealSlot = 'snacks' }: Barcod
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Package className="w-5 h-5 text-primary" />
-              Product Found
+              <Package className="w-5 h-5 text-primary" /> Product Found
             </DialogTitle>
-            <DialogDescription>
-              Review the nutrition information below
-            </DialogDescription>
+            <DialogDescription>Review the nutrition information below</DialogDescription>
           </DialogHeader>
-          
+
           {scannedProduct && (
             <div className="space-y-4">
-              {/* Product Image & Name */}
               <div className="flex gap-4 items-start">
                 {scannedProduct.imageUrl && (
-                  <img 
-                    src={scannedProduct.imageUrl} 
-                    alt={scannedProduct.name}
-                    className="w-16 h-16 object-cover rounded-lg"
-                  />
+                  <img src={scannedProduct.imageUrl} alt={scannedProduct.name} className="w-16 h-16 object-cover rounded-lg" />
                 )}
                 <div className="flex-1 min-w-0">
                   <h4 className="font-semibold truncate">{scannedProduct.name}</h4>
-                  {scannedProduct.brand && (
-                    <p className="text-sm text-muted-foreground">{scannedProduct.brand}</p>
-                  )}
-                  <Badge variant="outline" className="mt-1">
-                    {scannedProduct.servingSize}
-                  </Badge>
+                  {scannedProduct.brand && <p className="text-sm text-muted-foreground">{scannedProduct.brand}</p>}
+                  <Badge variant="outline" className="mt-1">{scannedProduct.servingSize}</Badge>
                 </div>
               </div>
 
-              {/* Macros Display */}
               <div className="grid grid-cols-4 gap-2 p-4 bg-muted/50 rounded-lg">
                 <div className="text-center">
                   <Flame className="w-4 h-4 mx-auto mb-1 text-orange-500" />
@@ -307,15 +387,27 @@ export function BarcodeScanner({ onProductScanned, mealSlot = 'snacks' }: Barcod
                 </div>
               </div>
 
-              {/* Actions */}
+              {/* Meal slot selector in result dialog */}
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Add to:</span>
+                <Select value={selectedSlot} onValueChange={(v) => setSelectedSlot(v as MealSlotType)}>
+                  <SelectTrigger className="w-[140px] h-8">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="breakfast">Breakfast</SelectItem>
+                    <SelectItem value="lunch">Lunch</SelectItem>
+                    <SelectItem value="dinner">Dinner</SelectItem>
+                    <SelectItem value="snacks">Snacks</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div className="flex gap-2">
                 <Button onClick={handleAddToMeal} className="flex-1 gap-2">
-                  <Plus className="w-4 h-4" />
-                  Add to Meal
+                  <Plus className="w-4 h-4" /> Add to Meal
                 </Button>
-                <Button variant="outline" onClick={handleScanAnother}>
-                  Scan Another
-                </Button>
+                <Button variant="outline" onClick={handleScanAnother}>Scan Another</Button>
               </div>
             </div>
           )}
