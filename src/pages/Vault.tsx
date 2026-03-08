@@ -80,32 +80,32 @@ export function VaultDashboard() {
 
         {/* Main tabs */}
         <Tabs value={activeTab} className="space-y-6" onValueChange={handleTabChange}>
-          <TabsList className="flex overflow-x-auto scrollbar-hide gap-1 h-auto p-1 sm:inline-flex sm:w-auto sm:flex-wrap">
-              <TabsTrigger value="dashboard" className="flex items-center gap-1.5 px-3 py-2.5 min-h-[44px] whitespace-nowrap" aria-label="Dashboard">
+            <TabsList className="flex overflow-x-auto scrollbar-hide gap-1 h-auto p-1 sm:inline-flex sm:w-auto sm:flex-wrap">
+              <TabsTrigger value="dashboard" className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2.5 min-h-[44px] whitespace-nowrap" aria-label="Dashboard">
                 <LayoutDashboard className="w-4 h-4" />
                 <span className="text-xs sm:text-sm leading-none">Home</span>
               </TabsTrigger>
-              <TabsTrigger value="workouts" className="flex items-center gap-1.5 px-3 py-2.5 min-h-[44px] whitespace-nowrap" aria-label="Workouts">
+              <TabsTrigger value="workouts" className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2.5 min-h-[44px] whitespace-nowrap" aria-label="Workouts">
                 <Dumbbell className="w-4 h-4" />
                 <span className="text-xs sm:text-sm leading-none">Train</span>
               </TabsTrigger>
-              <TabsTrigger value="library" className="flex items-center gap-1.5 px-3 py-2.5 min-h-[44px] whitespace-nowrap" aria-label="Library">
+              <TabsTrigger value="library" className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2.5 min-h-[44px] whitespace-nowrap" aria-label="Library">
                 <Library className="w-4 h-4" />
                 <span className="text-xs sm:text-sm leading-none">Library</span>
               </TabsTrigger>
-              <TabsTrigger value="progress" className="flex items-center gap-1.5 px-3 py-2.5 min-h-[44px] whitespace-nowrap" aria-label="Progress">
+              <TabsTrigger value="progress" className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2.5 min-h-[44px] whitespace-nowrap" aria-label="Progress">
                 <Activity className="w-4 h-4" />
                 <span className="text-xs sm:text-sm leading-none">Progress</span>
               </TabsTrigger>
-              <TabsTrigger value="lifestyle" className="flex items-center gap-1.5 px-3 py-2.5 min-h-[44px] whitespace-nowrap" aria-label="Lifestyle">
+              <TabsTrigger value="lifestyle" className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2.5 min-h-[44px] whitespace-nowrap" aria-label="Lifestyle">
                 <Heart className="w-4 h-4" />
                 <span className="text-xs sm:text-sm leading-none">Lifestyle</span>
               </TabsTrigger>
-              <TabsTrigger value="podcast" className="flex items-center gap-1.5 px-3 py-2.5 min-h-[44px] whitespace-nowrap" aria-label="Podcast">
+              <TabsTrigger value="podcast" className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2.5 min-h-[44px] whitespace-nowrap" aria-label="Podcast">
                 <Radio className="w-4 h-4" />
                 <span className="text-xs sm:text-sm leading-none">Podcast</span>
               </TabsTrigger>
-              <TabsTrigger value="community" className="relative flex items-center gap-1.5 px-3 py-2.5 min-h-[44px] whitespace-nowrap" aria-label="Community">
+              <TabsTrigger value="community" className="flex-shrink-0 relative flex items-center gap-1.5 px-3 py-2.5 min-h-[44px] whitespace-nowrap" aria-label="Community">
                 <div className="relative">
                   <Users className="w-4 h-4" />
                   {showCommunityDot && (
@@ -114,12 +114,12 @@ export function VaultDashboard() {
                 </div>
                 <span className="text-xs sm:text-sm leading-none">Community</span>
               </TabsTrigger>
-              <TabsTrigger value="tracks" className="flex items-center gap-1.5 px-3 py-2.5 min-h-[44px] whitespace-nowrap" aria-label="Tracks">
+              <TabsTrigger value="tracks" className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2.5 min-h-[44px] whitespace-nowrap" aria-label="Tracks">
                 <Target className="w-4 h-4" />
                 <span className="text-xs sm:text-sm leading-none">Tracks</span>
               </TabsTrigger>
               {isAdmin && (
-                <TabsTrigger value="admin" className="flex items-center gap-1.5 px-3 py-2.5 min-h-[44px] whitespace-nowrap" aria-label="Admin">
+                <TabsTrigger value="admin" className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2.5 min-h-[44px] whitespace-nowrap" aria-label="Admin">
                   <Shield className="w-4 h-4" />
                   <span className="text-xs sm:text-sm leading-none">Admin</span>
                 </TabsTrigger>
