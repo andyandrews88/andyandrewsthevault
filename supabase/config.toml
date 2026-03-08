@@ -35,3 +35,6 @@ verify_jwt = false
 
 [functions.generate-vapid-keys]
 verify_jwt = false
+
+[functions.nutritionix-search]
+verify_jwt = false
