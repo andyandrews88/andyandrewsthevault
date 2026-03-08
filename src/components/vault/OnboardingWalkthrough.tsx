@@ -14,7 +14,6 @@ import {
   Heart,
   Dumbbell,
   Apple,
-  BarChart3,
   Brain,
   MessageSquare,
   ArrowRight,
@@ -22,6 +21,11 @@ import {
   Lightbulb,
   LayoutDashboard,
   Activity,
+  Wind,
+  Library,
+  Radio,
+  Users,
+  Target,
   X,
 } from "lucide-react";
 
