@@ -3,8 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
-  Library, Users, Target, Star, ExternalLink, Crown,
-  Radio, Shield, Activity, Dumbbell, Heart, LayoutDashboard
+  ExternalLink, Crown, Star, Target,
 } from "lucide-react";
 import { PodcastTab } from "@/components/vault/PodcastTab";
 import { LibraryTab } from "@/components/vault/LibraryTab";
@@ -15,6 +14,8 @@ import { CommunityFeed } from "@/components/community/CommunityFeed";
 import { LifestyleTab } from "@/components/lifestyle/LifestyleTab";
 import { VaultDashboard as DashboardView } from "@/components/dashboard/VaultDashboard";
 import { ProgramLibrary } from "@/components/tracks/ProgramLibrary";
+import { BottomNav } from "@/components/layout/BottomNav";
+import { VAULT_TABS, APP_VERSION, APP_BUILD_DATE } from "@/lib/navigationConstants";
 import { useState } from "react";
 import logo from "@/assets/logo.png";
 import { useAdminCheck } from "@/hooks/useAdminCheck";
@@ -22,6 +23,7 @@ import { OnboardingWalkthrough } from "@/components/vault/OnboardingWalkthrough"
 import { useSearchParams } from "react-router-dom";
 import { useNotificationStore } from "@/stores/notificationStore";
 import { useCommunityStore } from "@/stores/communityStore";
+import { Shield } from "lucide-react";
 
 export function VaultDashboard() {
   const { isAdmin } = useAdminCheck();
@@ -45,8 +47,11 @@ export function VaultDashboard() {
     if (tab) setActiveTab(tab);
   };
 
+  // Filter tabs based on admin status
+  const visibleTabs = VAULT_TABS.filter(tab => !tab.adminOnly || isAdmin);
+
   return (
-    <div className="min-h-screen pt-24 pb-12">
+    <div className="min-h-screen pt-24 pb-20 md:pb-12">
       <OnboardingWalkthrough onComplete={handleOnboardingComplete} onTabChange={handleTabChange} currentTab={activeTab} />
       <div className="container mx-auto px-4 md:px-6 max-w-6xl">
         {/* Header with Logo — compact on mobile */}
@@ -76,61 +81,48 @@ export function VaultDashboard() {
             <Crown className="w-3 h-3 text-accent" />
             Apply for 1-on-1 Coaching
           </a>
+          {/* Admin version indicator */}
+          {isAdmin && (
+            <p className="text-[10px] text-muted-foreground/40 mt-1 font-mono">
+              v{APP_VERSION} · {APP_BUILD_DATE}
+            </p>
+          )}
         </div>
 
         {/* Main tabs */}
         <Tabs value={activeTab} className="space-y-6" onValueChange={handleTabChange}>
-            <TabsList className="flex overflow-x-auto scrollbar-hide gap-1 h-auto p-1 sm:inline-flex sm:w-auto sm:flex-wrap">
-              <TabsTrigger value="dashboard" className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2.5 min-h-[44px] whitespace-nowrap" aria-label="Dashboard">
-                <LayoutDashboard className="w-4 h-4" />
-                <span className="text-xs sm:text-sm leading-none">Home</span>
-              </TabsTrigger>
-              <TabsTrigger value="workouts" className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2.5 min-h-[44px] whitespace-nowrap" aria-label="Workouts">
-                <Dumbbell className="w-4 h-4" />
-                <span className="text-xs sm:text-sm leading-none">Train</span>
-              </TabsTrigger>
-              <TabsTrigger value="library" className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2.5 min-h-[44px] whitespace-nowrap" aria-label="Library">
-                <Library className="w-4 h-4" />
-                <span className="text-xs sm:text-sm leading-none">Library</span>
-              </TabsTrigger>
-              <TabsTrigger value="progress" className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2.5 min-h-[44px] whitespace-nowrap" aria-label="Progress">
-                <Activity className="w-4 h-4" />
-                <span className="text-xs sm:text-sm leading-none">Progress</span>
-              </TabsTrigger>
-              <TabsTrigger value="lifestyle" className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2.5 min-h-[44px] whitespace-nowrap" aria-label="Lifestyle">
-                <Heart className="w-4 h-4" />
-                <span className="text-xs sm:text-sm leading-none">Lifestyle</span>
-              </TabsTrigger>
-              <TabsTrigger value="podcast" className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2.5 min-h-[44px] whitespace-nowrap" aria-label="Podcast">
-                <Radio className="w-4 h-4" />
-                <span className="text-xs sm:text-sm leading-none">Podcast</span>
-              </TabsTrigger>
-              <TabsTrigger value="community" className="flex-shrink-0 relative flex items-center gap-1.5 px-3 py-2.5 min-h-[44px] whitespace-nowrap" aria-label="Community">
-                <div className="relative">
-                  <Users className="w-4 h-4" />
-                  {showCommunityDot && (
-                    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-destructive ring-1 ring-background" />
-                  )}
-                </div>
-                <span className="text-xs sm:text-sm leading-none">Community</span>
-              </TabsTrigger>
-              <TabsTrigger value="tracks" className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2.5 min-h-[44px] whitespace-nowrap" aria-label="Tracks">
-                <Target className="w-4 h-4" />
-                <span className="text-xs sm:text-sm leading-none">Tracks</span>
-              </TabsTrigger>
-              {isAdmin && (
-                <TabsTrigger value="admin" className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2.5 min-h-[44px] whitespace-nowrap" aria-label="Admin">
-                  <Shield className="w-4 h-4" />
-                  <span className="text-xs sm:text-sm leading-none">Admin</span>
-                </TabsTrigger>
-              )}
-          </TabsList>
+          <div className="relative">
+            <TabsList className="flex overflow-x-auto scrollbar-hide gap-1 h-auto p-1 pr-4 sm:inline-flex sm:w-auto sm:flex-wrap">
+              {visibleTabs.map((tab) => {
+                const Icon = tab.icon;
+                const showDot = tab.id === "community" && showCommunityDot;
+                return (
+                  <TabsTrigger
+                    key={tab.id}
+                    value={tab.id}
+                    className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2.5 min-h-[44px] whitespace-nowrap"
+                    aria-label={tab.label}
+                  >
+                    <div className="relative">
+                      <Icon className="w-4 h-4" />
+                      {showDot && (
+                        <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-destructive ring-1 ring-background" />
+                      )}
+                    </div>
+                    <span className="text-xs sm:text-sm leading-none">{tab.label}</span>
+                  </TabsTrigger>
+                );
+              })}
+            </TabsList>
+            {/* Fade hint for scroll on mobile */}
+            <div className="absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-background to-transparent pointer-events-none sm:hidden" />
+          </div>
 
           <TabsContent value="dashboard"><DashboardView /></TabsContent>
+          <TabsContent value="workouts"><WorkoutTab /></TabsContent>
           <TabsContent value="library"><LibraryTab isPremiumMember={true} isAdmin={isAdmin} /></TabsContent>
           <TabsContent value="progress"><ProgressTab /></TabsContent>
           <TabsContent value="lifestyle"><LifestyleTab /></TabsContent>
-          <TabsContent value="workouts"><WorkoutTab /></TabsContent>
           <TabsContent value="podcast"><PodcastTab /></TabsContent>
           <TabsContent value="community"><CommunityFeed /></TabsContent>
 
@@ -228,6 +220,9 @@ export function VaultDashboard() {
           )}
         </Tabs>
       </div>
+
+      {/* Mobile Bottom Navigation */}
+      <BottomNav activeTab={activeTab} onTabChange={handleTabChange} />
     </div>
   );
 }
