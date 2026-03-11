@@ -1,6 +1,8 @@
 import * as React from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
+import {
+  BottomSheetMenu,
+} from "@/components/ui/bottom-sheet-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 interface ResponsiveSheetProps {
@@ -33,16 +35,9 @@ export function ResponsiveSheet({
             {trigger}
           </div>
         )}
-        <Drawer open={open} onOpenChange={onOpenChange}>
-          <DrawerContent>
-            {title && (
-              <DrawerHeader className="text-left">
-                <DrawerTitle>{title}</DrawerTitle>
-              </DrawerHeader>
-            )}
-            <div className="px-4 pb-6">{children}</div>
-          </DrawerContent>
-        </Drawer>
+        <BottomSheetMenu open={open} onOpenChange={onOpenChange} title={title}>
+          {children}
+        </BottomSheetMenu>
       </>
     );
   }

@@ -3,7 +3,11 @@ import { Button } from "@/components/ui/button";
 import { ResourceCategory, ResourceType, categoryLabels } from "@/types/resources";
 import { Filter, X, Check } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
+import {
+  BottomSheetMenu,
+  BottomSheetItem,
+  BottomSheetSeparator,
+} from "@/components/ui/bottom-sheet-menu";
 
 interface CategoryFilterProps {
   selectedCategory: ResourceCategory | 'all';
@@ -67,58 +71,35 @@ export function CategoryFilter({
           )}
         </div>
 
-        <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
-          <DrawerContent>
-            <DrawerHeader className="text-left">
-              <DrawerTitle>Filters</DrawerTitle>
-            </DrawerHeader>
-            <div className="px-4 pb-6 space-y-6">
-              {/* Category */}
-              <div className="space-y-2">
-                <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Category</p>
-                <div className="space-y-1">
-                  {categories.map((category) => (
-                    <button
-                      key={category}
-                      onClick={() => onCategoryChange(category)}
-                      className="flex items-center justify-between w-full px-3 py-2.5 rounded-lg text-sm hover:bg-muted transition-colors"
-                    >
-                      <span className={selectedCategory === category ? "font-semibold text-foreground" : "text-muted-foreground"}>
-                        {category === 'all' ? 'All Categories' : categoryLabels[category]}
-                      </span>
-                      {selectedCategory === category && <Check className="w-4 h-4 text-primary" />}
-                    </button>
-                  ))}
-                </div>
-              </div>
+        <BottomSheetMenu open={drawerOpen} onOpenChange={setDrawerOpen} title="Filters">
+          <BottomSheetSeparator label="Category" />
+          {categories.map((category) => (
+            <BottomSheetItem
+              key={category}
+              label={category === 'all' ? 'All Categories' : categoryLabels[category]}
+              selected={selectedCategory === category}
+              onClick={() => onCategoryChange(category)}
+            />
+          ))}
 
-              {/* Type */}
-              <div className="space-y-2">
-                <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Type</p>
-                <div className="space-y-1">
-                  {types.map((type) => (
-                    <button
-                      key={type}
-                      onClick={() => onTypeChange(type)}
-                      className="flex items-center justify-between w-full px-3 py-2.5 rounded-lg text-sm hover:bg-muted transition-colors"
-                    >
-                      <span className={selectedType === type ? "font-semibold text-foreground" : "text-muted-foreground"}>
-                        {typeDisplayLabels[type]}
-                      </span>
-                      {selectedType === type && <Check className="w-4 h-4 text-primary" />}
-                    </button>
-                  ))}
-                </div>
-              </div>
+          <BottomSheetSeparator label="Type" />
+          {types.map((type) => (
+            <BottomSheetItem
+              key={type}
+              label={typeDisplayLabels[type]}
+              selected={selectedType === type}
+              onClick={() => onTypeChange(type)}
+            />
+          ))}
 
-              {hasFilters && (
-                <Button variant="outline" className="w-full" onClick={() => { clearFilters(); setDrawerOpen(false); }}>
-                  <X className="w-3.5 h-3.5 mr-2" /> Clear All Filters
-                </Button>
-              )}
+          {hasFilters && (
+            <div className="px-4 pt-4">
+              <Button variant="outline" className="w-full" onClick={() => { clearFilters(); setDrawerOpen(false); }}>
+                <X className="w-3.5 h-3.5 mr-2" /> Clear All Filters
+              </Button>
             </div>
-          </DrawerContent>
-        </Drawer>
+          )}
+        </BottomSheetMenu>
       </>
     );
   }
