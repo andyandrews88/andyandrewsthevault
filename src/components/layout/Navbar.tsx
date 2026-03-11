@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Menu, X, User, LogOut, Shield, Settings } from "lucide-react";
+import { Menu, User, LogOut, Shield, Settings, Home, FileText, Apple, Lock } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import logo from "@/assets/logo.png";
 import { useAuthStore } from "@/stores/authStore";
@@ -12,10 +12,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  BottomSheetMenu,
+  BottomSheetItem,
+  BottomSheetSeparator,
+} from "@/components/ui/bottom-sheet-menu";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
 
 export function Navbar() {
-  const [isOpen, setIsOpen] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const profileFetchedRef = useRef<string | null>(null);
@@ -23,6 +29,7 @@ export function Navbar() {
   const navigate = useNavigate();
   const { isAuthenticated, user, signOut, isLoading } = useAuthStore();
   const { isAdmin } = useAdminCheck();
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     if (!user) {
@@ -31,7 +38,6 @@ export function Navbar() {
       profileFetchedRef.current = null;
       return;
     }
-    // Only fetch once per user id
     if (profileFetchedRef.current === user.id) return;
     profileFetchedRef.current = user.id;
     const fetchProfile = async () => {
@@ -47,16 +53,21 @@ export function Navbar() {
   }, [user]);
 
   const navLinks = [
-    { href: "/", label: "Home" },
-    { href: "/audit", label: "Audit" },
-    { href: "/nutrition", label: "Nutrition" },
-    { href: "/vault", label: "The Vault" },
+    { href: "/", label: "Home", icon: Home },
+    { href: "/audit", label: "Audit", icon: FileText },
+    { href: "/nutrition", label: "Nutrition", icon: Apple },
+    { href: "/vault", label: "The Vault", icon: Lock },
   ];
 
   const handleSignOut = async () => {
     navigate("/");
     await signOut();
     toast.success("Signed out successfully");
+  };
+
+  const handleNavigate = (path: string) => {
+    navigate(path);
+    setSheetOpen(false);
   };
 
   return (
@@ -87,7 +98,6 @@ export function Navbar() {
             </Link>
           ))}
           
-          {/* Auth buttons */}
           {isAuthenticated ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -131,79 +141,63 @@ export function Navbar() {
           )}
         </div>
 
-        {/* Mobile menu button */}
+        {/* Mobile menu button → opens bottom sheet */}
         <button
           className="md:hidden p-2"
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={() => setSheetOpen(true)}
         >
-          {isOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          <Menu className="w-5 h-5" />
         </button>
       </nav>
 
-      {/* Mobile menu */}
-      {isOpen && (
-        <div className="md:hidden glass border-t border-border">
-          <div className="container mx-auto px-4 py-3 space-y-1">
-            {navLinks.map((link) => (
-              <Link
-                key={link.href}
-                to={link.href}
-                className={`block py-3 px-4 rounded-lg text-base transition-colors ${
-                  location.pathname === link.href
-                    ? 'text-primary bg-primary/10'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-                }`}
-                onClick={() => setIsOpen(false)}
-              >
-                {link.label}
-              </Link>
-            ))}
-            
-            {/* Mobile auth button */}
-            <div className="pt-2 border-t border-border mt-2">
-              {isAuthenticated ? (
-                <>
-                  <Link
-                    to="/profile"
-                    className="flex items-center gap-2 py-3 px-4 rounded-lg text-base text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                    onClick={() => setIsOpen(false)}
-                  >
-                    <Settings className="w-4 h-4" />
-                    Profile Settings
-                  </Link>
-                  {isAdmin && (
-                    <Link
-                      to="/admin"
-                      className="flex items-center gap-2 py-3 px-4 rounded-lg text-base text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      <Shield className="w-4 h-4" />
-                      Admin Dashboard
-                    </Link>
-                  )}
-                  <button
-                    onClick={() => {
-                      handleSignOut();
-                      setIsOpen(false);
-                    }}
-                    className="flex items-center gap-2 py-3 px-4 rounded-lg text-base text-muted-foreground hover:text-foreground hover:bg-muted/50 w-full"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    Sign Out
-                  </button>
-                </>
-              ) : (
-                <Link
-                  to="/auth"
-                  className="block py-3 px-4 rounded-lg text-base bg-primary text-primary-foreground text-center"
-                  onClick={() => setIsOpen(false)}
-                >
-                  Sign In
-                </Link>
+      {/* Mobile bottom sheet menu */}
+      {isMobile && (
+        <BottomSheetMenu open={sheetOpen} onOpenChange={setSheetOpen} title="More">
+          {navLinks.map((link) => (
+            <BottomSheetItem
+              key={link.href}
+              icon={link.icon}
+              label={link.label}
+              selected={location.pathname === link.href}
+              onClick={() => handleNavigate(link.href)}
+            />
+          ))}
+
+          <BottomSheetSeparator />
+
+          {isAuthenticated ? (
+            <>
+              <BottomSheetItem
+                icon={Settings}
+                label="Profile Settings"
+                onClick={() => handleNavigate("/profile")}
+              />
+              {isAdmin && (
+                <BottomSheetItem
+                  icon={Shield}
+                  label="Admin Dashboard"
+                  onClick={() => handleNavigate("/admin")}
+                />
               )}
-            </div>
-          </div>
-        </div>
+              <BottomSheetSeparator />
+              <BottomSheetItem
+                icon={LogOut}
+                label="Sign Out"
+                destructive
+                onClick={() => {
+                  handleSignOut();
+                  setSheetOpen(false);
+                }}
+              />
+            </>
+          ) : (
+            <BottomSheetItem
+              icon={User}
+              label="Sign In"
+              onClick={() => handleNavigate("/auth")}
+            />
+          )}
+        </BottomSheetMenu>
       )}
     </header>
   );
