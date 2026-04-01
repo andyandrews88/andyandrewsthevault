@@ -151,7 +151,7 @@ export function BottomSheetSubItem({ label, onClick, selected }: BottomSheetSubI
   return (
     <button
       onClick={onClick}
-      className="flex w-full items-center justify-between rounded-lg px-3 py-3 text-[15px] font-medium text-[#1a1a1a] dark:text-foreground hover:bg-black/[0.03] dark:hover:bg-white/[0.03] active:bg-black/5 transition-colors"
+      className="flex w-full items-center justify-between rounded-lg px-3 py-3 text-[15px] font-medium text-foreground hover:bg-white/[0.03] active:bg-white/5 transition-colors"
     >
       <span>{label}</span>
       {selected && <Check className="h-4 w-4 text-primary shrink-0" />}
