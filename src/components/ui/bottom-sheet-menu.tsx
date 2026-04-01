@@ -120,7 +120,7 @@ export function BottomSheetExpandable({ icon: Icon, label, children, defaultOpen
     <div>
       <button
         onClick={() => setExpanded(!expanded)}
-        className="flex w-full items-center gap-4 rounded-xl px-4 min-h-[64px] text-[#1a1a1a] dark:text-foreground transition-colors hover:bg-black/[0.03] dark:hover:bg-white/[0.03] active:bg-black/5"
+        className="flex w-full items-center gap-4 rounded-xl px-4 min-h-[64px] text-foreground transition-colors hover:bg-white/[0.03] active:bg-white/5"
       >
         {Icon && <Icon className="h-6 w-6 shrink-0" strokeWidth={1.5} />}
         <span className="flex-1 text-left text-[17px] font-medium leading-tight">{label}</span>
