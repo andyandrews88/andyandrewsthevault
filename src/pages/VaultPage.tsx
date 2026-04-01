@@ -6,7 +6,10 @@ import { Footer } from "@/components/landing/Footer";
 const VaultPage = () => {
   return (
     <div className="min-h-screen bg-background">
-      <Navbar />
+      {/* Navbar only shown on desktop — mobile uses BottomNav inside VaultDashboard */}
+      <div className="hidden md:block">
+        <Navbar />
+      </div>
       <VaultDashboard />
       <Footer />
     </div>
