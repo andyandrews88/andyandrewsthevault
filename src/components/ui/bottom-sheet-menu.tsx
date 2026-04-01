@@ -71,10 +71,10 @@ export function BottomSheetItem({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "flex w-full items-center gap-4 rounded-xl px-4 min-h-[64px] transition-colors active:bg-black/5 dark:active:bg-white/5",
+        "flex w-full items-center gap-4 rounded-xl px-4 min-h-[64px] transition-colors active:bg-white/5",
         destructive
-          ? "text-[#ef4444]"
-          : "text-[#1a1a1a] dark:text-foreground hover:bg-black/[0.03] dark:hover:bg-white/[0.03]",
+          ? "text-destructive"
+          : "text-foreground hover:bg-white/[0.03]",
         disabled && "opacity-40 pointer-events-none",
         className,
       )}
