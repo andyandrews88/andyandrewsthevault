@@ -71,10 +71,10 @@ export function BottomSheetItem({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "flex w-full items-center gap-4 rounded-xl px-4 min-h-[64px] transition-colors active:bg-black/5 dark:active:bg-white/5",
+        "flex w-full items-center gap-4 rounded-xl px-4 min-h-[64px] transition-colors active:bg-white/5",
         destructive
-          ? "text-[#ef4444]"
-          : "text-[#1a1a1a] dark:text-foreground hover:bg-black/[0.03] dark:hover:bg-white/[0.03]",
+          ? "text-destructive"
+          : "text-foreground hover:bg-white/[0.03]",
         disabled && "opacity-40 pointer-events-none",
         className,
       )}
@@ -83,7 +83,7 @@ export function BottomSheetItem({
         <Icon
           className={cn(
             "h-6 w-6 shrink-0",
-            destructive ? "text-[#ef4444]" : "text-[#1a1a1a] dark:text-foreground"
+            destructive ? "text-destructive" : "text-foreground"
           )}
           strokeWidth={1.5}
         />
@@ -120,7 +120,7 @@ export function BottomSheetExpandable({ icon: Icon, label, children, defaultOpen
     <div>
       <button
         onClick={() => setExpanded(!expanded)}
-        className="flex w-full items-center gap-4 rounded-xl px-4 min-h-[64px] text-[#1a1a1a] dark:text-foreground transition-colors hover:bg-black/[0.03] dark:hover:bg-white/[0.03] active:bg-black/5"
+        className="flex w-full items-center gap-4 rounded-xl px-4 min-h-[64px] text-foreground transition-colors hover:bg-white/[0.03] active:bg-white/5"
       >
         {Icon && <Icon className="h-6 w-6 shrink-0" strokeWidth={1.5} />}
         <span className="flex-1 text-left text-[17px] font-medium leading-tight">{label}</span>
@@ -151,7 +151,7 @@ export function BottomSheetSubItem({ label, onClick, selected }: BottomSheetSubI
   return (
     <button
       onClick={onClick}
-      className="flex w-full items-center justify-between rounded-lg px-3 py-3 text-[15px] font-medium text-[#1a1a1a] dark:text-foreground hover:bg-black/[0.03] dark:hover:bg-white/[0.03] active:bg-black/5 transition-colors"
+      className="flex w-full items-center justify-between rounded-lg px-3 py-3 text-[15px] font-medium text-foreground hover:bg-white/[0.03] active:bg-white/5 transition-colors"
     >
       <span>{label}</span>
       {selected && <Check className="h-4 w-4 text-primary shrink-0" />}

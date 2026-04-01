@@ -51,7 +51,7 @@ export function VaultDashboard() {
   const visibleTabs = VAULT_TABS.filter(tab => !tab.adminOnly || isAdmin);
 
   return (
-    <div className="min-h-screen pt-24 pb-20 md:pb-12">
+    <div className="min-h-screen pt-6 md:pt-24 pb-20 md:pb-12">
       <OnboardingWalkthrough onComplete={handleOnboardingComplete} onTabChange={handleTabChange} currentTab={activeTab} />
       <div className="container mx-auto px-4 md:px-6 max-w-6xl">
         {/* Header with Logo — compact on mobile */}

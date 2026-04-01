@@ -34,16 +34,16 @@ const DrawerContent = React.forwardRef<
     <DrawerPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed inset-x-0 bottom-0 z-50 mt-24 flex h-auto max-h-[90vh] flex-col rounded-t-[24px] bg-[#f5f5f5] dark:bg-card",
+        "fixed inset-x-0 bottom-0 z-50 mt-24 flex h-auto max-h-[90vh] flex-col rounded-t-[24px] bg-card border-t border-border",
         className,
       )}
       {...props}
     >
       {/* Handle bar */}
-      <div className="mx-auto mt-3 h-1.5 w-10 rounded-full bg-[#d1d1d1] dark:bg-muted" />
+      <div className="mx-auto mt-3 h-1.5 w-10 rounded-full bg-muted" />
       {/* Close button */}
       {showClose && (
-        <DrawerPrimitive.Close className="absolute right-4 top-4 rounded-full p-1.5 text-[#1a1a1a] dark:text-foreground hover:bg-black/5 dark:hover:bg-white/10 transition-colors z-10">
+        <DrawerPrimitive.Close className="absolute right-4 top-4 rounded-full p-1.5 text-foreground hover:bg-white/10 transition-colors z-10">
           <X className="h-5 w-5" />
           <span className="sr-only">Close</span>
         </DrawerPrimitive.Close>
@@ -70,7 +70,7 @@ const DrawerTitle = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DrawerPrimitive.Title
     ref={ref}
-    className={cn("text-[20px] font-bold text-center text-[#1a1a1a] dark:text-foreground leading-none tracking-tight", className)}
+    className={cn("text-[20px] font-bold text-center text-foreground leading-none tracking-tight", className)}
     {...props}
   />
 ));
