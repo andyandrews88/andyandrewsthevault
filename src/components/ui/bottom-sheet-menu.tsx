@@ -83,7 +83,7 @@ export function BottomSheetItem({
         <Icon
           className={cn(
             "h-6 w-6 shrink-0",
-            destructive ? "text-[#ef4444]" : "text-[#1a1a1a] dark:text-foreground"
+            destructive ? "text-destructive" : "text-foreground"
           )}
           strokeWidth={1.5}
         />
