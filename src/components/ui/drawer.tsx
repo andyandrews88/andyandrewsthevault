@@ -40,7 +40,7 @@ const DrawerContent = React.forwardRef<
       {...props}
     >
       {/* Handle bar */}
-      <div className="mx-auto mt-3 h-1.5 w-10 rounded-full bg-[#d1d1d1] dark:bg-muted" />
+      <div className="mx-auto mt-3 h-1.5 w-10 rounded-full bg-muted" />
       {/* Close button */}
       {showClose && (
         <DrawerPrimitive.Close className="absolute right-4 top-4 rounded-full p-1.5 text-[#1a1a1a] dark:text-foreground hover:bg-black/5 dark:hover:bg-white/10 transition-colors z-10">
