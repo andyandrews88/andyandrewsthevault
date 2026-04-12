@@ -25,7 +25,7 @@ const features = [
   },
   {
     icon: Search,
-    title: "Structural Audit",
+    title: "Fitness Audit",
     description: "A diagnostic tool that finds gaps in your training, nutrition, and recovery.",
   },
 ];

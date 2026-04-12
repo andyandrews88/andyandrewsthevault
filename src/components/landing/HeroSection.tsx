@@ -54,7 +54,7 @@ export function HeroSection() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link to="/audit" className="w-full sm:w-auto">
               <Button variant="hero" size="xl" className="group w-full sm:w-auto">
-                Begin Structural Audit
+                Begin Fitness Audit
                 <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
               </Button>
             </Link>

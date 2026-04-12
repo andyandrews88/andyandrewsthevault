@@ -146,7 +146,7 @@ export function ResultsPage() {
         {/* Header */}
         <div className="text-center mb-12">
           <Badge variant="data" className="mb-4">ANALYSIS COMPLETE</Badge>
-          <h1 className="text-3xl md:text-4xl font-bold mb-4">Structural Integrity Report</h1>
+          <h1 className="text-3xl md:text-4xl font-bold mb-4">Fitness Audit Report</h1>
           <p className="text-muted-foreground">Your performance architecture has been analyzed</p>
         </div>
 
@@ -341,7 +341,7 @@ export function ResultsPage() {
             <CardContent className="p-8 text-center">
               <CheckCircle className="w-12 h-12 text-success mx-auto mb-4" />
               <h3 className="text-xl font-semibold mb-2">No Major Leaks Detected</h3>
-              <p className="text-muted-foreground">Your structural integrity is solid. Consider advancing to the Performance track for elite-level optimization.</p>
+              <p className="text-muted-foreground">Your fitness foundation is solid. Consider advancing to the Performance track for elite-level optimization.</p>
             </CardContent>
           </Card>
         )}
