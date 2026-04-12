@@ -341,7 +341,7 @@ export function ResultsPage() {
             <CardContent className="p-8 text-center">
               <CheckCircle className="w-12 h-12 text-success mx-auto mb-4" />
               <h3 className="text-xl font-semibold mb-2">No Major Leaks Detected</h3>
-              <p className="text-muted-foreground">Your structural integrity is solid. Consider advancing to the Performance track for elite-level optimization.</p>
+              <p className="text-muted-foreground">Your fitness foundation is solid. Consider advancing to the Performance track for elite-level optimization.</p>
             </CardContent>
           </Card>
         )}

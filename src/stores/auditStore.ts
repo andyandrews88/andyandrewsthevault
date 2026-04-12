@@ -432,7 +432,7 @@ export const useAuditStore = create<AuditStore>()(
 
         const foundationRecommended = fullData.experience === '<1';
         const foundationReason = foundationRecommended 
-          ? 'With less than 1 year of consistent training, the Foundation track ensures long-term structural integrity and prevents injury.'
+          ? 'With less than 1 year of consistent training, the Foundation track builds a strong fitness base and prevents injury.'
           : undefined;
 
         set({
