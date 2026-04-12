@@ -91,7 +91,8 @@ export function VaultDashboard() {
 
         {/* Main tabs */}
         <Tabs value={activeTab} className="space-y-6" onValueChange={handleTabChange}>
-          <div className="relative">
+          {/* Tab strip — hidden on mobile, shown on desktop */}
+          <div className="relative hidden md:block">
             <TabsList className="flex overflow-x-auto scrollbar-hide gap-1 h-auto p-1 pr-4 sm:inline-flex sm:w-auto sm:flex-wrap">
               {visibleTabs.map((tab) => {
                 const Icon = tab.icon;
@@ -114,8 +115,6 @@ export function VaultDashboard() {
                 );
               })}
             </TabsList>
-            {/* Fade hint for scroll on mobile */}
-            <div className="absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-background to-transparent pointer-events-none sm:hidden" />
           </div>
 
           <TabsContent value="dashboard"><DashboardView /></TabsContent>
