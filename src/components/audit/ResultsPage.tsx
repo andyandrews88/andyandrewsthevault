@@ -146,7 +146,7 @@ export function ResultsPage() {
         {/* Header */}
         <div className="text-center mb-12">
           <Badge variant="data" className="mb-4">ANALYSIS COMPLETE</Badge>
-          <h1 className="text-3xl md:text-4xl font-bold mb-4">Structural Integrity Report</h1>
+          <h1 className="text-3xl md:text-4xl font-bold mb-4">Fitness Audit Report</h1>
           <p className="text-muted-foreground">Your performance architecture has been analyzed</p>
         </div>
 
