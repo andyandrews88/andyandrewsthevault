@@ -67,16 +67,21 @@ export interface MoreMenuItem {
   tabId?: string;
   adminOnly?: boolean;
   destructive?: boolean;
+  /** Visual grouping label */
+  group?: string;
 }
 
 export const MORE_MENU_ITEMS: MoreMenuItem[] = [
-  { id: "lifestyle",  label: "Lifestyle",  icon: Heart,            tabId: "lifestyle" },
-  { id: "library",    label: "Library",    icon: Library,          tabId: "library" },
-  { id: "podcast",    label: "Podcast",    icon: Radio,            tabId: "podcast" },
-  { id: "tracks",     label: "Tracks",     icon: Target,           tabId: "tracks" },
-  { id: "nutrition",  label: "Nutrition",  icon: UtensilsCrossed,  route: "/nutrition" },
-  { id: "profile",    label: "Profile",    icon: UserCircle,       route: "/profile" },
-  { id: "admin",      label: "Admin",      icon: Shield,           tabId: "admin", adminOnly: true },
+  // Training
+  { id: "lifestyle",  label: "Lifestyle",  icon: Heart,            tabId: "lifestyle",  group: "Training" },
+  { id: "tracks",     label: "Tracks",     icon: Target,           tabId: "tracks",     group: "Training" },
+  { id: "nutrition",  label: "Nutrition",  icon: UtensilsCrossed,  route: "/nutrition",  group: "Training" },
+  // Content
+  { id: "library",    label: "Library",    icon: Library,          tabId: "library",    group: "Content" },
+  { id: "podcast",    label: "Podcast",    icon: Radio,            tabId: "podcast",    group: "Content" },
+  // Account
+  { id: "profile",    label: "Profile",    icon: UserCircle,       route: "/profile",   group: "Account" },
+  { id: "admin",      label: "Admin",      icon: Shield,           tabId: "admin", adminOnly: true, group: "Account" },
   { id: "signout",    label: "Sign Out",   icon: LogOut,           destructive: true },
 ];
 

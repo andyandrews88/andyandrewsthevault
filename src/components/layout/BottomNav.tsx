@@ -99,29 +99,41 @@ export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
           <DrawerHeader>
             <DrawerTitle>More</DrawerTitle>
           </DrawerHeader>
-          <div className="px-4 pb-6">
-            <div className="grid grid-cols-3 gap-3">
-              {visibleMoreItems
-                .filter((i) => !i.destructive)
-                .map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => handleMoreItem(item)}
-                      className="flex flex-col items-center justify-center gap-2 rounded-2xl bg-muted/50 border border-border p-4 min-h-[88px] transition-colors active:bg-muted hover:bg-muted/80"
-                    >
-                      <Icon
-                        className="w-6 h-6 text-foreground"
-                        strokeWidth={1.5}
-                      />
-                      <span className="text-xs font-medium text-foreground leading-none">
-                        {item.label}
-                      </span>
-                    </button>
-                  );
-                })}
-            </div>
+          <div className="px-4 pb-6 space-y-4">
+            {/* Grouped items */}
+            {["Training", "Content", "Account"].map((group) => {
+              const groupItems = visibleMoreItems.filter(
+                (i) => !i.destructive && i.group === group
+              );
+              if (groupItems.length === 0) return null;
+              return (
+                <div key={group}>
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2 px-1">
+                    {group}
+                  </p>
+                  <div className="grid grid-cols-3 gap-3">
+                    {groupItems.map((item) => {
+                      const Icon = item.icon;
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => handleMoreItem(item)}
+                          className="flex flex-col items-center justify-center gap-2 rounded-2xl bg-muted/50 border border-border p-4 min-h-[88px] transition-colors active:bg-muted hover:bg-muted/80"
+                        >
+                          <Icon
+                            className="w-6 h-6 text-foreground"
+                            strokeWidth={1.5}
+                          />
+                          <span className="text-xs font-medium text-foreground leading-none">
+                            {item.label}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
 
             {/* Sign Out */}
             {visibleMoreItems
@@ -132,7 +144,7 @@ export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
                   <button
                     key={item.id}
                     onClick={() => handleMoreItem(item)}
-                    className="flex w-full items-center justify-center gap-2 mt-4 rounded-xl border border-destructive/30 py-3 text-destructive transition-colors active:bg-destructive/10"
+                    className="flex w-full items-center justify-center gap-2 mt-2 rounded-xl border border-destructive/30 py-3 text-destructive transition-colors active:bg-destructive/10"
                   >
                     <Icon className="w-5 h-5" strokeWidth={1.5} />
                     <span className="text-sm font-medium">{item.label}</span>

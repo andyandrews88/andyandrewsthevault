@@ -117,16 +117,17 @@ export function VaultDashboard() {
             </TabsList>
           </div>
 
-          <TabsContent value="dashboard"><DashboardView /></TabsContent>
-          <TabsContent value="workouts"><WorkoutTab /></TabsContent>
-          <TabsContent value="library"><LibraryTab isPremiumMember={true} isAdmin={isAdmin} /></TabsContent>
-          <TabsContent value="progress"><ProgressTab /></TabsContent>
-          <TabsContent value="lifestyle"><LifestyleTab /></TabsContent>
-          <TabsContent value="podcast"><PodcastTab /></TabsContent>
-          <TabsContent value="community"><CommunityFeed /></TabsContent>
+          {activeTab === "dashboard" && <TabsContent value="dashboard" forceMount><DashboardView /></TabsContent>}
+          {activeTab === "workouts" && <TabsContent value="workouts" forceMount><WorkoutTab /></TabsContent>}
+          {activeTab === "library" && <TabsContent value="library" forceMount><LibraryTab isPremiumMember={true} isAdmin={isAdmin} /></TabsContent>}
+          {activeTab === "progress" && <TabsContent value="progress" forceMount><ProgressTab /></TabsContent>}
+          {activeTab === "lifestyle" && <TabsContent value="lifestyle" forceMount><LifestyleTab /></TabsContent>}
+          {activeTab === "podcast" && <TabsContent value="podcast" forceMount><PodcastTab /></TabsContent>}
+          {activeTab === "community" && <TabsContent value="community" forceMount><CommunityFeed /></TabsContent>}
 
           {/* Track Selection */}
-          <TabsContent value="tracks">
+          {activeTab === "tracks" && (
+          <TabsContent value="tracks" forceMount>
             <div className="text-center mb-6">
               <Badge variant="elite" className="mb-3">TRAINING PROGRAMS</Badge>
               <h2 className="text-xl md:text-2xl font-bold mb-2">Choose Your Path</h2>
@@ -213,9 +214,10 @@ export function VaultDashboard() {
             {/* Free Programs Library */}
             <ProgramLibrary />
           </TabsContent>
+          )}
 
-          {isAdmin && (
-            <TabsContent value="admin"><AdminPanel /></TabsContent>
+          {isAdmin && activeTab === "admin" && (
+            <TabsContent value="admin" forceMount><AdminPanel /></TabsContent>
           )}
         </Tabs>
       </div>

@@ -438,9 +438,8 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
   },
   
   completeSet: async (setId: string, exerciseName: string, weight: number, reps: number, rir?: number | null) => {
-    console.log('[completeSet] setId:', setId, 'exercise:', exerciseName, 'weight:', weight, 'reps:', reps, 'rir:', rir);
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.user || (weight === undefined || weight === null)) { console.log('[completeSet] no session or weight is null/undefined'); return false; }
+    if (!session?.user || (weight === undefined || weight === null)) { return false; }
     const user = session.user;
     
     const { exercises, activeWorkout, personalRecords } = get();
@@ -508,13 +507,11 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
   },
   
   loadLastSession: async (exerciseId: string, exerciseName: string) => {
-    console.log('[loadLastSession] exerciseId:', exerciseId, 'exerciseName:', exerciseName);
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.user) { console.log('[loadLastSession] no session'); return; }
+    if (!session?.user) { return; }
     
     const lastSets = await get().getLastSessionSets(exerciseName);
-    console.log('[loadLastSession] lastSets:', lastSets);
-    if (lastSets.length === 0) { console.log('[loadLastSession] no previous sets found'); return; }
+    if (lastSets.length === 0) { return; }
     
     const { exercises } = get();
     const exercise = exercises.find(e => e.id === exerciseId);
@@ -546,7 +543,6 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
   
   // Superset actions
   linkSuperset: async (exerciseId: string, targetExerciseId: string) => {
-    console.log('[linkSuperset] exerciseId:', exerciseId, 'targetId:', targetExerciseId);
     const { exercises } = get();
     const target = exercises.find(e => e.id === targetExerciseId);
     const groupId = target?.superset_group || crypto.randomUUID();
@@ -989,15 +985,12 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
   },
   
   getLastSessionSets: async (exerciseName: string): Promise<{ weight: number; reps: number }[]> => {
-    console.log('[getLastSessionSets] exerciseName:', exerciseName);
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.user) { console.log('[getLastSessionSets] no session'); return []; }
+    if (!session?.user) { return []; }
     const user = session.user;
     
     const { activeWorkout } = get();
     const normalizedName = exerciseName.toLowerCase();
-    console.log('[getLastSessionSets] normalizedName:', normalizedName, 'activeWorkout:', activeWorkout?.id);
-    
     // Fetch recent exercises for this movement, excluding current workout
     const query = supabase
       .from('workout_exercises')
@@ -1014,8 +1007,6 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
       .limit(5);
     
     const { data: results, error } = await query;
-    console.log('[getLastSessionSets] results:', results?.length, 'error:', error);
-    
     if (!results || results.length === 0) return [];
     
     // Find first result that's not the current active workout

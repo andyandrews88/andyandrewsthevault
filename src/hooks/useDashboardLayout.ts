@@ -20,7 +20,8 @@ export function useDashboardLayout(storageKey: string, defaultOrder: string[]) {
         return { order: filtered, collapsed: parsed.collapsed || {}, hidden: parsed.hidden || {} };
       }
     } catch {}
-    return { order: defaultOrder, collapsed: {}, hidden: {} };
+    // Default: collapse Goals and Weekly Review on mobile for cleaner first view
+    return { order: defaultOrder, collapsed: { goals: true, review: true }, hidden: {} };
   });
 
   const persist = (next: LayoutState) => {
