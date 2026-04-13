@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
@@ -94,7 +94,7 @@ function SupersetLinkButton({ exercise, linkableExercises, linkSuperset }: { exe
   );
 }
 
-export function ExerciseCard({ exercise, onRemove, allExercises = [], onMoveUp, onMoveDown, canMoveUp = false, canMoveDown = false, libraryMeta }: ExerciseCardProps) {
+export const ExerciseCard = React.memo(function ExerciseCard({ exercise, onRemove, allExercises = [], onMoveUp, onMoveDown, canMoveUp = false, canMoveDown = false, libraryMeta }: ExerciseCardProps) {
   const { addSet, removeSet, updateSet, completeSet, loadLastSession, getLastSessionSets, preferredUnit, linkSuperset, unlinkSuperset, replaceExercise } = useWorkoutStore();
   const { isAdmin } = useAdminCheck();
   const isMobile = useIsMobile();
@@ -449,4 +449,4 @@ export function ExerciseCard({ exercise, onRemove, allExercises = [], onMoveUp, 
     </Card>
     </Collapsible>
   );
-}
+});
