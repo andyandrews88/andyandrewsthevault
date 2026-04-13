@@ -336,7 +336,7 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
                       Logging for: <span className="font-medium text-foreground">{format(selectedDate, 'EEEE, MMMM d, yyyy')}</span>
                     </p>
                     <Input
-                      placeholder="e.g., Upper Body A, Leg Day, Push..."
+                      placeholder={`Workout — ${format(selectedDate, 'MMM d')}`}
                       value={workoutName}
                       onChange={(e) => setWorkoutName(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && handleStartWorkout()}
@@ -355,11 +355,15 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
                       ))}
                     </div>
                     <Button 
-                      onClick={handleStartWorkout} 
-                      disabled={!workoutName.trim()}
+                      onClick={() => {
+                        if (!workoutName.trim()) {
+                          setWorkoutName(`Workout — ${format(selectedDate, 'MMM d')}`);
+                        }
+                        handleStartWorkout();
+                      }} 
                       className="w-full"
                     >
-                      Start Workout
+                      {workoutName.trim() ? "Start Workout" : "Quick Start"}
                     </Button>
                   </div>
                 </DialogContent>

@@ -52,6 +52,9 @@ interface DashboardState {
   fetchAll: () => Promise<void>;
 }
 
+let _lastFetchedAt = 0;
+const STALE_MS = 30_000; // 30 seconds
+
 export const useDashboardStore = create<DashboardState>((set) => ({
   todayReadiness: { score: 0, sleep: 0, stress: 0, energy: 0, drive: 0, hasCheckin: false },
   todayTraining: { hasWorkout: false, workoutName: null, totalVolume: 0, lastWorkoutDate: null },
@@ -67,9 +70,12 @@ export const useDashboardStore = create<DashboardState>((set) => ({
   isLoading: true,
 
   fetchAll: async () => {
+    // Staleness guard — skip if data was fetched within the last 30s
+    if (Date.now() - _lastFetchedAt < STALE_MS) return;
     set({ isLoading: true });
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
       if (!user) return;
 
       const today = format(new Date(), "yyyy-MM-dd");
@@ -210,6 +216,7 @@ export const useDashboardStore = create<DashboardState>((set) => ({
         checkinNotes,
       };
 
+      _lastFetchedAt = Date.now();
       set({ todayReadiness, todayTraining, todayBodyComp, weeklyData, isLoading: false });
     } catch (err) {
       console.error("Dashboard fetch error:", err);
