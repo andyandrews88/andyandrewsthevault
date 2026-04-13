@@ -166,8 +166,8 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
   }, [selectedDate, fetchWorkoutByDate]);
 
   const handleStartWorkout = async () => {
-    if (workoutName.trim()) {
-      await startWorkout(workoutName.trim(), selectedDate);
+    const name = workoutName.trim() || `Workout — ${format(selectedDate, 'MMM d')}`;
+    await startWorkout(name, selectedDate);
       setShowStartDialog(false);
       setWorkoutName("");
     }
