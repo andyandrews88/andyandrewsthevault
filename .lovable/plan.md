@@ -1,17 +1,16 @@
 
 
-## Plan: Rename "Structural Audit" → "Fitness Audit" Everywhere
+## Plan: Rename Nav Link and CTA Button
 
-### Changes (3 files)
+Two targeted text changes — the app name "The Vault" stays everywhere else.
 
-**1. `src/components/landing/HeroSection.tsx`** (line 57)
-- Change `"Begin Structural Audit"` → `"Begin Fitness Audit"`
+### Changes
 
-**2. `src/components/landing/MeetAndySection.tsx`** (line 28)
-- Change `title: "Structural Audit"` → `title: "Fitness Audit"`
+**1. `src/components/layout/Navbar.tsx`** (line 59)
+- `"The Vault"` → `"Training"` in the nav links array
 
-**3. `src/components/audit/AuditForm.tsx`** (line 346)
-- Change `STRUCTURAL AUDIT` badge → `FITNESS AUDIT`
+**2. `src/components/landing/HeroSection.tsx`** (line 63)
+- `"Access The Vault"` → `"Start Training"` on the CTA button
 
-These are the only 3 places in the entire codebase where "Structural Audit" appears as user-facing text. All other uses of "audit" are internal variable/function names and database references that don't need changing.
+No other files affected — all other references to "The Vault" are about the app/brand name and stay as-is.
 
