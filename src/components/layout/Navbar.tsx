@@ -56,7 +56,7 @@ export function Navbar() {
     { href: "/", label: "Home", icon: Home },
     { href: "/audit", label: "Audit", icon: FileText },
     { href: "/nutrition", label: "Nutrition", icon: Apple },
-    { href: "/vault", label: "The Vault", icon: Lock },
+    { href: "/vault", label: "Training", icon: Lock },
   ];
 
   const handleSignOut = async () => {
