@@ -60,7 +60,7 @@ export function HeroSection() {
             </Link>
             <Link to="/vault" className="w-full sm:w-auto">
               <Button variant="outline" size="xl" className="w-full sm:w-auto">
-                Access The Vault
+                Start Training
               </Button>
             </Link>
           </div>
