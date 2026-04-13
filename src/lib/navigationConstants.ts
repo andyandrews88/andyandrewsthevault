@@ -43,7 +43,6 @@ export const VAULT_TABS: VaultTab[] = [
   { id: "lifestyle", label: "Lifestyle", icon: Heart,           protected: true },
   { id: "podcast",   label: "Podcast",   icon: Radio,           protected: false },
   { id: "community", label: "Community", icon: Users,           protected: true },
-  { id: "tracks",    label: "Tracks",    icon: Target,          protected: false },
   { id: "admin",     label: "Admin",     icon: Shield,          protected: true, adminOnly: true },
 ];
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -200,14 +200,14 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
     setShowCancelDialog(false);
   };
 
-  const handleAddExercise = async (name: string) => {
+  const handleAddExercise = useCallback(async (name: string) => {
     await addExercise(name, exerciseSearchSection);
-  };
+  }, [addExercise, exerciseSearchSection]);
 
-  const openExerciseSearchForSection = (section: WorkoutSection) => {
+  const openExerciseSearchForSection = useCallback((section: WorkoutSection) => {
     setExerciseSearchSection(section);
     setIsExerciseSearchOpen(true);
-  };
+  }, []);
 
   // Calculate total volume (working sets only)
   const totalVolume = exercises.reduce((sum, ex) => {

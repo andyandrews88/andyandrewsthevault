@@ -424,17 +424,22 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
   
   updateSet: (setId: string, data: Partial<ExerciseSet>) => {
     const { exercises } = get();
-    set({
-      exercises: exercises.map(e => ({
-        ...e,
-        sets: e.sets?.map(s => 
-          s.id === setId ? { ...s, ...data } : s
-        )
-      }))
-    });
-    // Build the DB update payload — include duration_seconds if present
-    const dbData: any = { ...data };
-    supabase.from('exercise_sets').update(dbData).eq('id', setId).then(() => {});
+    // Find the specific exercise containing this set for a targeted update
+    const targetIdx = exercises.findIndex(e => e.sets?.some(s => s.id === setId));
+    if (targetIdx === -1) {
+      // Fallback: update DB only
+      supabase.from('exercise_sets').update({ ...data }).eq('id', setId).then(() => {});
+      return;
+    }
+    const updatedExercise = {
+      ...exercises[targetIdx],
+      sets: exercises[targetIdx].sets?.map(s => s.id === setId ? { ...s, ...data } : s),
+    };
+    const newExercises = [...exercises];
+    newExercises[targetIdx] = updatedExercise;
+    set({ exercises: newExercises });
+    // Persist to DB
+    supabase.from('exercise_sets').update({ ...data }).eq('id', setId).then(() => {});
   },
   
   completeSet: async (setId: string, exerciseName: string, weight: number, reps: number, rir?: number | null) => {
