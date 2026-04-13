@@ -14,9 +14,13 @@ import { useAuthStore } from "@/stores/authStore";
 import { useDashboardLayout } from "@/hooks/useDashboardLayout";
 import { CollapsibleDashboardSection } from "@/components/ui/CollapsibleDashboardSection";
 import { Button } from "@/components/ui/button";
-import { Settings2, RotateCcw } from "lucide-react";
+import { Settings2, RotateCcw, ChevronDown, ChevronUp } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const DEFAULT_ORDER = ["coaching", "snapshot", "training", "updates", "goals", "review"];
+
+/** Sections shown by default on mobile before tapping "Show More" */
+const PRIMARY_SECTIONS = new Set(["snapshot", "training", "coaching"]);
 
 const SECTION_META: Record<string, { title: string }> = {
   coaching: { title: "My Coaching" },
@@ -41,6 +45,8 @@ export function VaultDashboard() {
   const { checkForNewAnnouncements, loadNotificationPrefs } = useNotificationStore();
   const { user } = useAuthStore();
   const [editMode, setEditMode] = useState(false);
+  const [showMore, setShowMore] = useState(false);
+  const isMobile = useIsMobile();
   const { order, moveUp, moveDown, toggleCollapse, isCollapsed, toggleHidden, isHidden, resetLayout } = useDashboardLayout("vault-dashboard-layout", DEFAULT_ORDER);
 
   useEffect(() => {
@@ -66,35 +72,52 @@ export function VaultDashboard() {
     );
   }
 
+  // On mobile, split sections into primary (always visible) and secondary (behind Show More)
+  const visibleSections = order.filter(id => {
+    if (!editMode && isHidden(id)) return false;
+    return true;
+  });
+
+  const primarySections = isMobile && !editMode && !showMore
+    ? visibleSections.filter(id => PRIMARY_SECTIONS.has(id))
+    : visibleSections;
+
+  const hasMoreSections = isMobile && !editMode && visibleSections.length > primarySections.length;
+
   return (
     <div className="space-y-6">
       <AnnouncementBanner />
       <div className="text-center mb-2 relative">
         <Badge variant="elite" className="mb-2">TODAY'S OVERVIEW</Badge>
         <div className="absolute right-0 top-0 flex items-center gap-1">
-          <Button
-            variant={editMode ? "default" : "ghost"}
-            size="icon"
-            className="h-8 w-8"
-            onClick={() => setEditMode(!editMode)}
-            title={editMode ? "Done editing" : "Edit layout"}
-          >
-            <Settings2 className="h-4 w-4" />
-          </Button>
-          {editMode && (
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={resetLayout} title="Reset layout">
-              <RotateCcw className="h-4 w-4" />
+          {editMode ? (
+            <>
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={resetLayout} title="Reset layout">
+                <RotateCcw className="h-4 w-4" />
+              </Button>
+              <Button variant="default" size="sm" className="h-8 text-xs px-3" onClick={() => setEditMode(false)}>
+                Done
+              </Button>
+            </>
+          ) : (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 text-xs gap-1.5 text-muted-foreground"
+              onClick={() => setEditMode(true)}
+            >
+              <Settings2 className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Customize</span>
             </Button>
           )}
           <NotificationSettings />
         </div>
       </div>
 
-      {order.map((id, idx) => {
+      {primarySections.map((id, idx) => {
         const meta = SECTION_META[id];
         const render = SECTION_COMPONENTS[id];
         if (!meta || !render) return null;
-        if (!editMode && isHidden(id)) return null;
         return (
           <CollapsibleDashboardSection
             key={id}
@@ -105,7 +128,7 @@ export function VaultDashboard() {
             onMoveUp={() => moveUp(id)}
             onMoveDown={() => moveDown(id)}
             isFirst={idx === 0}
-            isLast={idx === order.length - 1}
+            isLast={idx === visibleSections.length - 1}
             editMode={editMode}
             isHidden={isHidden(id)}
             onToggleHidden={() => toggleHidden(id)}
@@ -114,6 +137,27 @@ export function VaultDashboard() {
           </CollapsibleDashboardSection>
         );
       })}
+
+      {/* Show More / Show Less toggle on mobile */}
+      {isMobile && !editMode && (hasMoreSections || showMore) && (
+        <Button
+          variant="ghost"
+          className="w-full text-muted-foreground hover:text-foreground gap-2"
+          onClick={() => setShowMore(!showMore)}
+        >
+          {showMore ? (
+            <>
+              <ChevronUp className="h-4 w-4" />
+              Show Less
+            </>
+          ) : (
+            <>
+              <ChevronDown className="h-4 w-4" />
+              Show More ({visibleSections.length - primarySections.length})
+            </>
+          )}
+        </Button>
+      )}
     </div>
   );
 }
