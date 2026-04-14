@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -36,12 +37,16 @@ interface ProgramCardProps {
 }
 
 export function ProgramCard({ program, isEnrolled, onSelect }: ProgramCardProps) {
+  const navigate = useNavigate();
   const icon = CATEGORY_ICONS[program.category] ?? <Dumbbell className="w-5 h-5" />;
   const accentClass = STYLE_ACCENT[program.program_style ?? ""] ?? "border-border hover:border-border-elevated";
 
+  const goToLanding = () => navigate(`/program/${program.slug}`);
+
   return (
     <Card
-      className={`border transition-all duration-200 ${accentClass} ${isEnrolled ? "opacity-90" : ""}`}
+      className={`border transition-all duration-200 cursor-pointer ${accentClass} ${isEnrolled ? "opacity-90" : ""}`}
+      onClick={goToLanding}
     >
       <CardContent className="p-5 flex flex-col gap-3 h-full">
         {/* Header row */}
@@ -85,9 +90,9 @@ export function ProgramCard({ program, isEnrolled, onSelect }: ProgramCardProps)
             variant="outline"
             size="sm"
             className="w-full text-xs mt-auto"
-            onClick={() => onSelect(program)}
+            onClick={(e) => { e.stopPropagation(); goToLanding(); }}
           >
-            Select Program
+            View Program
             <ChevronRight className="w-3 h-3 ml-1" />
           </Button>
         )}

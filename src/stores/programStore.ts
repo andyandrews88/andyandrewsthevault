@@ -15,6 +15,7 @@ export interface Program {
   is_active: boolean;
   created_at: string;
   video_url?: string | null;
+  long_description?: string | null;
 }
 
 export interface ProgramWorkout {

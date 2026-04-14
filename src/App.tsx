@@ -26,6 +26,7 @@ const AdminWorkoutBuilderPage = lazy(() => import("./pages/AdminWorkoutBuilderPa
 const AdminTemplates = lazy(() => import("./pages/AdminTemplates"));
 const AdminClientCalendar = lazy(() => import("./pages/AdminClientCalendar"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const ProgramLanding = lazy(() => import("./pages/ProgramLanding"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -66,6 +67,7 @@ function AppContent() {
         <Route path="/admin/user/:userId/build-workout" element={<ProtectedRoute><AdminWorkoutBuilderPage /></ProtectedRoute>} />
         <Route path="/admin/user/:userId/calendar" element={<ProtectedRoute><AdminClientCalendar /></ProtectedRoute>} />
         <Route path="/admin/templates" element={<ProtectedRoute><AdminTemplates /></ProtectedRoute>} />
+        <Route path="/program/:slug" element={<ProtectedRoute><ProgramLanding /></ProtectedRoute>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Suspense>

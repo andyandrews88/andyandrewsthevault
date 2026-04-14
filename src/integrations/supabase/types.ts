@@ -680,6 +680,7 @@ export type Database = {
           duration_weeks: number
           id: string
           is_active: boolean
+          long_description: string | null
           name: string
           program_style: string | null
           slug: string
@@ -694,6 +695,7 @@ export type Database = {
           duration_weeks?: number
           id?: string
           is_active?: boolean
+          long_description?: string | null
           name: string
           program_style?: string | null
           slug: string
@@ -708,6 +710,7 @@ export type Database = {
           duration_weeks?: number
           id?: string
           is_active?: boolean
+          long_description?: string | null
           name?: string
           program_style?: string | null
           slug?: string
