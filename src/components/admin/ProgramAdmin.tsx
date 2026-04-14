@@ -440,6 +440,7 @@ function ProgramEditor({
   const [name, setName] = useState(program?.name || "");
   const [slug, setSlug] = useState(program?.slug || "");
   const [description, setDescription] = useState(program?.description || "");
+  const [longDescription, setLongDescription] = useState((program as any)?.long_description || "");
   const [videoUrl, setVideoUrl] = useState(program?.video_url || "");
   const [category, setCategory] = useState(program?.category || "strength");
   const [durationWeeks, setDurationWeeks] = useState(program?.duration_weeks || 12);
@@ -459,6 +460,7 @@ function ProgramEditor({
         name: name.trim(),
         slug: slug.trim(),
         description: description.trim(),
+        long_description: longDescription.trim(),
         video_url: videoUrl.trim() || null,
         category,
         duration_weeks: durationWeeks,
@@ -505,8 +507,13 @@ function ProgramEditor({
         </div>
       </div>
       <div>
-        <Label>Description</Label>
-        <Textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} placeholder="Describe the program..." />
+        <Label>Description (card blurb)</Label>
+        <Textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} placeholder="Short description shown on the program card..." />
+      </div>
+      <div>
+        <Label>Landing Page Description</Label>
+        <Textarea value={longDescription} onChange={e => setLongDescription(e.target.value)} rows={5} placeholder="Full description for the program landing page — explain what users can expect..." />
+        <p className="text-xs text-muted-foreground mt-1">Detailed description shown on the dedicated landing page.</p>
       </div>
       {/* Program video URL */}
       <div>
