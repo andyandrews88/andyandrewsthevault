@@ -50,12 +50,12 @@ export function ConditioningCard({ exercise, onRemove, onMoveUp, onMoveDown, can
   return (
     <Collapsible open={!isCollapsed} onOpenChange={(open) => setIsCollapsed(!open)}>
     <Card variant="elevated" className="overflow-hidden border-l-4 border-l-accent">
-      <CardHeader className="py-3 px-4 bg-accent/10 cursor-pointer" onClick={() => setIsCollapsed(!isCollapsed)}>
+      <CardHeader className="py-3 px-3 bg-accent/10 cursor-pointer" onClick={() => setIsCollapsed(!isCollapsed)}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Timer className="h-4 w-4 text-accent" />
             <div>
-              <h3 className="font-semibold text-base uppercase tracking-wide">
+              <h3 className="font-semibold text-sm uppercase tracking-wide">
                 {exercise.exercise_name}
               </h3>
               <p className="text-xs text-muted-foreground">

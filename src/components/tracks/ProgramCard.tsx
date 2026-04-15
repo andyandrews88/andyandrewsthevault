@@ -9,10 +9,10 @@ import {
 import { Program } from "@/stores/programStore";
 
 const CATEGORY_ICONS: Record<string, React.ReactNode> = {
-  strength: <Dumbbell className="w-5 h-5" />,
-  functional: <Zap className="w-5 h-5" />,
-  oly: <TrendingUp className="w-5 h-5" />,
-  conditioning: <Activity className="w-5 h-5" />,
+  strength: <Dumbbell className="w-4 h-4" />,
+  functional: <Zap className="w-4 h-4" />,
+  oly: <TrendingUp className="w-4 h-4" />,
+  conditioning: <Activity className="w-4 h-4" />,
 };
 
 const DIFFICULTY_COLORS: Record<string, string> = {
@@ -38,7 +38,7 @@ interface ProgramCardProps {
 
 export function ProgramCard({ program, isEnrolled, onSelect }: ProgramCardProps) {
   const navigate = useNavigate();
-  const icon = CATEGORY_ICONS[program.category] ?? <Dumbbell className="w-5 h-5" />;
+  const icon = CATEGORY_ICONS[program.category] ?? <Dumbbell className="w-4 h-4" />;
   const accentClass = STYLE_ACCENT[program.program_style ?? ""] ?? "border-border hover:border-border-elevated";
 
   const goToLanding = () => navigate(`/program/${program.slug}`);
@@ -48,7 +48,7 @@ export function ProgramCard({ program, isEnrolled, onSelect }: ProgramCardProps)
       className={`border transition-all duration-200 cursor-pointer ${accentClass} ${isEnrolled ? "opacity-90" : ""}`}
       onClick={goToLanding}
     >
-      <CardContent className="p-5 flex flex-col gap-3 h-full">
+      <CardContent className="p-3 flex flex-col gap-3 h-full">
         {/* Header row */}
         <div className="flex items-start justify-between gap-2">
           <div className="p-2 rounded-md bg-primary/10 text-primary">{icon}</div>

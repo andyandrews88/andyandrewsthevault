@@ -42,17 +42,17 @@ export function BreathworkSection() {
               {IconComp && <IconComp size={24} />}
             </div>
             <div>
-              <CardTitle className="text-lg">{selected.name}</CardTitle>
-              <Badge variant="data" className="mt-1 text-[10px]">{selected.purpose}</Badge>
+              <CardTitle>{selected.name}</CardTitle>
+              <Badge variant="data" className="mt-1">{selected.purpose}</Badge>
             </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          <p className="text-sm text-muted-foreground leading-relaxed">{selected.fullDescription}</p>
+          <p className="text-xs text-muted-foreground leading-relaxed">{selected.fullDescription}</p>
 
           <div className="rounded-lg bg-muted/50 border border-border p-4 space-y-2">
             <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Why It Works</h4>
-            <p className="text-sm text-foreground/80 leading-relaxed">{selected.science}</p>
+            <p className="text-xs text-foreground/80 leading-relaxed">{selected.science}</p>
           </div>
 
           <div className="rounded-lg bg-muted/50 border border-border p-4">
@@ -82,8 +82,8 @@ export function BreathworkSection() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg">Guided Breathwork</CardTitle>
-        <p className="text-sm text-muted-foreground">Choose a method and follow the guided session.</p>
+        <CardTitle>Guided Breathwork</CardTitle>
+        <p className="text-xs text-muted-foreground">Choose a method and follow the guided session.</p>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

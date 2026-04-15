@@ -25,10 +25,10 @@ export function ProgramLibrary() {
   return (
     <div className="mt-8 space-y-4">
       {/* Section header */}
-      <div className="flex flex-col items-center text-center gap-2">
-        <Badge variant="elite">FREE PROGRAMS</Badge>
-        <h2 className="text-xl font-bold">12-Week Training Programs</h2>
-        <p className="text-sm text-muted-foreground max-w-lg">
+      <div className="flex flex-col items-start gap-1">
+        <span className="section-label">FREE PROGRAMS</span>
+        <h2 className="text-base font-semibold">12-Week Training Programs</h2>
+        <p className="text-xs text-muted-foreground max-w-lg hidden md:block">
           Free for all Vault members. Select a program, choose your start date and training days — your workouts will be automatically scheduled on your calendar.
         </p>
       </div>

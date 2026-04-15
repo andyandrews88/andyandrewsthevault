@@ -196,11 +196,11 @@ export const ExerciseCard = React.memo(function ExerciseCard({ exercise, onRemov
       "overflow-hidden",
       isSupersetted && "border-l-4 border-l-primary"
     )}>
-      <CardHeader className="py-3 px-4 bg-secondary/30 cursor-pointer" onClick={() => setIsCollapsed(!isCollapsed)}>
+      <CardHeader className="py-3 px-3 bg-secondary/30 cursor-pointer" onClick={() => setIsCollapsed(!isCollapsed)}>
         <div className="flex items-center justify-between">
           <div className="flex-1 min-w-0" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-2">
-              <h3 className="font-semibold text-base uppercase tracking-wide">
+              <h3 className="font-semibold text-sm uppercase tracking-wide">
                 {exercise.exercise_name}
               </h3>
               {isSupersetted && (

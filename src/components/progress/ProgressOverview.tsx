@@ -35,13 +35,13 @@ export function ProgressOverview({ latestEntry, weightChange, usesImperial }: Pr
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       {/* Current Weight */}
-      <Card variant="data" className="p-4">
+      <Card variant="data" className="p-3">
         <div className="flex items-start justify-between">
           <div>
-            <p className="text-xs text-muted-foreground uppercase tracking-wide">Weight</p>
-            <p className="text-2xl font-bold mt-1">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-mono">Weight</p>
+            <p className="text-lg font-bold font-mono mt-1">
               {displayWeight(latestEntry?.weight_kg ?? null)}
-              <span className="text-sm font-normal text-muted-foreground ml-1">{weightUnit}</span>
+              <span className="text-xs font-normal text-muted-foreground ml-1">{weightUnit}</span>
             </p>
           </div>
           <div className="p-2 rounded-lg bg-primary/10">
@@ -63,11 +63,11 @@ export function ProgressOverview({ latestEntry, weightChange, usesImperial }: Pr
       </Card>
 
       {/* BMI */}
-      <Card variant="data" className="p-4">
+      <Card variant="data" className="p-3">
         <div className="flex items-start justify-between">
           <div>
-            <p className="text-xs text-muted-foreground uppercase tracking-wide">BMI</p>
-            <p className="text-2xl font-bold mt-1">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-mono">BMI</p>
+            <p className="text-lg font-bold font-mono mt-1">
               {latestEntry?.bmi ?? "—"}
             </p>
           </div>
@@ -94,13 +94,13 @@ export function ProgressOverview({ latestEntry, weightChange, usesImperial }: Pr
       </Card>
 
       {/* Body Fat */}
-      <Card variant="data" className="p-4">
+      <Card variant="data" className="p-3">
         <div className="flex items-start justify-between">
           <div>
-            <p className="text-xs text-muted-foreground uppercase tracking-wide">Body Fat</p>
-            <p className="text-2xl font-bold mt-1">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-mono">Body Fat</p>
+            <p className="text-lg font-bold font-mono mt-1">
               {latestEntry?.body_fat_percent ?? "—"}
-              {latestEntry?.body_fat_percent && <span className="text-sm font-normal">%</span>}
+              {latestEntry?.body_fat_percent && <span className="text-xs font-normal">%</span>}
             </p>
           </div>
           <div className="p-2 rounded-lg bg-accent/10">
@@ -115,14 +115,14 @@ export function ProgressOverview({ latestEntry, weightChange, usesImperial }: Pr
       </Card>
 
       {/* Lean Mass */}
-      <Card variant="data" className="p-4">
+      <Card variant="data" className="p-3">
         <div className="flex items-start justify-between">
           <div>
-            <p className="text-xs text-muted-foreground uppercase tracking-wide">Lean Mass</p>
-            <p className="text-2xl font-bold mt-1">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-mono">Lean Mass</p>
+            <p className="text-lg font-bold font-mono mt-1">
               {displayWeight(latestEntry?.lean_mass_kg ?? null)}
               {latestEntry?.lean_mass_kg && (
-                <span className="text-sm font-normal text-muted-foreground ml-1">{weightUnit}</span>
+                <span className="text-xs font-normal text-muted-foreground ml-1">{weightUnit}</span>
               )}
             </p>
           </div>

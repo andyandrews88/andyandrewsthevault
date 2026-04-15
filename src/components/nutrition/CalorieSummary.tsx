@@ -47,11 +47,11 @@ export function CalorieSummary({ consumed, targets }: CalorieSummaryProps) {
       {/* Calorie Row */}
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
-          <Flame className="w-5 h-5 text-warning" />
-          <span className="text-2xl font-bold font-mono">{consumed.calories.toLocaleString()}</span>
-          <span className="text-muted-foreground text-sm">/ {targets.calories.toLocaleString()} cal</span>
+          <Flame className="w-4 h-4 text-warning" />
+          <span className="text-lg font-bold font-mono">{consumed.calories.toLocaleString()}</span>
+          <span className="text-muted-foreground text-xs">/ {targets.calories.toLocaleString()} cal</span>
         </div>
-        <span className={`font-mono text-sm ${remaining >= 0 ? 'text-success' : 'text-destructive'}`}>
+        <span className={`font-mono text-xs ${remaining >= 0 ? 'text-success' : 'text-destructive'}`}>
           {remaining >= 0 ? `${remaining} left` : `${Math.abs(remaining)} over`}
         </span>
       </div>

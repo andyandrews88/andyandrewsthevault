@@ -29,8 +29,8 @@ export function WorkoutHistoryView({ workout, exercises }: WorkoutHistoryViewPro
         <CardHeader className="pb-2">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
-              <CardTitle className="text-lg sm:text-xl">{workout.workout_name}</CardTitle>
-              <p className="text-sm text-muted-foreground">
+              <CardTitle>{workout.workout_name}</CardTitle>
+              <p className="text-xs text-muted-foreground">
                 {format(new Date(workout.date), 'EEEE, MMMM d, yyyy')}
               </p>
             </div>
@@ -49,7 +49,7 @@ export function WorkoutHistoryView({ workout, exercises }: WorkoutHistoryViewPro
           </div>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center gap-6 text-sm">
+          <div className="flex items-center gap-6 text-xs">
             <div className="flex items-center gap-1 text-muted-foreground">
               <Dumbbell className="h-4 w-4" />
               <span>{exercises.length} exercises</span>
@@ -78,7 +78,7 @@ export function WorkoutHistoryView({ workout, exercises }: WorkoutHistoryViewPro
       {exercises.map((exercise) => (
         <Card key={exercise.id} variant="elevated">
           <CardHeader className="py-3">
-            <CardTitle className="text-base uppercase tracking-wide">
+            <CardTitle className="text-sm uppercase tracking-wide">
               {exercise.exercise_name}
             </CardTitle>
           </CardHeader>
@@ -94,7 +94,7 @@ export function WorkoutHistoryView({ workout, exercises }: WorkoutHistoryViewPro
                   .filter(s => s.is_completed)
                   .sort((a, b) => a.set_number - b.set_number)
                   .map((set) => (
-                    <div key={set.id} className="grid grid-cols-3 py-1.5 text-sm">
+                    <div key={set.id} className="grid grid-cols-3 py-1.5 text-xs font-mono">
                       <span className="text-muted-foreground">{set.set_number}</span>
                       <span className="text-center font-medium">
                         {set.weight ? formatWeight(set.weight) : '—'}
@@ -128,7 +128,7 @@ export function WorkoutHistoryView({ workout, exercises }: WorkoutHistoryViewPro
                         : '—';
                     
                     return (
-                      <div key={set.id} className="grid grid-cols-3 py-1.5 text-sm">
+                      <div key={set.id} className="grid grid-cols-3 py-1.5 text-xs font-mono">
                         <span className="text-muted-foreground">{set.set_number}</span>
                         <span className="text-center font-medium">{duration}</span>
                         <span className="text-center font-medium">{metric}</span>
@@ -143,8 +143,8 @@ export function WorkoutHistoryView({ workout, exercises }: WorkoutHistoryViewPro
       
       {exercises.length === 0 && (
         <Card variant="elevated">
-          <CardContent className="py-8 text-center text-muted-foreground">
-            <Dumbbell className="h-12 w-12 mx-auto mb-4 opacity-50" />
+          <CardContent className="py-6 text-center text-muted-foreground text-xs">
+            <Dumbbell className="h-8 w-8 mx-auto mb-3 opacity-50" />
             <p>No exercises logged for this workout</p>
           </CardContent>
         </Card>
