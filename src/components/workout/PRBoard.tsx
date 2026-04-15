@@ -31,18 +31,18 @@ export function PRBoard() {
     <Card variant="elevated">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Trophy className="h-5 w-5 text-accent" />
+          <Trophy className="h-4 w-4 text-accent" />
           Personal Records
         </CardTitle>
-        <CardDescription>Your all-time bests</CardDescription>
+        <CardDescription className="text-xs">Your all-time bests</CardDescription>
       </CardHeader>
       
       <CardContent>
         {sortedRecords.length === 0 ? (
-          <div className="py-8 text-center text-muted-foreground">
-            <Medal className="h-12 w-12 mx-auto mb-4 opacity-50" />
+          <div className="py-6 text-center text-muted-foreground text-xs">
+            <Medal className="h-8 w-8 mx-auto mb-3 opacity-50" />
             <p>No personal records yet</p>
-            <p className="text-sm">Complete some sets to set your first PR!</p>
+            <p>Complete some sets to set your first PR!</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -68,7 +68,7 @@ export function PRBoard() {
                   )}
                   
                   <div>
-                    <p className="font-medium">{formatExerciseName(pr.exercise_name)}</p>
+                    <p className="font-medium text-sm">{formatExerciseName(pr.exercise_name)}</p>
                     <p className="text-xs text-muted-foreground">
                       {format(new Date(pr.achieved_at), 'MMM d, yyyy')}
                     </p>
@@ -76,7 +76,7 @@ export function PRBoard() {
                 </div>
                 
                 <div className="text-right">
-                  <p className="text-lg font-bold">{formatWeight(pr.max_weight)}</p>
+                  <p className="text-sm font-bold font-mono">{formatWeight(pr.max_weight)}</p>
                   {pr.max_reps && (
                     <Badge variant="outline" className="text-xs">
                       × {pr.max_reps} reps

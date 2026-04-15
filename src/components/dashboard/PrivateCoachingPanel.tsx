@@ -167,7 +167,7 @@ export function PrivateCoachingPanel() {
           className="border-accent/30 bg-gradient-to-br from-accent/5 to-transparent shadow-glow cursor-pointer transition-all hover:border-accent/50 hover:shadow-lg active:scale-[0.98]"
           onClick={() => setDrawerOpen(true)}
         >
-          <CardContent className="p-5 space-y-4">
+          <CardContent className="p-3 space-y-3">
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-semibold">{activePackage.package_name}</p>
@@ -177,7 +177,7 @@ export function PrivateCoachingPanel() {
               </div>
               <div className="text-right flex items-center gap-2">
                 <div>
-                  <p className="text-4xl font-bold font-mono text-accent">{remaining}</p>
+                  <p className="text-2xl font-bold font-mono text-accent">{remaining}</p>
                   <p className="text-xs text-muted-foreground">sessions left</p>
                 </div>
                 <ChevronRight className="h-5 w-5 text-muted-foreground/50" />
@@ -212,14 +212,14 @@ export function PrivateCoachingPanel() {
         <Card className="border-border/50">
           <CardContent className="p-3 text-center">
             <Dumbbell className="h-4 w-4 mx-auto text-primary mb-1" />
-            <p className="text-2xl font-bold font-mono">{completedSessions}</p>
+            <p className="text-lg font-bold font-mono">{completedSessions}</p>
             <p className="text-xs text-muted-foreground">Total Sessions</p>
           </CardContent>
         </Card>
         <Card className="border-border/50">
           <CardContent className="p-3 text-center">
             <CheckCircle2 className="h-4 w-4 mx-auto text-green-500 mb-1" />
-            <p className="text-2xl font-bold font-mono">{packages.filter(p => p.status === "completed").length}</p>
+            <p className="text-lg font-bold font-mono">{packages.filter(p => p.status === "completed").length}</p>
             <p className="text-xs text-muted-foreground">Packages Completed</p>
           </CardContent>
         </Card>

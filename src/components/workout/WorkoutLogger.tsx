@@ -303,15 +303,15 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
         )}
         
         {!viewingWorkout && (
-          <Card variant="elevated" className="text-center py-8">
+          <Card variant="elevated" className="text-center py-6">
             <CardContent>
-              <Dumbbell className="h-12 w-12 mx-auto mb-4 text-primary opacity-50" />
-              <h3 className="text-xl font-semibold mb-2">
+              <Dumbbell className="h-8 w-8 mx-auto mb-3 text-primary opacity-50" />
+              <h3 className="text-base font-semibold mb-2">
                 {format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
                   ? programWorkoutsForDate.length > 0 ? "Log Your Own Work" : "Ready to Train?"
                   : `Log a Workout for ${format(selectedDate, 'MMMM d')}`}
               </h3>
-              <p className="text-muted-foreground mb-6">
+              <p className="text-muted-foreground text-xs mb-4">
                 {format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
                   ? programWorkoutsForDate.length > 0
                     ? "Add extra free-log work on top of your program"

@@ -45,7 +45,7 @@ export function MealSection({ slot, foods, onAddFood, onRemoveFood, onUpdateFood
                 )}
               </div>
               <div className="flex items-center gap-3">
-                <span className="font-mono text-sm font-medium">{totalCalories} cal</span>
+                <span className="font-mono text-xs font-medium">{totalCalories} cal</span>
                 {isOpen ? (
                   <ChevronUp className="w-4 h-4 text-muted-foreground" />
                 ) : (

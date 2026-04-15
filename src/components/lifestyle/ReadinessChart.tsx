@@ -68,9 +68,9 @@ export function ReadinessChart() {
       <CardHeader>
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <div>
-            <CardTitle className="text-lg">Readiness Trend</CardTitle>
+            <CardTitle>Readiness Trend</CardTitle>
             {data.length > 0 && (
-              <p className="text-sm text-muted-foreground mt-1">
+              <p className="text-xs text-muted-foreground mt-1">
                 Avg: <span className="font-mono text-primary">{avgReadiness}%</span> over {data.length} days
               </p>
             )}
@@ -80,11 +80,11 @@ export function ReadinessChart() {
       </CardHeader>
       <CardContent>
         {isLoading ? (
-          <div className="h-48 flex items-center justify-center text-muted-foreground text-sm">
+          <div className="h-48 flex items-center justify-center text-muted-foreground text-xs">
             Loading...
           </div>
         ) : data.length === 0 ? (
-          <div className="h-48 flex items-center justify-center text-muted-foreground text-sm">
+          <div className="h-48 flex items-center justify-center text-muted-foreground text-xs">
             No check-in data yet. Submit your first check-in above.
           </div>
         ) : (
