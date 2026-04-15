@@ -73,7 +73,7 @@ export function TrainingSuggestion() {
   const lowScores = todayReadiness.hasCheckin ? getLowScores(todayReadiness) : null;
 
   return (
-    <div className={`rounded-lg border ${zone.borderClass} bg-card p-4 flex items-start gap-3`}>
+    <div className={`rounded-lg border ${zone.borderClass} bg-card p-3 md:p-4 flex items-start gap-3`}>
       <div className="mt-0.5">
         <ZoneIcon className="w-5 h-5 text-muted-foreground" />
       </div>

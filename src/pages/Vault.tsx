@@ -55,12 +55,32 @@ export function VaultDashboard() {
     <div className="min-h-screen pt-6 md:pt-24 pb-20 md:pb-12">
       <OnboardingWalkthrough onComplete={handleOnboardingComplete} onTabChange={handleTabChange} currentTab={activeTab} />
       <div className="container mx-auto px-4 md:px-6 max-w-6xl">
-        {/* Header with Logo — compact on mobile */}
-        <div className="flex flex-col items-center text-center mb-4 md:mb-8">
+        {/* Mobile compact top bar */}
+        <div className="flex md:hidden items-center justify-between mb-3">
+          <img
+            src={logo}
+            alt="Andy Andrews"
+            className="h-8 w-auto invert brightness-100 drop-shadow-[0_0_20px_hsl(var(--primary)/0.3)]"
+          />
+          <div className="flex items-center gap-2">
+            {isAdmin && (
+              <Badge variant="default" className="text-[10px] px-1.5 py-0 flex items-center gap-1">
+                <Shield className="w-2.5 h-2.5" />
+                ADMIN
+              </Badge>
+            )}
+            <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-xs font-mono text-muted-foreground">
+              V
+            </div>
+          </div>
+        </div>
+
+        {/* Desktop header */}
+        <div className="hidden md:flex flex-col items-center text-center mb-8">
           <img 
             src={logo} 
             alt="Andy Andrews" 
-            className="h-10 md:h-28 w-auto invert brightness-100 mb-2 md:mb-4 drop-shadow-[0_0_20px_hsl(var(--primary)/0.3)]"
+            className="h-28 w-auto invert brightness-100 mb-4 drop-shadow-[0_0_20px_hsl(var(--primary)/0.3)]"
           />
           <div className="flex items-center gap-2 mb-1">
             <Badge variant="elite">VAULT MEMBER</Badge>
@@ -71,18 +91,17 @@ export function VaultDashboard() {
               </Badge>
             )}
           </div>
-          <h1 className="text-lg md:text-3xl font-bold">Welcome to The Vault</h1>
-          <p className="text-muted-foreground mb-2 hidden sm:block">Your performance architecture command center</p>
+          <h1 className="text-3xl font-bold">Welcome to The Vault</h1>
+          <p className="text-muted-foreground mb-2">Your performance architecture command center</p>
           <a 
             href="https://docs.google.com/forms/d/e/1FAIpQLSeNZfnUe0PaxJFym_OJehlxbNmvbo9SPA6GDd6GIegdIaAD9Q/viewform?usp=header" 
             target="_blank" 
             rel="noopener noreferrer"
-            className="text-xs text-muted-foreground hover:text-accent flex items-center gap-1.5 transition-colors hidden sm:flex"
+            className="text-xs text-muted-foreground hover:text-accent flex items-center gap-1.5 transition-colors"
           >
             <Crown className="w-3 h-3 text-accent" />
             Apply for 1-on-1 Coaching
           </a>
-          {/* Admin version indicator */}
           {isAdmin && (
             <p className="text-[10px] text-muted-foreground/40 mt-1 font-mono">
               v{APP_VERSION} · {APP_BUILD_DATE}

@@ -15,10 +15,10 @@ import { CollapsibleDashboardSection } from "@/components/ui/CollapsibleDashboar
 import { Button } from "@/components/ui/button";
 import { Settings2, RotateCcw, ChevronDown, ChevronUp } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { format } from "date-fns";
 
 const DEFAULT_ORDER = ["snapshot", "training", "updates", "goals", "review"];
 
-/** Sections shown by default on mobile before tapping "Show More" */
 const PRIMARY_SECTIONS = new Set(["snapshot", "training"]);
 
 const SECTION_META: Record<string, { title: string }> = {
@@ -36,6 +36,13 @@ const SECTION_COMPONENTS: Record<string, () => ReactNode> = {
   goals: () => <GoalsPanel />,
   review: () => <WeeklyReview />,
 };
+
+function getGreeting(): string {
+  const h = new Date().getHours();
+  if (h < 12) return "GOOD MORNING";
+  if (h < 17) return "GOOD AFTERNOON";
+  return "GOOD EVENING";
+}
 
 export function VaultDashboard() {
   const { fetchAll, isLoading } = useDashboardStore();
@@ -69,7 +76,6 @@ export function VaultDashboard() {
     );
   }
 
-  // On mobile, split sections into primary (always visible) and secondary (behind Show More)
   const visibleSections = order.filter(id => {
     if (!editMode && isHidden(id)) return false;
     return true;
@@ -82,11 +88,20 @@ export function VaultDashboard() {
   const hasMoreSections = isMobile && !editMode && visibleSections.length > primarySections.length;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       <AnnouncementBanner />
-      <div className="text-center mb-2 relative">
-        <Badge variant="elite" className="mb-2">TODAY'S OVERVIEW</Badge>
-        <div className="absolute right-0 top-0 flex items-center gap-1">
+
+      {/* Greeting row */}
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="font-mono text-[10px] tracking-wider text-muted-foreground uppercase">
+            {format(new Date(), "EEEE, d MMMM")}
+          </p>
+          <h2 className="text-2xl md:text-3xl font-display tracking-wide text-foreground" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
+            {getGreeting()}
+          </h2>
+        </div>
+        <div className="flex items-center gap-1">
           {editMode ? (
             <>
               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={resetLayout} title="Reset layout">
@@ -135,7 +150,6 @@ export function VaultDashboard() {
         );
       })}
 
-      {/* Show More / Show Less toggle on mobile */}
       {isMobile && !editMode && (hasMoreSections || showMore) && (
         <Button
           variant="ghost"
