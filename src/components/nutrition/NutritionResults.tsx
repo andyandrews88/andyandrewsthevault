@@ -58,16 +58,16 @@ export function NutritionResults({ onRecalculate }: { onRecalculate: () => void 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <Badge variant="elite" className="mb-2">YOUR FUEL TARGETS</Badge>
-          <h2 className="text-2xl font-bold">Daily Nutrition Blueprint</h2>
-          <p className="text-muted-foreground">
-            Calculated for {goals.primaryGoal?.replace('_', ' ')} at {goals.rateOfChange} rate
+          <p className="section-label mb-1">YOUR FUEL TARGETS</p>
+          <h2 className="text-base font-semibold">Daily Nutrition Blueprint</h2>
+          <p className="text-xs text-muted-foreground">
+            {goals.primaryGoal?.replace('_', ' ')} · {goals.rateOfChange} rate
           </p>
         </div>
-        <Button variant="outline" onClick={onRecalculate} className="gap-2">
-          <RefreshCw className="w-4 h-4" />
+        <Button variant="outline" size="sm" onClick={onRecalculate} className="gap-2">
+          <RefreshCw className="w-3.5 h-3.5" />
           Recalculate
         </Button>
       </div>

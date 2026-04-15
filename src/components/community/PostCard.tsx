@@ -37,9 +37,9 @@ export function PostCard({ post }: PostCardProps) {
   const timeAgo = formatDistanceToNow(new Date(post.created_at), { addSuffix: true });
 
   return (
-    <div className="p-4 rounded-lg border border-border bg-card">
+    <div className="p-3 rounded-md border border-border bg-card">
       <div className="flex items-start gap-3">
-        <Avatar className="h-10 w-10">
+        <Avatar className="h-8 w-8">
           <AvatarImage src={profile?.avatar_url || undefined} />
           <AvatarFallback className="text-xs">{initials}</AvatarFallback>
         </Avatar>

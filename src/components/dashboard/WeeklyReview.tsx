@@ -231,10 +231,10 @@ export function WeeklyReview() {
 
   return (
     <Card variant="elevated">
-      <CardHeader className="flex flex-row items-center justify-between">
+      <CardHeader className="flex flex-row items-center justify-between p-3 md:p-4">
         <div className="flex items-center gap-2">
-          <FileText className="w-5 h-5 text-primary" />
-          <CardTitle className="text-lg">Weekly Review</CardTitle>
+          <FileText className="w-4 h-4 text-primary" />
+          <CardTitle>Weekly Review</CardTitle>
         </div>
         {weeklyData.avgReadiness > 0 && (
           <div className="flex items-center gap-1.5">
@@ -251,45 +251,21 @@ export function WeeklyReview() {
         ) : (
           <>
             {/* Stats grid */}
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
-              <div className="text-center p-3 rounded-lg bg-secondary/50">
-                <p className="text-2xl font-mono font-bold text-primary">{weeklyData.workoutsCompleted}</p>
-                <p className="text-xs text-muted-foreground">Workouts</p>
+            <div className="grid grid-cols-3 md:grid-cols-3 gap-2 mb-3">
+              <div className="text-center p-2 rounded-md bg-secondary/50">
+                <p className="text-lg font-mono font-bold text-primary">{weeklyData.workoutsCompleted}</p>
+                <p className="text-[10px] text-muted-foreground">Workouts</p>
               </div>
-              <div className="text-center p-3 rounded-lg bg-secondary/50">
-                <p className="text-2xl font-mono font-bold text-primary">
+              <div className="text-center p-2 rounded-md bg-secondary/50">
+                <p className="text-lg font-mono font-bold text-primary">
                   {weeklyData.totalVolume > 0 ? `${Math.round(weeklyData.totalVolume / 1000)}k` : "—"}
                 </p>
-                <p className="text-xs text-muted-foreground">Volume (lbs)</p>
+                <p className="text-[10px] text-muted-foreground">Volume</p>
               </div>
-              <div className="text-center p-3 rounded-lg bg-secondary/50">
-                <p className="text-2xl font-mono font-bold text-accent">{weeklyData.newPRs}</p>
-                <p className="text-xs text-muted-foreground">New PRs</p>
+              <div className="text-center p-2 rounded-md bg-secondary/50">
+                <p className="text-lg font-mono font-bold text-accent">{weeklyData.newPRs}</p>
+                <p className="text-[10px] text-muted-foreground">PRs</p>
               </div>
-              <div className="text-center p-3 rounded-lg bg-secondary/50">
-                <p className={`text-2xl font-mono font-bold ${trendColor}`}>
-                  {weeklyData.avgReadiness > 0 ? `${weeklyData.avgReadiness}%` : "—"}
-                </p>
-                <p className="text-xs text-muted-foreground">Readiness</p>
-              </div>
-              {weeklyData.totalConditioningMinutes > 0 && (
-                <div className="text-center p-3 rounded-lg bg-secondary/50">
-                  <p className="text-2xl font-mono font-bold text-primary flex items-center justify-center gap-1">
-                    <Timer className="w-4 h-4" />
-                    {weeklyData.totalConditioningMinutes}
-                  </p>
-                  <p className="text-xs text-muted-foreground">Cond. Min</p>
-                </div>
-              )}
-              {weeklyData.avgRIR !== null && weeklyData.rirSetsCount > 0 && (
-                <div className="text-center p-3 rounded-lg bg-secondary/50">
-                  <p className="text-2xl font-mono font-bold text-primary flex items-center justify-center gap-1">
-                    <Gauge className="w-4 h-4" />
-                    {weeklyData.avgRIR}
-                  </p>
-                  <p className="text-xs text-muted-foreground">Avg RIR</p>
-                </div>
-              )}
             </div>
 
             {/* AI sections or guidance sections */}
