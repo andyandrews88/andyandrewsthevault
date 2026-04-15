@@ -13,6 +13,7 @@ import { WorkoutTab } from "@/components/workout/WorkoutTab";
 import { CommunityFeed } from "@/components/community/CommunityFeed";
 import { LifestyleTab } from "@/components/lifestyle/LifestyleTab";
 import { VaultDashboard as DashboardView } from "@/components/dashboard/VaultDashboard";
+import { PrivateCoachingPanel } from "@/components/dashboard/PrivateCoachingPanel";
 import { ProgramLibrary } from "@/components/tracks/ProgramLibrary";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { VAULT_TABS, APP_VERSION, APP_BUILD_DATE } from "@/lib/navigationConstants";

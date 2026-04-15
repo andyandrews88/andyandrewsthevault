@@ -20,6 +20,7 @@ import {
   UtensilsCrossed,
   UserCircle,
   LogOut,
+  Briefcase,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -72,6 +73,7 @@ export interface MoreMenuItem {
 
 export const MORE_MENU_ITEMS: MoreMenuItem[] = [
   // Training
+  { id: "coaching",   label: "My Coaching", icon: Briefcase,       tabId: "coaching",   group: "Training" },
   { id: "lifestyle",  label: "Lifestyle",  icon: Heart,            tabId: "lifestyle",  group: "Training" },
   { id: "tracks",     label: "Tracks",     icon: Target,           tabId: "tracks",     group: "Training" },
   { id: "nutrition",  label: "Nutrition",  icon: UtensilsCrossed,  route: "/nutrition",  group: "Training" },
