@@ -1,68 +1,92 @@
 
 
-## Plan: Visual Polish — Match Mockup Design Language
+## Plan: Full App UI Overhaul — Match Mockup Design Language
 
-The mockup and the current app share the same color system and fonts, but differ significantly in **density, typography scale, card styling, and layout** on mobile. Here is the gap analysis and proposed changes, organized to avoid breaking any functionality.
+This is a systematic visual overhaul across every page and component to match the mockup's compact, data-dense, professional aesthetic. No functionality changes — purely styling and density.
 
-### Gap Analysis
+### What Changes
 
-| Area | Mockup | Current App | Impact |
-|------|--------|-------------|--------|
-| **Header** | Compact top bar: logo left, avatar right (~30px tall) | Large centered logo + badges + heading + subtitle = ~200px | High — wastes prime screen space |
-| **Dashboard greeting** | "GOOD MORNING" in Bebas Neue + day eyebrow in JetBrains Mono, left-aligned | No greeting, "TODAY'S OVERVIEW" badge centered | Medium |
-| **Readiness card** | Circular SVG ring (score) + 4-tile grid (emoji icons + mono values) with primary-tinted border | 3 separate full-width text cards in a column | High — most visible difference |
-| **Card density** | ~11px padding, 8-10px body text, 7px labels, JetBrains Mono for values | ~16-24px padding, 14px body text, standard font | High |
-| **Typography scale** | Compact: titles 10-12px, labels 7-8px mono, values 15px mono | Standard Tailwind: titles base, labels sm | Medium |
-| **Card borders** | Colored tints per card type (primary glow, warning, success) | Uniform `border-primary/20` via `data` variant | Low-Medium |
-| **Bottom nav** | Already similar | Already similar | None |
+**The core visual gap:** The mockup uses ultra-tight spacing (8-12px card padding), small typography (10-12px body, 7-9px labels), JetBrains Mono for all data/values, minimal card chrome, and a more refined color application. The current app uses standard Tailwind spacing (16-24px padding, 14-16px text) which makes it feel like a prototype rather than a polished product.
 
-### Proposed Changes (Safe, Non-Breaking)
+### Phase 1: Foundation — Global Primitives (3 files)
 
-**Phase 1: Header Compaction (mobile only)**
+**1. `src/components/ui/card.tsx`** — Reduce default padding globally
+- CardHeader: `p-6` → `p-3 md:p-4`
+- CardContent: `p-6 pt-0` → `p-3 pt-0 md:p-4 md:pt-0`
+- CardFooter: `p-6 pt-0` → `p-3 pt-0 md:p-4 md:pt-0`
+- CardTitle: `text-2xl` → `text-sm font-semibold`
+- CardDescription: `text-sm` → `text-xs`
+- Reduce border-radius from `rounded-lg` to `rounded-md`
 
-1. **`src/pages/Vault.tsx`** — On mobile, replace the centered logo/badge/heading block with a compact top bar showing logo (left) + avatar circle (right), like the mockup's `.topbar`. Keep the current desktop layout unchanged.
+**2. `src/components/ui/badge.tsx`** — Tighter badges
+- Base: `px-2.5 py-0.5 text-xs` → `px-1.5 py-0.5 text-[10px] tracking-wider uppercase font-mono`
 
-**Phase 2: Dashboard Greeting**
+**3. `src/components/ui/tabs.tsx`** — Compact tab triggers
+- TabsTrigger: reduce to `text-xs px-2.5 py-1.5`
+- TabsList: reduce `h-10` → `h-8`
 
-2. **`src/components/dashboard/VaultDashboard.tsx`** — Add a greeting row above sections on mobile: day/date eyebrow in mono + "GOOD MORNING" / "GOOD AFTERNOON" / "GOOD EVENING" in `font-display` (Bebas Neue), left-aligned. Keep "TODAY'S OVERVIEW" badge on the right.
+### Phase 2: Global Styles (`src/index.css`)
 
-**Phase 3: Readiness Snapshot Redesign**
+- Add global mobile-first base font size: `body { font-size: 13px; }` on mobile, 14px on md+
+- Add `.section-label` utility: `font-mono text-[10px] tracking-[0.1em] uppercase text-muted-foreground`
+- Add `.value-display` utility: `font-mono text-sm font-semibold`
+- Tighten default spacing in `.space-y-6` sections used throughout
 
-3. **`src/components/dashboard/TodaySnapshot.tsx`** — Redesign the readiness card to match the mockup:
-   - Circular SVG ring showing readiness score percentage
-   - 4-tile grid next to ring showing Sleep, Energy, Stress, Drive with emoji + mono value + label
-   - Primary-tinted card border (`border-primary/20 bg-primary/5`)
-   - Training and Body Comp cards stay as separate cards below but with tighter padding and mono values
+### Phase 3: Page-Level Headers (5 files)
 
-**Phase 4: Global Card Density (mobile only)**
+Every tab/page currently has a large centered header with Badge + h2 + description paragraph consuming ~120px. Match the mockup: compact left-aligned label + small title, no paragraph on mobile.
 
-4. **`src/index.css`** — Add a mobile-specific utility class `.card-compact` for tighter padding and smaller text that components can opt into. This avoids touching the shared Card component.
+**Files:** `WorkoutTab.tsx`, `ProgressTab.tsx`, `Nutrition.tsx`, `NutritionResults.tsx`, `Vault.tsx` (tracks section)
+- Badge + h2 + p block → `section-label` + compact `text-base font-semibold` title
+- Hide description paragraphs on mobile
+- Remove redundant logo displays on sub-pages
 
-5. **Component-level padding adjustments** — In dashboard components (`TodaySnapshot`, `TrainingSuggestion`, `WeeklyReview`, `LatestUpdates`), reduce card padding on mobile from `p-4`/`p-6` to `p-3`, use `text-xs`/`text-[10px]` for labels, and `font-mono` for numeric values.
+### Phase 4: Dashboard Components (4 files)
 
-**Phase 5: Typography Refinements**
+**`TodaySnapshot.tsx`** — Already redesigned with ring. Fine-tune:
+- Metric tiles: ensure `text-[10px]` labels, tighter `p-1.5` padding
 
-6. **Dashboard section labels** — Use `font-mono text-[10px] tracking-wider uppercase text-muted-foreground` for section headers (matching the mockup's `.clb` class) instead of the current larger labels.
+**`TrainingSuggestion.tsx`** — Tighten card padding, use section-label style
+
+**`LatestUpdates.tsx`** — Compact list items, mono timestamps
+
+**`WeeklyReview.tsx`** — Compact stats display
+
+### Phase 5: Major Feature Tabs (6 files)
+
+**`WorkoutLogger.tsx`** — Exercise cards, set rows: tighter padding, mono values for weights/reps
+**`ExerciseCard.tsx`** — Compact header, smaller text
+**`SetRow.tsx`** — Reduce row height, mono inputs
+
+**`ProgressTab.tsx`** — Compact stat cards, smaller chart containers
+**`LifestyleTab.tsx` / `DailyCheckin.tsx`** — Tighter form layout
+
+**`LibraryTab.tsx`** + sub-components — Compact resource cards, smaller thumbnails
+
+### Phase 6: Community & Other Sections (3 files)
+
+**`CommunityFeed.tsx`** — Already well-structured, minor density tweaks
+**`PostCard.tsx`** — Tighter padding
+**`PrivateCoachingPanel.tsx`** — Compact coaching card layout
+
+### Phase 7: Bottom Nav & More Menu (1 file)
+
+**`BottomNav.tsx`** — Already close to mockup. Minor: ensure `text-[10px]` labels, `h-12` bar height
 
 ### What This Does NOT Change
 - No database changes
-- No route changes  
+- No route changes
+- No feature additions or removals
 - No component API changes
-- No feature removals
-- Desktop layout stays the same
-- All existing functionality preserved
+- Desktop layouts get proportional improvements but mobile is the priority
 
-### Files to Edit
-- `src/pages/Vault.tsx` — mobile header compaction
-- `src/components/dashboard/VaultDashboard.tsx` — greeting row
-- `src/components/dashboard/TodaySnapshot.tsx` — readiness ring + tile grid redesign
-- `src/components/dashboard/TrainingSuggestion.tsx` — compact padding
-- `src/components/dashboard/LatestUpdates.tsx` — compact padding  
-- `src/components/dashboard/WeeklyReview.tsx` — compact padding
-- `src/index.css` — add compact card utility
+### Files to Edit (total ~20)
+**Primitives:** `card.tsx`, `badge.tsx`, `tabs.tsx`, `index.css`
+**Pages:** `Vault.tsx`, `Nutrition.tsx`
+**Dashboard:** `TodaySnapshot.tsx`, `TrainingSuggestion.tsx`, `LatestUpdates.tsx`, `WeeklyReview.tsx`, `VaultDashboard.tsx`
+**Features:** `WorkoutTab.tsx`, `WorkoutLogger.tsx`, `ExerciseCard.tsx`, `SetRow.tsx`, `ProgressTab.tsx`, `DailyCheckin.tsx`, `LibraryTab.tsx`
+**Other:** `BottomNav.tsx`, `PostCard.tsx`, `PrivateCoachingPanel.tsx`, `NutritionResults.tsx`
 
-### Technical Notes
-- Readiness ring uses inline SVG with `stroke-dasharray`/`stroke-dashoffset` math (same approach as the mockup)
-- Greeting time-of-day logic: before 12 = Morning, before 17 = Afternoon, else Evening
-- All density changes use responsive Tailwind classes (`md:p-6 p-3`) so desktop is unaffected
+### Approach
+Changes are applied bottom-up: primitives first (card, badge, tabs) so that every component using them gets tighter automatically, then page-level headers, then component-specific refinements. This minimizes the number of individual component edits needed.
 
