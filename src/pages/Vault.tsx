@@ -125,6 +125,16 @@ export function VaultDashboard() {
           {activeTab === "lifestyle" && <TabsContent value="lifestyle" forceMount><LifestyleTab /></TabsContent>}
           {activeTab === "podcast" && <TabsContent value="podcast" forceMount><PodcastTab /></TabsContent>}
           {activeTab === "community" && <TabsContent value="community" forceMount><CommunityFeed /></TabsContent>}
+          {activeTab === "coaching" && (
+            <TabsContent value="coaching" forceMount>
+              <div className="text-center mb-6">
+                <Badge variant="elite" className="mb-3">MY COACHING</Badge>
+                <h2 className="text-xl md:text-2xl font-bold mb-1">My Coaching</h2>
+                <p className="text-muted-foreground text-sm">Your programme, sessions & billing</p>
+              </div>
+              <PrivateCoachingPanel />
+            </TabsContent>
+          )}
 
           {/* Track Selection */}
           {activeTab === "tracks" && (
