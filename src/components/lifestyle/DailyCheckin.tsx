@@ -185,10 +185,10 @@ export function DailyCheckin() {
 
   return (
     <Card variant="data">
-      <CardHeader className="flex flex-row items-center justify-between">
+      <CardHeader className="flex flex-row items-center justify-between p-3 md:p-4">
         <div>
-          <CardTitle className="text-lg">Daily Check-In</CardTitle>
-          <p className="text-sm text-muted-foreground mt-1">
+          <CardTitle>Daily Check-In</CardTitle>
+          <p className="text-xs text-muted-foreground mt-0.5">
             {format(new Date(), "EEEE, MMMM d")}
           </p>
         </div>
@@ -204,7 +204,7 @@ export function DailyCheckin() {
           </div>
         )}
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-4 p-3 pt-0 md:p-4 md:pt-0">
         {isSubmitted && !isEditing ? (
           <div className="space-y-4">
             {/* Sleep Hours display */}

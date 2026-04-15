@@ -146,10 +146,9 @@ export function VaultDashboard() {
           {activeTab === "community" && <TabsContent value="community" forceMount><CommunityFeed /></TabsContent>}
           {activeTab === "coaching" && (
             <TabsContent value="coaching" forceMount>
-              <div className="text-center mb-6">
-                <Badge variant="elite" className="mb-3">MY COACHING</Badge>
-                <h2 className="text-xl md:text-2xl font-bold mb-1">My Coaching</h2>
-                <p className="text-muted-foreground text-sm">Your programme, sessions & billing</p>
+              <div className="mb-4">
+                <p className="section-label mb-1">MY COACHING</p>
+                <h2 className="text-base font-semibold">Your programme, sessions & billing</h2>
               </div>
               <PrivateCoachingPanel />
             </TabsContent>
@@ -158,12 +157,11 @@ export function VaultDashboard() {
           {/* Track Selection */}
           {activeTab === "tracks" && (
           <TabsContent value="tracks" forceMount>
-            <div className="text-center mb-6">
-              <Badge variant="elite" className="mb-3">TRAINING PROGRAMS</Badge>
-              <h2 className="text-xl md:text-2xl font-bold mb-2">Choose Your Path</h2>
-              <p className="text-muted-foreground text-sm md:text-base max-w-xl mx-auto">
-                Foundation for building fundamentals or Performance for advanced optimization. 
-                Select the track that matches your current level.
+            <div className="mb-4">
+              <p className="section-label mb-1">TRAINING PROGRAMS</p>
+              <h2 className="text-base font-semibold">Choose Your Path</h2>
+              <p className="text-xs text-muted-foreground hidden sm:block max-w-xl mt-1">
+                Foundation for building fundamentals or Performance for advanced optimization.
               </p>
             </div>
             <div className="grid md:grid-cols-2 gap-6">

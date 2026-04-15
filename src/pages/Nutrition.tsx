@@ -27,21 +27,17 @@ export default function Nutrition() {
       
       <main className="pt-24 pb-12">
         <div className="container mx-auto px-6 max-w-4xl">
-          {/* Header with Logo */}
-          <div className="text-center mb-6">
+          {/* Header */}
+          <div className="mb-4">
             <img 
               src={logo} 
               alt="Andy Andrews" 
-              className="h-10 md:h-24 w-auto invert brightness-100 mx-auto mb-3 drop-shadow-[0_0_20px_hsl(var(--primary)/0.3)]"
+              className="h-8 md:h-16 w-auto invert brightness-100 mb-2 drop-shadow-[0_0_20px_hsl(var(--primary)/0.3)] hidden md:block mx-auto"
             />
-            <Badge variant="elite" className="mb-3">THE FUEL SYSTEM</Badge>
-            <h1 className="text-2xl md:text-4xl font-bold mb-2">
+            <p className="section-label mb-1">THE FUEL SYSTEM</p>
+            <h1 className="text-base md:text-xl font-semibold">
               Nutrition Calculator
             </h1>
-            <p className="text-muted-foreground max-w-2xl mx-auto text-sm hidden sm:block">
-              Calculate your precise calorie and macronutrient targets using multiple scientific formulas. 
-              Get personalized meal plans, food recommendations, and actionable nutrition insights.
-            </p>
           </div>
 
           {/* Calculator or Results */}
