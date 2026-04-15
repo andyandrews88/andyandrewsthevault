@@ -93,6 +93,29 @@
   body {
     @apply bg-background text-foreground antialiased;
     font-family: 'Inter', system-ui, sans-serif;
+    font-size: 13px;
+  }
+
+  @media (min-width: 768px) {
+    body {
+      font-size: 14px;
+    }
+  }
+
+  /* Section label utility */
+  .section-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: hsl(var(--muted-foreground));
+  }
+
+  /* Value display utility */
+  .value-display {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.875rem;
+    font-weight: 600;
   }
 
   /* Technical/monospace text */
