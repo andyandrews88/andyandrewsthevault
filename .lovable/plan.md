@@ -1,82 +1,29 @@
 
 
-## Plan: Program Landing Pages
+## Plan: Move "My Coaching" to Its Own Section
 
-### What This Does
-Each program card in Tracks will link to a dedicated landing page (`/program/:slug`) with a hero video, full description, program details, and an enroll button. Admins get inline editing for the landing page content.
+Currently, "My Coaching" (PrivateCoachingPanel) is embedded as a collapsible section inside the Home dashboard. The user wants it as a standalone tab/section accessible from the "More" menu — matching the reference app screenshot where "My Coaching" has its own full page with a back button.
 
-### Database Change
-Add a `long_description` text column to the `programs` table for rich landing page content (the existing `description` stays as the short card blurb).
+### Changes
 
-```sql
-ALTER TABLE public.programs ADD COLUMN long_description text DEFAULT '';
-```
+**1. `src/components/dashboard/VaultDashboard.tsx`** — Remove coaching from dashboard
+- Remove `"coaching"` from `DEFAULT_ORDER` and `PRIMARY_SECTIONS`
+- Remove the coaching entry from `SECTION_META` and `SECTION_COMPONENTS`
+- Remove the `PrivateCoachingPanel` import
 
-### Files to Create
+**2. `src/lib/navigationConstants.ts`** — Add My Coaching to More menu
+- Add `Briefcase` (or similar) icon import
+- Add a new entry to `MORE_MENU_ITEMS` in the Training group:
+  ```
+  { id: "coaching", label: "My Coaching", icon: Briefcase, tabId: "coaching", group: "Training" }
+  ```
 
-**1. `src/pages/ProgramLanding.tsx`** — New landing page route
-- Fetches program by slug from URL param
-- Hero section: embedded YouTube video (using existing URL transform util), program name, badges (difficulty, duration, category)
-- Full description section (`long_description` with markdown or plain text)
-- Program details sidebar/section: days/week, duration, difficulty, style
-- "Enroll Now" CTA button (opens the existing `ProgramAssignmentWizard`)
-- If already enrolled, shows "Currently Enrolled" status
-- Admin edit button (visible only to admins via `useAdminCheck`)
+**3. `src/pages/Vault.tsx`** — Add coaching as a tab content
+- Import `PrivateCoachingPanel`
+- Add a `TabsContent` block for `activeTab === "coaching"` that renders the panel as a full-page section (with a header like "MY COACHING" and subtitle "Your programme, sessions & billing" — matching the reference screenshot)
 
-**2. `src/components/tracks/ProgramLandingEditor.tsx`** — Admin inline editor
-- Appears as a drawer/dialog when admin clicks "Edit Landing Page"
-- Fields: long description (textarea), video URL, description (short), and all existing program fields
-- Saves directly to the `programs` table
-
-### Files to Edit
-
-**3. `src/App.tsx`**
-- Add route: `<Route path="/program/:slug" element={<ProtectedRoute><ProgramLanding /></ProtectedRoute>} />`
-
-**4. `src/components/tracks/ProgramCard.tsx`**
-- Change card click / "Select Program" button behavior: navigate to `/program/${program.slug}` instead of directly opening the enrollment wizard
-- Keep "Enrolled" badge for enrolled programs, but make it also navigate to the landing page
-
-**5. `src/stores/programStore.ts`**
-- Add `long_description` to the `Program` interface
-- Add `fetchProgramBySlug` method that fetches a single program by slug
-
-**6. `src/components/admin/ProgramAdmin.tsx`**
-- Add `long_description` textarea field to the existing `ProgramEditor` component (below the current description field)
-- Label it "Landing Page Description" with helper text
-
-### Landing Page Layout (mobile-first)
-```text
-┌─────────────────────────┐
-│  ◄ Back to Programs     │
-├─────────────────────────┤
-│  ┌───────────────────┐  │
-│  │   YouTube Embed   │  │
-│  │   (16:9 ratio)    │  │
-│  └───────────────────┘  │
-│                         │
-│  PROGRAM NAME           │
-│  [Intermediate] [12wk]  │
-│  [Strength] [4d/week]   │
-│                         │
-│  ─── About ───          │
-│  Long description text  │
-│  ...                    │
-│                         │
-│  ─── Details ───        │
-│  Duration: 12 weeks     │
-│  Days/week: 4           │
-│  Style: Wendler 5/3/1   │
-│                         │
-│  [  Enroll Now  ]       │
-│  (or "Enrolled ✓")     │
-│                         │
-│  ✏️ Edit (admin only)   │
-└─────────────────────────┘
-```
-
-### Technical Notes
-- Video embedding reuses the existing YouTube/Vimeo URL transform logic already in the codebase
-- No new tables needed — just one column addition
-- The enrollment wizard is reused as-is from `ProgramAssignmentWizard`
+### Result
+- Home dashboard becomes cleaner with only Snapshot, Training Suggestion, and secondary sections
+- "My Coaching" gets its own dedicated full-screen section accessible via More → My Coaching
+- The coaching panel content stays exactly the same — just lives in its own tab now
 
