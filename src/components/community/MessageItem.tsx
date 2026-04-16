@@ -25,9 +25,10 @@ import { cn } from '@/lib/utils';
 interface MessageItemProps {
   post: CommunityMessage;
   compact?: boolean;
+  grouped?: boolean;
 }
 
-export function MessageItem({ post, compact = false }: MessageItemProps) {
+export function MessageItem({ post, compact = false, grouped = false }: MessageItemProps) {
   const { openThreadDrawer, deletePost, updatePost } = useCommunityStore();
   const { user } = useAuthStore();
   const { isAdmin } = useAdminCheck();
@@ -63,15 +64,99 @@ export function MessageItem({ post, compact = false }: MessageItemProps) {
     setEditContent(post.content);
   };
 
+  // Grouped message — just content, indented under avatar space
+  if (grouped && !isEditing) {
+    return (
+      <div
+        className={cn(
+          'group flex items-start gap-3 px-4 py-0.5 hover:bg-secondary/20 transition-colors',
+          isOptimistic && 'opacity-60'
+        )}
+      >
+        {/* Spacer matching avatar width */}
+        <div className="w-8 flex-shrink-0 flex items-center justify-center">
+          <span className="text-[10px] text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity select-none">
+            {new Date(post.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </span>
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <p className="text-sm text-foreground/90 whitespace-pre-wrap break-words leading-relaxed">
+            {post.content}
+          </p>
+
+          {/* Reply count — always visible */}
+          {!compact && post.reply_count > 0 && (
+            <button
+              onClick={() => openThreadDrawer(post)}
+              className="flex items-center gap-1 mt-0.5 text-xs text-primary hover:underline"
+            >
+              <MessageSquare className="w-3 h-3" />
+              {post.reply_count} {post.reply_count === 1 ? 'reply' : 'replies'}
+            </button>
+          )}
+
+          {/* Hover actions */}
+          {!compact && (
+            <div className="flex items-center gap-1 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+              {!post.reply_count && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1 text-xs h-6 px-2 text-muted-foreground hover:text-foreground"
+                  onClick={() => openThreadDrawer(post)}
+                >
+                  <MessageSquare className="w-3 h-3" />
+                  Reply
+                </Button>
+              )}
+              <LikeButton messageId={post.id} likesCount={post.likes_count} />
+              {canEdit && !isOptimistic && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-2 text-muted-foreground hover:text-foreground"
+                  onClick={() => { setEditContent(post.content); setIsEditing(true); }}
+                >
+                  <Pencil className="w-3 h-3" />
+                </Button>
+              )}
+              {canDelete && !isOptimistic && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="ghost" size="sm" className="h-6 px-2 text-muted-foreground hover:text-destructive">
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete Message?</AlertDialogTitle>
+                      <AlertDialogDescription>This will permanently delete this message and all its replies.</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => deletePost(post.id)}>Delete</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className={cn(
-        'group flex items-start gap-3 px-4 py-2 hover:bg-secondary/20 transition-colors rounded',
+        'group flex items-start gap-3 px-4 py-1.5 hover:bg-secondary/20 transition-colors',
         isOptimistic && 'opacity-60',
-        compact && 'py-1.5'
+        compact && 'py-1',
+        !grouped && 'mt-1'
       )}
     >
-      <Avatar className={cn('flex-shrink-0', compact ? 'h-7 w-7' : 'h-9 w-9')}>
+      <Avatar className={cn('flex-shrink-0', compact ? 'h-7 w-7' : 'h-8 w-8')}>
         <AvatarImage src={profile?.avatar_url || undefined} />
         <AvatarFallback className="text-xs bg-primary/10 text-primary">{initials}</AvatarFallback>
       </Avatar>
@@ -102,79 +187,67 @@ export function MessageItem({ post, compact = false }: MessageItemProps) {
               }}
             />
             <div className="flex items-center gap-2">
-              <Button
-                size="sm"
-                className="h-7 text-xs gap-1"
-                onClick={handleSaveEdit}
-                disabled={isSaving || !editContent.trim()}
-              >
-                <Check className="w-3 h-3" />
-                Save
+              <Button size="sm" className="h-7 text-xs gap-1" onClick={handleSaveEdit} disabled={isSaving || !editContent.trim()}>
+                <Check className="w-3 h-3" /> Save
               </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-7 text-xs gap-1"
-                onClick={handleCancelEdit}
-                disabled={isSaving}
-              >
-                <X className="w-3 h-3" />
-                Cancel
+              <Button size="sm" variant="ghost" className="h-7 text-xs gap-1" onClick={handleCancelEdit} disabled={isSaving}>
+                <X className="w-3 h-3" /> Cancel
               </Button>
               <span className="text-[10px] text-muted-foreground">Ctrl+Enter to save · Esc to cancel</span>
             </div>
           </div>
         ) : (
-          <p className="text-sm text-foreground/85 whitespace-pre-wrap break-words leading-relaxed">
+          <p className="text-sm text-foreground/90 whitespace-pre-wrap break-words leading-relaxed">
             {post.content}
           </p>
         )}
 
+        {/* Reply count — always visible when > 0 */}
+        {!compact && !isEditing && post.reply_count > 0 && (
+          <button
+            onClick={() => openThreadDrawer(post)}
+            className="flex items-center gap-1 mt-0.5 text-xs text-primary hover:underline"
+          >
+            <MessageSquare className="w-3 h-3" />
+            {post.reply_count} {post.reply_count === 1 ? 'reply' : 'replies'}
+          </button>
+        )}
+
         {!compact && !isEditing && (
-          <div className="flex items-center gap-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="gap-1 text-xs h-6 px-2 text-muted-foreground hover:text-foreground"
-              onClick={() => openThreadDrawer(post)}
-            >
-              <MessageSquare className="w-3 h-3" />
-              {post.reply_count ? `${post.reply_count} ${post.reply_count === 1 ? 'reply' : 'replies'}` : 'Reply'}
-            </Button>
-
+          <div className="flex items-center gap-1 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+            {!post.reply_count && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-1 text-xs h-6 px-2 text-muted-foreground hover:text-foreground"
+                onClick={() => openThreadDrawer(post)}
+              >
+                <MessageSquare className="w-3 h-3" />
+                Reply
+              </Button>
+            )}
             <LikeButton messageId={post.id} likesCount={post.likes_count} />
-
             {canEdit && !isOptimistic && (
               <Button
                 variant="ghost"
                 size="sm"
                 className="h-6 px-2 text-muted-foreground hover:text-foreground"
-                onClick={() => {
-                  setEditContent(post.content);
-                  setIsEditing(true);
-                }}
+                onClick={() => { setEditContent(post.content); setIsEditing(true); }}
               >
                 <Pencil className="w-3 h-3" />
               </Button>
             )}
-
             {canDelete && !isOptimistic && (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 px-2 text-muted-foreground hover:text-destructive"
-                  >
+                  <Button variant="ghost" size="sm" className="h-6 px-2 text-muted-foreground hover:text-destructive">
                     <Trash2 className="w-3 h-3" />
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
                     <AlertDialogTitle>Delete Message?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This will permanently delete this message and all its replies.
-                    </AlertDialogDescription>
+                    <AlertDialogDescription>This will permanently delete this message and all its replies.</AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
