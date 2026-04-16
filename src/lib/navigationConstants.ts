@@ -40,7 +40,7 @@ export const VAULT_TABS: VaultTab[] = [
   { id: "dashboard", label: "Home",      icon: LayoutDashboard, protected: true },
   { id: "workouts",  label: "Train",     icon: Dumbbell,        protected: true },
   { id: "library",   label: "Library",   icon: Library,         protected: true },
-  { id: "progress",  label: "Progress",  icon: Activity,        protected: true },
+  { id: "progress",  label: "Body",      icon: Activity,        protected: true },
   { id: "lifestyle", label: "Lifestyle", icon: Heart,           protected: true },
   { id: "podcast",   label: "Podcast",   icon: Radio,           protected: false },
   { id: "community", label: "Community", icon: Users,           protected: true },
@@ -51,7 +51,7 @@ export const VAULT_TABS: VaultTab[] = [
 export const BOTTOM_NAV_TABS: VaultTab[] = [
   { id: "dashboard", label: "Home",      icon: LayoutDashboard, protected: true },
   { id: "workouts",  label: "Train",     icon: Dumbbell,        protected: true },
-  { id: "progress",  label: "Progress",  icon: Activity,        protected: true },
+  { id: "progress",  label: "Body",      icon: Activity,        protected: true },
   { id: "community", label: "Community", icon: Users,           protected: true },
   { id: "more",      label: "More",      icon: MoreHorizontal,  protected: true },
 ];

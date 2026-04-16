@@ -54,7 +54,7 @@ export function ProgressTab() {
     <div className="space-y-6">
       {/* Page Header */}
       <div>
-        <p className="section-label mb-1">PROGRESS TRACKER</p>
+        <p className="section-label mb-1">BODY TRACKER</p>
         <h2 className="text-base font-semibold">Body Composition & Metrics</h2>
       </div>
 
@@ -63,7 +63,7 @@ export function ProgressTab() {
         <div>
           <h3 className="text-lg font-semibold flex items-center gap-2">
             <Activity className="w-5 h-5 text-primary" />
-            Your Progress
+            Your Body
           </h3>
           <p className="text-sm text-muted-foreground">
             Track body composition and metrics

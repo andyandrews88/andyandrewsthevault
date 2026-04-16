@@ -32,7 +32,7 @@ export function BodyweightBanner() {
     <div className="flex items-center gap-2 rounded-lg border border-warning/30 bg-warning/5 px-3 py-2 text-xs">
       <AlertTriangle className="h-3.5 w-3.5 text-warning shrink-0" />
       <p className="text-warning flex-1">
-        Log your body weight in <span className="font-medium">Progress</span> for accurate volume tracking on bodyweight exercises.
+        Log your body weight in <span className="font-medium">Body</span> for accurate volume tracking on bodyweight exercises.
       </p>
       <button onClick={() => setDismissed(true)} className="text-muted-foreground hover:text-foreground">
         <X className="h-3.5 w-3.5" />

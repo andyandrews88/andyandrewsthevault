@@ -17,7 +17,7 @@ const features = [
   },
   {
     icon: Activity,
-    title: "Progress Tracking",
+    title: "Body Tracking",
     description: "Bodyweight, body composition, and circumference measurements — all charted over time.",
     tab: "progress",
   },
