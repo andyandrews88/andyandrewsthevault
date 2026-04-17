@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { Hash, Lock, Send } from 'lucide-react';
+import { Hash, Lock, Send, ArrowDown } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -14,8 +14,19 @@ const MAX_CONTENT_LENGTH = 5000;
 function shouldGroup(current: CommunityMessage, prev: CommunityMessage | null): boolean {
   if (!prev) return false;
   if (current.user_id !== prev.user_id) return false;
+  // Don't group across day boundaries
+  if (new Date(current.created_at).toDateString() !== new Date(prev.created_at).toDateString()) return false;
   const diff = new Date(current.created_at).getTime() - new Date(prev.created_at).getTime();
   return diff < 5 * 60 * 1000;
+}
+
+function formatDateDivider(date: Date): string {
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+  if (date.toDateString() === today.toDateString()) return 'Today';
+  if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+  return date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
 export function ChannelFeed() {
@@ -30,8 +41,10 @@ export function ChannelFeed() {
   const { user } = useAuthStore();
   const [content, setContent] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showJumpToBottom, setShowJumpToBottom] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const scrollViewportRef = useRef<HTMLDivElement | null>(null);
 
   const activeChannel = channels.find(c => c.id === activeChannelId);
 
@@ -42,6 +55,30 @@ export function ChannelFeed() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [posts.length]);
+
+  // Track scroll position for "jump to bottom" button
+  useEffect(() => {
+    const viewport = scrollViewportRef.current;
+    if (!viewport) return;
+    const handleScroll = () => {
+      const distanceFromBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight;
+      setShowJumpToBottom(distanceFromBottom > 200);
+    };
+    viewport.addEventListener('scroll', handleScroll, { passive: true });
+    return () => viewport.removeEventListener('scroll', handleScroll);
+  }, [posts.length]);
+
+  const scrollViewportCallback = useCallback((node: HTMLDivElement | null) => {
+    if (node) {
+      // ScrollArea wraps its viewport; find it
+      const viewport = node.querySelector('[data-radix-scroll-area-viewport]') as HTMLDivElement | null;
+      scrollViewportRef.current = viewport;
+    }
+  }, []);
+
+  const jumpToBottom = () => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   // Auto-resize textarea
   const autoResize = useCallback(() => {
@@ -96,44 +133,73 @@ export function ChannelFeed() {
       </div>
 
       {/* Messages */}
-      <ScrollArea className="flex-1">
-        <div className="py-2">
-          {isLoading ? (
-            <div className="space-y-3 px-4 py-4">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="flex items-start gap-3">
-                  <Skeleton className="h-8 w-8 rounded-full flex-shrink-0" />
-                  <div className="flex-1 space-y-1.5">
-                    <Skeleton className="h-3 w-24" />
-                    <Skeleton className="h-4 w-full" />
+      <div className="flex-1 relative min-h-0">
+        <ScrollArea ref={scrollViewportCallback} className="h-full">
+          <div className="py-2">
+            {isLoading ? (
+              <div className="space-y-3 px-4 py-4">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} className="flex items-start gap-3">
+                    <Skeleton className="h-8 w-8 rounded-full flex-shrink-0" />
+                    <div className="flex-1 space-y-1.5">
+                      <Skeleton className="h-3 w-24" />
+                      <Skeleton className="h-4 w-full" />
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          ) : posts.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-center px-4">
-              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mb-3">
-                <Hash className="w-5 h-5 text-primary" />
+                ))}
               </div>
-              <h3 className="font-semibold text-sm mb-1">This is the start of #{activeChannel?.name || 'general'}</h3>
-              <p className="text-xs text-muted-foreground max-w-xs">
-                {activeChannel?.description || 'Be the first to post in this channel!'}
-              </p>
-            </div>
-          ) : (
-            <div>
-              {posts.map((post, index) => {
-                const prev = index > 0 ? posts[index - 1] : null;
-                const grouped = shouldGroup(post, prev);
-                return (
-                  <MessageItem key={post.id} post={post} grouped={grouped} />
-                );
-              })}
-            </div>
-          )}
-          <div ref={bottomRef} />
-        </div>
-      </ScrollArea>
+            ) : posts.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center px-4">
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mb-3">
+                  <Hash className="w-5 h-5 text-primary" />
+                </div>
+                <h3 className="font-semibold text-sm mb-1">This is the start of #{activeChannel?.name || 'general'}</h3>
+                <p className="text-xs text-muted-foreground max-w-xs">
+                  {activeChannel?.description || 'Be the first to post in this channel!'}
+                </p>
+              </div>
+            ) : (
+              <div>
+                {posts.map((post, index) => {
+                  const prev = index > 0 ? posts[index - 1] : null;
+                  const grouped = shouldGroup(post, prev);
+                  const showDateDivider =
+                    !prev ||
+                    new Date(post.created_at).toDateString() !== new Date(prev.created_at).toDateString();
+                  return (
+                    <div key={post.id}>
+                      {showDateDivider && (
+                        <div className="flex items-center gap-3 px-4 py-3" role="separator">
+                          <div className="flex-1 h-px bg-border" />
+                          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                            {formatDateDivider(new Date(post.created_at))}
+                          </span>
+                          <div className="flex-1 h-px bg-border" />
+                        </div>
+                      )}
+                      <MessageItem post={post} grouped={grouped && !showDateDivider} />
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            <div ref={bottomRef} />
+          </div>
+        </ScrollArea>
+
+        {/* Jump to bottom button */}
+        {showJumpToBottom && (
+          <Button
+            size="icon"
+            variant="secondary"
+            onClick={jumpToBottom}
+            className="absolute bottom-3 right-3 h-9 w-9 rounded-full shadow-lg border border-border z-10"
+            aria-label="Jump to latest"
+          >
+            <ArrowDown className="w-4 h-4" />
+          </Button>
+        )}
+      </div>
 
       {/* Message Input — sleek pill bar */}
       <div className="px-3 py-2 border-t border-border bg-background flex-shrink-0">
