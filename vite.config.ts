@@ -17,12 +17,10 @@ export default defineConfig(({ mode }) => ({
     react(),
     mode === "development" && componentTagger(),
     mode === "production" && VitePWA({
-      registerType: "autoUpdate",
+      registerType: "prompt",
       includeAssets: ["favicon.ico", "robots.txt"],
       workbox: {
         importScripts: ['/custom-sw.js'],
-        skipWaiting: true,
-        clientsClaim: true,
         navigateFallbackDenylist: [/^\/~oauth/],
         globPatterns: ["**/*.{html,ico,png,svg,woff2}"],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
