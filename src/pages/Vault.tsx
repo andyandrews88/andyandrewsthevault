@@ -51,12 +51,14 @@ export function VaultDashboard() {
   // Filter tabs based on admin status
   const visibleTabs = VAULT_TABS.filter(tab => !tab.adminOnly || isAdmin);
 
+  const isImmersiveChat = activeTab === 'community';
+
   return (
-    <div className="min-h-screen pt-6 md:pt-24 pb-20 md:pb-12">
+    <div className={isImmersiveChat ? "min-h-screen md:pt-24 md:pb-12" : "min-h-screen pt-6 md:pt-24 pb-20 md:pb-12"}>
       <OnboardingWalkthrough onComplete={handleOnboardingComplete} onTabChange={handleTabChange} currentTab={activeTab} />
-      <div className="container mx-auto px-4 md:px-6 max-w-6xl">
-        {/* Mobile compact top bar */}
-        <div className="flex md:hidden items-center justify-between mb-3">
+      <div className={isImmersiveChat ? "md:container md:mx-auto md:px-6 md:max-w-6xl" : "container mx-auto px-4 md:px-6 max-w-6xl"}>
+        {/* Mobile compact top bar — hidden in immersive chat mode */}
+        <div className={`${isImmersiveChat ? 'hidden' : 'flex'} md:hidden items-center justify-between mb-3 px-4`}>
           <img
             src={logo}
             alt="Andy Andrews"

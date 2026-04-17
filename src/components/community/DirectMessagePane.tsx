@@ -3,10 +3,19 @@ import { formatDistanceToNow } from 'date-fns';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { Send, Mail, ArrowLeft } from 'lucide-react';
+import { Send, Mail, ArrowLeft, ArrowDown } from 'lucide-react';
 import { useCommunityStore } from '@/stores/communityStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useAdminCheck } from '@/hooks/useAdminCheck';
+
+function formatDmDateDivider(date: Date): string {
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+  if (date.toDateString() === today.toDateString()) return 'Today';
+  if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+  return date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+}
 
 interface DirectMessagePaneProps {
   conversationPartnerId: string;
@@ -19,8 +28,10 @@ export function DirectMessagePane({ conversationPartnerId }: DirectMessagePanePr
   const [partnerProfile, setPartnerProfile] = useState<any>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const scrollViewportRef = useRef<HTMLDivElement | null>(null);
   const [reply, setReply] = useState('');
   const [sending, setSending] = useState(false);
+  const [showJumpToBottom, setShowJumpToBottom] = useState(false);
 
   const conversationMessages = directMessages.filter(
     dm =>
@@ -36,6 +47,24 @@ export function DirectMessagePane({ conversationPartnerId }: DirectMessagePanePr
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [conversationMessages.length]);
+
+  useEffect(() => {
+    const viewport = scrollViewportRef.current;
+    if (!viewport) return;
+    const handleScroll = () => {
+      const distanceFromBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight;
+      setShowJumpToBottom(distanceFromBottom > 200);
+    };
+    viewport.addEventListener('scroll', handleScroll, { passive: true });
+    return () => viewport.removeEventListener('scroll', handleScroll);
+  }, [conversationMessages.length]);
+
+  const scrollViewportCallback = useCallback((node: HTMLDivElement | null) => {
+    if (node) {
+      const viewport = node.querySelector('[data-radix-scroll-area-viewport]') as HTMLDivElement | null;
+      scrollViewportRef.current = viewport;
+    }
+  }, []);
 
   const autoResize = useCallback(() => {
     const el = textareaRef.current;
@@ -132,54 +161,82 @@ export function DirectMessagePane({ conversationPartnerId }: DirectMessagePanePr
     <div className="flex flex-col h-full">
       {renderHeader()}
 
-      <ScrollArea className="flex-1">
-        <div className="py-2 space-y-1">
-          {conversationMessages.map((dm, index) => {
-            const isFromMe = dm.from_user_id === user?.id;
-            const senderName = isFromMe ? 'You' : partnerName;
-            const initials = senderName.slice(0, 2).toUpperCase();
+      <div className="flex-1 relative min-h-0">
+        <ScrollArea ref={scrollViewportCallback} className="h-full">
+          <div className="py-2 space-y-1">
+            {conversationMessages.map((dm, index) => {
+              const isFromMe = dm.from_user_id === user?.id;
+              const senderName = isFromMe ? 'You' : partnerName;
+              const initials = senderName.slice(0, 2).toUpperCase();
 
-            // Grouping
-            const prev = index > 0 ? conversationMessages[index - 1] : null;
-            const sameUser = prev && prev.from_user_id === dm.from_user_id;
-            const timeDiff = prev ? new Date(dm.created_at).getTime() - new Date(prev.created_at).getTime() : Infinity;
-            const grouped = sameUser && timeDiff < 5 * 60 * 1000;
+              const prev = index > 0 ? conversationMessages[index - 1] : null;
+              const sameUser = prev && prev.from_user_id === dm.from_user_id;
+              const sameDay = prev
+                ? new Date(prev.created_at).toDateString() === new Date(dm.created_at).toDateString()
+                : false;
+              const timeDiff = prev ? new Date(dm.created_at).getTime() - new Date(prev.created_at).getTime() : Infinity;
+              const grouped = sameUser && sameDay && timeDiff < 5 * 60 * 1000;
+              const showDateDivider = !prev || !sameDay;
 
-            return (
-              <div key={dm.id} className={`flex items-start gap-3 px-4 ${grouped ? 'py-0.5' : 'py-1.5 mt-1'} ${isFromMe ? 'flex-row-reverse' : ''}`}>
-                {grouped ? (
-                  <div className="w-6 flex-shrink-0" />
-                ) : (
-                  <Avatar className="h-6 w-6 flex-shrink-0">
-                    <AvatarImage src={isFromMe ? undefined : partnerProfile?.avatar_url || undefined} />
-                    <AvatarFallback className={`text-[10px] ${!isFromMe ? 'bg-accent/20 text-accent' : 'bg-primary/20 text-primary'}`}>
-                      {initials}
-                    </AvatarFallback>
-                  </Avatar>
-                )}
-                <div className={`max-w-[75%] ${isFromMe ? 'items-end' : ''} flex flex-col`}>
-                  {!grouped && (
-                    <div className={`flex items-center gap-2 mb-0.5 ${isFromMe ? 'flex-row-reverse' : ''}`}>
-                      <span className="text-xs font-semibold">{senderName}</span>
-                      <span className="text-[10px] text-muted-foreground">
-                        {formatDistanceToNow(new Date(dm.created_at), { addSuffix: true })}
+              return (
+                <div key={dm.id}>
+                  {showDateDivider && (
+                    <div className="flex items-center gap-3 px-4 py-3" role="separator">
+                      <div className="flex-1 h-px bg-border" />
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        {formatDmDateDivider(new Date(dm.created_at))}
                       </span>
+                      <div className="flex-1 h-px bg-border" />
                     </div>
                   )}
-                  <div className={`px-3 py-1.5 rounded-xl text-sm leading-relaxed ${
-                    !isFromMe
-                      ? 'bg-secondary/60 text-foreground'
-                      : 'bg-primary/15 text-foreground'
-                  }`}>
-                    {dm.content}
+                  <div className={`flex items-start gap-3 px-4 ${grouped ? 'py-0.5' : 'py-1.5 mt-1'} ${isFromMe ? 'flex-row-reverse' : ''}`}>
+                    {grouped ? (
+                      <div className="w-6 flex-shrink-0" />
+                    ) : (
+                      <Avatar className="h-6 w-6 flex-shrink-0">
+                        <AvatarImage src={isFromMe ? undefined : partnerProfile?.avatar_url || undefined} />
+                        <AvatarFallback className={`text-[10px] ${!isFromMe ? 'bg-accent/20 text-accent' : 'bg-primary/20 text-primary'}`}>
+                          {initials}
+                        </AvatarFallback>
+                      </Avatar>
+                    )}
+                    <div className={`max-w-[75%] ${isFromMe ? 'items-end' : ''} flex flex-col`}>
+                      {!grouped && (
+                        <div className={`flex items-center gap-2 mb-0.5 ${isFromMe ? 'flex-row-reverse' : ''}`}>
+                          <span className="text-xs font-semibold">{senderName}</span>
+                          <span className="text-[10px] text-muted-foreground">
+                            {formatDistanceToNow(new Date(dm.created_at), { addSuffix: true })}
+                          </span>
+                        </div>
+                      )}
+                      <div className={`px-3 py-1.5 rounded-xl text-sm leading-relaxed ${
+                        !isFromMe
+                          ? 'bg-secondary/60 text-foreground'
+                          : 'bg-primary/15 text-foreground'
+                      }`}>
+                        {dm.content}
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
-          <div ref={bottomRef} />
-        </div>
-      </ScrollArea>
+              );
+            })}
+            <div ref={bottomRef} />
+          </div>
+        </ScrollArea>
+
+        {showJumpToBottom && (
+          <Button
+            size="icon"
+            variant="secondary"
+            onClick={() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' })}
+            className="absolute bottom-3 right-3 h-9 w-9 rounded-full shadow-lg border border-border z-10"
+            aria-label="Jump to latest"
+          >
+            <ArrowDown className="w-4 h-4" />
+          </Button>
+        )}
+      </div>
 
       {renderInput()}
     </div>
