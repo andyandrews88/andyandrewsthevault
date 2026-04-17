@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { BOTTOM_NAV_TABS, MORE_MENU_ITEMS } from "@/lib/navigationConstants";
 import { useNotificationStore } from "@/stores/notificationStore";

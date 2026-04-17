@@ -1,7 +1,6 @@
 // vault page entry
 import { Navbar } from "@/components/layout/Navbar";
 import { VaultDashboard } from "@/pages/Vault";
-import { Footer } from "@/components/landing/Footer";
 
 const VaultPage = () => {
   return (
@@ -11,7 +10,7 @@ const VaultPage = () => {
         <Navbar />
       </div>
       <VaultDashboard />
-      <Footer />
+      {/* Footer intentionally omitted — landing-page element, not for in-app */}
     </div>
   );
 };
