@@ -16,8 +16,11 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     mode === "development" && componentTagger(),
-    mode === "production" && VitePWA({
+    VitePWA({
       registerType: "prompt",
+      devOptions: {
+        enabled: false,
+      },
       includeAssets: ["favicon.ico", "robots.txt"],
       workbox: {
         importScripts: ['/custom-sw.js'],
