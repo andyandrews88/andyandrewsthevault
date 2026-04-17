@@ -25,6 +25,24 @@ export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
   const { isAdmin } = useAdminCheck();
   const navigate = useNavigate();
   const [moreOpen, setMoreOpen] = useState(false);
+  const [isVisible, setIsVisible] = useState(true);
+  const lastScrollY = useRef(0);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentY = window.scrollY;
+      const delta = currentY - lastScrollY.current;
+      // Always show near top
+      if (currentY < 80) {
+        setIsVisible(true);
+      } else if (Math.abs(delta) > 8) {
+        setIsVisible(delta < 0); // scrolling up => show
+      }
+      lastScrollY.current = currentY;
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   const handleMoreItem = async (item: (typeof MORE_MENU_ITEMS)[number]) => {
     setMoreOpen(false);
@@ -51,7 +69,10 @@ export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
 
   return (
     <>
-      <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-background/95 backdrop-blur-md md:hidden safe-area-bottom">
+      <nav className={cn(
+        "fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-background/95 backdrop-blur-md md:hidden safe-area-bottom transition-transform duration-200 ease-out",
+        isVisible || moreOpen ? "translate-y-0" : "translate-y-full"
+      )}>
         <div className="flex items-center justify-around h-14 px-1">
           {BOTTOM_NAV_TABS.map((tab) => {
             const Icon = tab.icon;
