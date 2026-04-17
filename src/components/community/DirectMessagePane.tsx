@@ -28,8 +28,10 @@ export function DirectMessagePane({ conversationPartnerId }: DirectMessagePanePr
   const [partnerProfile, setPartnerProfile] = useState<any>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const scrollViewportRef = useRef<HTMLDivElement | null>(null);
   const [reply, setReply] = useState('');
   const [sending, setSending] = useState(false);
+  const [showJumpToBottom, setShowJumpToBottom] = useState(false);
 
   const conversationMessages = directMessages.filter(
     dm =>
