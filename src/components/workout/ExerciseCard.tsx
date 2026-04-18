@@ -47,6 +47,7 @@ interface ExerciseCardProps {
   canMoveUp?: boolean;
   canMoveDown?: boolean;
   libraryMeta?: ExerciseLibraryMeta | null;
+  onLibraryMetaChange?: (exerciseName: string, patch: Partial<ExerciseLibraryMeta>) => void;
 }
 
 function parsePercentageHint(notes: string | null | undefined): string | null {
@@ -95,7 +96,7 @@ function SupersetLinkButton({ exercise, linkableExercises, linkSuperset }: { exe
   );
 }
 
-export const ExerciseCard = React.memo(function ExerciseCard({ exercise, onRemove, allExercises = [], onMoveUp, onMoveDown, canMoveUp = false, canMoveDown = false, libraryMeta }: ExerciseCardProps) {
+export const ExerciseCard = React.memo(function ExerciseCard({ exercise, onRemove, allExercises = [], onMoveUp, onMoveDown, canMoveUp = false, canMoveDown = false, libraryMeta, onLibraryMetaChange }: ExerciseCardProps) {
   const { addSet, removeSet, updateSet, completeSet, loadLastSession, getLastSessionSets, preferredUnit, linkSuperset, unlinkSuperset, replaceExercise } = useWorkoutStore();
   const { isAdmin } = useAdminCheck();
   const isMobile = useIsMobile();
@@ -113,6 +114,31 @@ export const ExerciseCard = React.memo(function ExerciseCard({ exercise, onRemov
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [showReplaceSearch, setShowReplaceSearch] = useState(false);
   const [showActionSheet, setShowActionSheet] = useState(false);
+
+  const handleMetadataChange = (field: string, value: any) => {
+    metadataManuallySet.current = true;
+
+    if (field === 'isTimed') setIsTimed(value);
+    if (field === 'isUnilateral') {
+      setIsUnilateral(value);
+      useWorkoutStore.getState().convertExerciseUnilaterality(exercise.id, value);
+    }
+    if (field === 'videoUrl') setVideoUrl(value);
+    if (field === 'isPlyometric') setIsPlyometric(value);
+    if (field === 'plyoMetric') setPlyoMetric(value);
+    if (field === 'equipmentType') setEquipmentType(value);
+
+    const patch: Partial<ExerciseLibraryMeta> = {};
+    if (field === 'isTimed') patch.is_timed = value;
+    if (field === 'isUnilateral') patch.is_unilateral = value;
+    if (field === 'videoUrl') patch.video_url = value;
+    if (field === 'isPlyometric') patch.is_plyometric = value;
+    if (field === 'plyoMetric') patch.plyo_metric = value;
+    if (field === 'equipmentType') patch.equipment_type = value;
+    if (Object.keys(patch).length) {
+      onLibraryMetaChange?.(exercise.exercise_name, patch);
+    }
+  };
 
   // Auto-collapse when all sets completed
   const allSetsCompleted = useMemo(() => {
@@ -267,18 +293,7 @@ export const ExerciseCard = React.memo(function ExerciseCard({ exercise, onRemov
                   onUnlinkSuperset={() => unlinkSuperset(exercise.id)}
                   onReplace={() => setShowReplaceSearch(true)}
                   onRemove={onRemove}
-                   onMetadataChange={(field, value) => {
-                    metadataManuallySet.current = true;
-                    if (field === 'isTimed') setIsTimed(value);
-                    if (field === 'isUnilateral') {
-                      setIsUnilateral(value);
-                      useWorkoutStore.getState().convertExerciseUnilaterality(exercise.id, value);
-                    }
-                    if (field === 'videoUrl') setVideoUrl(value);
-                    if (field === 'isPlyometric') setIsPlyometric(value);
-                    if (field === 'plyoMetric') setPlyoMetric(value);
-                    if (field === 'equipmentType') setEquipmentType(value);
-                  }}
+                   onMetadataChange={handleMetadataChange}
                 />
               </>
             ) : (
@@ -318,18 +333,7 @@ export const ExerciseCard = React.memo(function ExerciseCard({ exercise, onRemov
                     <RefreshCw className="h-4 w-4 mr-2" />
                     Replace Exercise
                   </DropdownMenuItem>
-                  <AdminExerciseMenu exerciseName={exercise.exercise_name} isAdmin={isAdmin} onMetadataChange={(field, value) => {
-                    metadataManuallySet.current = true;
-                    if (field === 'isTimed') setIsTimed(value);
-                    if (field === 'isUnilateral') {
-                      setIsUnilateral(value);
-                      useWorkoutStore.getState().convertExerciseUnilaterality(exercise.id, value);
-                    }
-                    if (field === 'videoUrl') setVideoUrl(value);
-                    if (field === 'isPlyometric') setIsPlyometric(value);
-                    if (field === 'plyoMetric') setPlyoMetric(value);
-                    if (field === 'equipmentType') setEquipmentType(value);
-                  }} />
+                  <AdminExerciseMenu exerciseName={exercise.exercise_name} isAdmin={isAdmin} onMetadataChange={handleMetadataChange} />
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={onRemove} className="text-destructive">
                     <Trash2 className="h-4 w-4 mr-2" />
