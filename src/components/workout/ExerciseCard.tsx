@@ -35,6 +35,7 @@ export interface ExerciseLibraryMeta {
   is_unilateral: boolean;
   is_plyometric: boolean;
   plyo_metric: string | null;
+  equipment_type?: string | null;
 }
 
 interface ExerciseCardProps {
@@ -105,7 +106,8 @@ export const ExerciseCard = React.memo(function ExerciseCard({ exercise, onRemov
   const [isUnilateral, setIsUnilateral] = useState(false);
   const [isPlyometric, setIsPlyometric] = useState(false);
   const [plyoMetric, setPlyoMetric] = useState<PlyoMetric>('standard');
-  const isBW = isBodyweightExercise(exercise.exercise_name);
+  const [equipmentType, setEquipmentType] = useState<string | null>(null);
+  const isBW = isBodyweightExercise(exercise.exercise_name, equipmentType);
   const metadataManuallySet = useRef(false);
   const [showVideo, setShowVideo] = useState(false);
   const [showAddMenu, setShowAddMenu] = useState(false);
@@ -139,6 +141,7 @@ export const ExerciseCard = React.memo(function ExerciseCard({ exercise, onRemov
         setIsUnilateral(isUnilateralExercise(exercise.exercise_name, libraryMeta.is_unilateral));
         setIsPlyometric(isPlyometricExercise(exercise.exercise_name, libraryMeta.is_plyometric));
         setPlyoMetric(getPlyoMetric(libraryMeta.plyo_metric));
+        setEquipmentType(libraryMeta.equipment_type ?? null);
       }
       return;
     }
@@ -146,7 +149,7 @@ export const ExerciseCard = React.memo(function ExerciseCard({ exercise, onRemov
     const fetchLibrary = async () => {
       const { data } = await supabase
         .from('exercise_library')
-        .select('video_url, is_timed, is_unilateral, is_plyometric, plyo_metric')
+        .select('video_url, is_timed, is_unilateral, is_plyometric, plyo_metric, equipment_type')
         .ilike('name', exercise.exercise_name)
         .maybeSingle();
       if (!cancelled) {
@@ -155,6 +158,7 @@ export const ExerciseCard = React.memo(function ExerciseCard({ exercise, onRemov
         setIsUnilateral(isUnilateralExercise(exercise.exercise_name, (data as any)?.is_unilateral));
         setIsPlyometric(isPlyometricExercise(exercise.exercise_name, (data as any)?.is_plyometric));
         setPlyoMetric(getPlyoMetric((data as any)?.plyo_metric));
+        setEquipmentType((data as any)?.equipment_type ?? null);
       }
     };
     fetchLibrary();
@@ -266,10 +270,14 @@ export const ExerciseCard = React.memo(function ExerciseCard({ exercise, onRemov
                    onMetadataChange={(field, value) => {
                     metadataManuallySet.current = true;
                     if (field === 'isTimed') setIsTimed(value);
-                    if (field === 'isUnilateral') setIsUnilateral(value);
+                    if (field === 'isUnilateral') {
+                      setIsUnilateral(value);
+                      useWorkoutStore.getState().convertExerciseUnilaterality(exercise.id, value);
+                    }
                     if (field === 'videoUrl') setVideoUrl(value);
                     if (field === 'isPlyometric') setIsPlyometric(value);
                     if (field === 'plyoMetric') setPlyoMetric(value);
+                    if (field === 'equipmentType') setEquipmentType(value);
                   }}
                 />
               </>
@@ -313,10 +321,14 @@ export const ExerciseCard = React.memo(function ExerciseCard({ exercise, onRemov
                   <AdminExerciseMenu exerciseName={exercise.exercise_name} isAdmin={isAdmin} onMetadataChange={(field, value) => {
                     metadataManuallySet.current = true;
                     if (field === 'isTimed') setIsTimed(value);
-                    if (field === 'isUnilateral') setIsUnilateral(value);
+                    if (field === 'isUnilateral') {
+                      setIsUnilateral(value);
+                      useWorkoutStore.getState().convertExerciseUnilaterality(exercise.id, value);
+                    }
                     if (field === 'videoUrl') setVideoUrl(value);
                     if (field === 'isPlyometric') setIsPlyometric(value);
                     if (field === 'plyoMetric') setPlyoMetric(value);
+                    if (field === 'equipmentType') setEquipmentType(value);
                   }} />
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={onRemove} className="text-destructive">

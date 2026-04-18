@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { User, Save, ArrowLeft, Camera } from "lucide-react";
+import { User, Save, ArrowLeft, Camera, RefreshCw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -298,6 +298,35 @@ export default function ProfileSettings() {
                     <Save className="w-4 h-4" />
                     {saving ? "Saving..." : "Save Changes"}
                   </Button>
+
+                  <div className="pt-4 border-t border-border/40">
+                    <Button
+                      variant="outline"
+                      className="w-full gap-2"
+                      onClick={async () => {
+                        toast.loading("Checking for updates…", { id: "sw-check" });
+                        try {
+                          const reg = await navigator.serviceWorker?.getRegistration();
+                          if (reg) {
+                            await reg.update();
+                            toast.success("You're on the latest version. If a new build was just published, a refresh prompt will appear shortly.", { id: "sw-check", duration: 5000 });
+                          } else {
+                            toast.message("No service worker registered yet. Reloading…", { id: "sw-check" });
+                            setTimeout(() => window.location.reload(), 800);
+                          }
+                        } catch {
+                          toast.message("Forcing a hard reload…", { id: "sw-check" });
+                          setTimeout(() => window.location.reload(), 500);
+                        }
+                      }}
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                      Check for app updates
+                    </Button>
+                    <p className="text-xs text-muted-foreground mt-2 text-center">
+                      Forces the app to look for a new version right now.
+                    </p>
+                  </div>
                 </>
               )}
             </CardContent>

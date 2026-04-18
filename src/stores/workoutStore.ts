@@ -86,6 +86,11 @@ interface WorkoutState {
   // Superset actions
   linkSuperset: (exerciseId: string, targetExerciseId: string) => Promise<void>;
   unlinkSuperset: (exerciseId: string) => Promise<void>;
+
+  // Convert an exercise's existing sets between bilateral and unilateral (L/R).
+  // Called when admin toggles is_unilateral on the exercise library so existing
+  // workouts immediately reflect the new structure.
+  convertExerciseUnilaterality: (exerciseId: string, toUnilateral: boolean) => Promise<void>;
   
   // Conditioning actions
   addConditioningSet: (exerciseId: string) => Promise<void>;
@@ -597,7 +602,114 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
       });
     }
   },
-  
+
+  /**
+   * Convert an exercise's existing sets between bilateral (single side: null)
+   * and unilateral (paired left/right rows). Called immediately after admin
+   * toggles is_unilateral so the UI updates without a manual refresh.
+   *
+   * - To unilateral: each existing set without a side becomes a pair (L + R)
+   *   sharing the same set_number, weight, reps and completion state.
+   * - From unilateral: pairs collapse back to a single bilateral set,
+   *   preserving the highest weight × highest reps from each pair.
+   */
+  convertExerciseUnilaterality: async (exerciseId: string, toUnilateral: boolean) => {
+    const { exercises } = get();
+    const exercise = exercises.find(e => e.id === exerciseId);
+    if (!exercise) return;
+    const currentSets = (exercise.sets || []).slice().sort((a, b) => a.set_number - b.set_number);
+    if (currentSets.length === 0) return;
+
+    if (toUnilateral) {
+      // Already unilateral? bail
+      if (currentSets.some(s => s.side === 'left' || s.side === 'right')) return;
+
+      // Build new paired rows from each existing bilateral set
+      const newRows = currentSets.flatMap(s => ([
+        {
+          exercise_id: exerciseId,
+          set_number: s.set_number,
+          set_type: s.set_type || 'working',
+          side: 'left' as const,
+          weight: s.weight ?? null,
+          reps: s.reps ?? null,
+          rir: s.rir ?? null,
+          duration_seconds: s.duration_seconds ?? null,
+          is_completed: !!s.is_completed,
+        },
+        {
+          exercise_id: exerciseId,
+          set_number: s.set_number,
+          set_type: s.set_type || 'working',
+          side: 'right' as const,
+          weight: s.weight ?? null,
+          reps: s.reps ?? null,
+          rir: s.rir ?? null,
+          duration_seconds: s.duration_seconds ?? null,
+          is_completed: !!s.is_completed,
+        },
+      ]));
+
+      // Replace in DB: delete old rows, insert new pairs
+      await supabase.from('exercise_sets').delete().eq('exercise_id', exerciseId);
+      const { data: inserted } = await supabase
+        .from('exercise_sets')
+        .insert(newRows)
+        .select();
+
+      if (inserted) {
+        set({
+          exercises: get().exercises.map(e =>
+            e.id === exerciseId
+              ? { ...e, sets: castSets(inserted).sort((a, b) => a.set_number - b.set_number || (a.side === 'left' ? -1 : 1)) }
+              : e
+          )
+        });
+      }
+    } else {
+      // No paired sides? bail (already bilateral)
+      if (!currentSets.some(s => s.side === 'left' || s.side === 'right')) return;
+
+      // Group by set_number; collapse each group into a single bilateral set
+      const grouped = new Map<number, typeof currentSets>();
+      for (const s of currentSets) {
+        const arr = grouped.get(s.set_number) || [];
+        arr.push(s);
+        grouped.set(s.set_number, arr);
+      }
+
+      const collapsed = Array.from(grouped.entries())
+        .sort((a, b) => a[0] - b[0])
+        .map(([setNumber, group]) => ({
+          exercise_id: exerciseId,
+          set_number: setNumber,
+          set_type: group[0].set_type || 'working',
+          side: null,
+          weight: Math.max(...group.map(g => g.weight ?? 0)) || null,
+          reps: Math.max(...group.map(g => g.reps ?? 0)) || null,
+          rir: group[0].rir ?? null,
+          duration_seconds: group[0].duration_seconds ?? null,
+          is_completed: group.every(g => !!g.is_completed),
+        }));
+
+      await supabase.from('exercise_sets').delete().eq('exercise_id', exerciseId);
+      const { data: inserted } = await supabase
+        .from('exercise_sets')
+        .insert(collapsed)
+        .select();
+
+      if (inserted) {
+        set({
+          exercises: get().exercises.map(e =>
+            e.id === exerciseId
+              ? { ...e, sets: castSets(inserted).sort((a, b) => a.set_number - b.set_number) }
+              : e
+          )
+        });
+      }
+    }
+  },
+
   finishWorkout: async () => {
     const { activeWorkout, exercises } = get();
     if (!activeWorkout) return;

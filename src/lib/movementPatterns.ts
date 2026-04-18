@@ -503,7 +503,14 @@ export function getPlyoMetric(dbPlyoMetric?: string | null): PlyoMetric {
 
 const DEFAULT_BODYWEIGHT_KG = 77;
 
-export function isBodyweightExercise(name: string): boolean {
+/**
+ * Check if an exercise is a bodyweight movement.
+ * DB equipment_type='bodyweight' wins; otherwise falls back to hardcoded set.
+ */
+export function isBodyweightExercise(name: string, dbEquipmentType?: string | null): boolean {
+  if (dbEquipmentType === 'bodyweight') return true;
+  // Only allow non-bodyweight DB values to override hardcoded BW classification
+  if (dbEquipmentType && dbEquipmentType !== 'bodyweight') return false;
   return name.toLowerCase().trim() in BODYWEIGHT_EXERCISES;
 }
 

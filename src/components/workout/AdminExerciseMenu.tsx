@@ -125,7 +125,10 @@ export function AdminExerciseMenu({ exerciseName, isAdmin, onMetadataChange }: A
           {EQUIPMENT.map(([key, label]) => (
             <DropdownMenuItem
               key={key}
-              onClick={() => { upsertExerciseLibraryField(exerciseName, { equipment_type: key }); onMetadataChange?.("equipmentType", key); }}
+              onClick={() => {
+                upsertExerciseLibraryField(exerciseName, { equipment_type: key });
+                onMetadataChange?.("equipmentType", key);
+              }}
             >
               {label}
             </DropdownMenuItem>
