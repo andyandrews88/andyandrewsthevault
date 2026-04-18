@@ -2,8 +2,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 /**
- * Upsert a field on exercise_library by exercise name.
+ * Upsert a field on exercise_library by exercise name (case-insensitive).
  * If the exercise doesn't exist, creates a new row.
+ *
+ * Handles unique-violation by retrying as case-insensitive update so
+ * we never end up with duplicate rows like "Bench Press" / "bench press".
  */
 export async function upsertExerciseLibraryField(
   exerciseName: string,
@@ -12,7 +15,7 @@ export async function upsertExerciseLibraryField(
   const name = exerciseName.trim();
   if (!name) return;
 
-  // Check if exists
+  // Case-insensitive lookup
   const { data: existing } = await supabase
     .from('exercise_library')
     .select('id')
@@ -29,7 +32,29 @@ export async function upsertExerciseLibraryField(
     const { error } = await supabase
       .from('exercise_library')
       .insert({ name, category: 'strength' as const, ...field });
-    if (error) { toast.error(error.message); return; }
+    if (error) {
+      // If unique violation (case-insensitive index), retry as update
+      if (error.code === '23505' || /duplicate key|unique/i.test(error.message)) {
+        const { data: again } = await supabase
+          .from('exercise_library')
+          .select('id')
+          .ilike('name', name)
+          .maybeSingle();
+        if (again) {
+          const { error: updErr } = await supabase
+            .from('exercise_library')
+            .update(field)
+            .eq('id', again.id);
+          if (updErr) { toast.error(updErr.message); return; }
+        } else {
+          toast.error(error.message);
+          return;
+        }
+      } else {
+        toast.error(error.message);
+        return;
+      }
+    }
   }
 
   const fieldName = Object.keys(field)[0];

@@ -1,6 +1,14 @@
 // Custom service worker for Web Push notifications
 // This file is imported by the VitePWA-generated service worker
 
+// Listen for SKIP_WAITING message — required for the "prompt" update pattern
+// so updateServiceWorker(true) can activate the new worker immediately.
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
 self.addEventListener('push', (event) => {
   if (!event.data) return;
 

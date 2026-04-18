@@ -4,8 +4,15 @@ import path from "path";
 import { componentTagger } from "lovable-tagger";
 import { VitePWA } from "vite-plugin-pwa";
 
+// Build-time version stamp — used to detect when a deployed build differs
+// from the cached one running in the user's browser.
+const APP_VERSION = `${Date.now()}`;
+
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
+  define: {
+    __APP_VERSION__: JSON.stringify(APP_VERSION),
+  },
   server: {
     host: "::",
     port: 8080,
@@ -27,15 +34,19 @@ export default defineConfig(({ mode }) => ({
         navigateFallbackDenylist: [/^\/~oauth/],
         globPatterns: ["**/*.{html,ico,png,svg,woff2}"],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+        // Always prefer fresh assets — fall back to cache only after 3s.
+        // This guarantees users get the new build hash quickly, so the SW
+        // detects the update and the refresh prompt fires.
         runtimeCaching: [
           {
             urlPattern: /\.(?:js|css)$/,
             handler: "NetworkFirst",
             options: {
               cacheName: "static-assets",
+              networkTimeoutSeconds: 3,
               expiration: {
                 maxEntries: 100,
-                maxAgeSeconds: 60 * 60,
+                maxAgeSeconds: 5 * 60,
               },
             },
           },
