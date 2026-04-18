@@ -86,6 +86,11 @@ interface WorkoutState {
   // Superset actions
   linkSuperset: (exerciseId: string, targetExerciseId: string) => Promise<void>;
   unlinkSuperset: (exerciseId: string) => Promise<void>;
+
+  // Convert an exercise's existing sets between bilateral and unilateral (L/R).
+  // Called when admin toggles is_unilateral on the exercise library so existing
+  // workouts immediately reflect the new structure.
+  convertExerciseUnilaterality: (exerciseId: string, toUnilateral: boolean) => Promise<void>;
   
   // Conditioning actions
   addConditioningSet: (exerciseId: string) => Promise<void>;
