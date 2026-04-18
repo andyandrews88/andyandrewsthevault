@@ -1,85 +1,81 @@
 
 
-## Plan: Reclaim chat real estate + fix PWA update prompt
+## Plan: Root-cause fix for 3 critical bugs
 
-### Part 1 — My take on the chat (and what I recommend)
+After deep investigation I found root causes for all three issues. None are surface-level — they're architectural.
 
-Your instinct is right. Right now on mobile the chat fills only ~50% of the screen because **four bands of chrome** sit above and below it:
-1. Vault page top padding + mobile logo bar (~70px)
-2. Community channel header (36px)
-3. Bottom nav (56px)
-4. Footer with Privacy/Terms/Contact (~120px) — yes, this renders on `/vault` too, **below the bottom nav**. That's the main culprit you're seeing.
+---
 
-I cross-checked Slack, Discord, WhatsApp, iMessage and Telegram. **None** of them show a footer or persistent top bar inside the chat. The pattern is: edge-to-edge messages, slim header, slim composer, nav auto-hides on scroll. Here's what I recommend, ranked:
+### Bug 1 — PWA never prompts users to refresh (CRITICAL)
 
-**Option A — Recommended: "Immersive chat mode"**
-When the Community tab is active on mobile:
-- Hide the landing-page Footer entirely (it's irrelevant inside the app)
-- Hide the Vault page top bar (logo + member chip)
-- Auto-hide the BottomNav on scroll-down, reveal on scroll-up (WhatsApp/Telegram pattern)
-- Result: chat takes ~95% of the viewport. Composer pinned to bottom.
+**Root cause:** The `vite-plugin-pwa` "prompt" mode has a known issue where `needRefresh` only fires if the new SW completes installation **and** detects `controller` already exists. In our config:
+- `workbox.importScripts: ['/custom-sw.js']` injects custom code, but `skipWaiting` was removed → new SW gets stuck in "waiting" state forever
+- The runtime cache rule `urlPattern: /\.(?:js|css)$/` with `NetworkFirst` + 1hr expiration means users keep getting cached JS bundles for up to 60 minutes, hiding the new build hash from the SW
+- No registration call exists in `main.tsx` — `useServiceWorkerUpdate` is mounted inside `<App>`, so it only registers AFTER React boots from cached HTML
 
-**Option B — Lighter touch**
-Just hide the Footer on `/vault` and auto-hide BottomNav globally. Keep top bar. Gains ~25% more space.
+**Fix (proper, not a patch):**
+1. Move SW registration into `main.tsx` so it fires before React renders (matches Notion/Linear pattern)
+2. Switch runtime caching for `.js`/`.css` to **`NetworkFirst` with `networkTimeoutSeconds: 3`** and 5-minute max age — this guarantees fresh assets while keeping offline fallback
+3. Add a **build-time version stamp** (`__APP_VERSION__` injected via Vite `define`) and check it on app load against the running version — if mismatched, force-show the refresh toast (belt-and-braces)
+4. In the SW, add `self.skipWaiting()` listener so `updateServiceWorker(true)` actually activates the new worker
+5. Add an explicit "Check for updates" button in Profile Settings so users can manually trigger
 
-**Option C — Full-screen toggle**
-Add an "expand" button in the channel header that pushes chat to full screen with a slim back arrow.
+Files: `vite.config.ts`, `src/main.tsx`, `src/hooks/useServiceWorkerUpdate.ts`, `public/custom-sw.js`, `src/pages/ProfileSettings.tsx`
 
-I'd ship **A** as the default, since the Footer genuinely shouldn't render inside an authenticated app — it's a landing-page element.
+---
 
-### Part 2 — Other world-class chat upgrades worth adding now
+### Bug 2 — Bodyweight toggle doesn't change UI (root cause: dual source of truth)
 
-Cheap wins that match Slack/Discord and would noticeably elevate the feel:
+**Root cause:** The `ExerciseCard` derives `isBW` from a **hardcoded** function `isBodyweightExercise(name)` that checks a static map in `movementPatterns.ts`. Meanwhile the admin menu writes `equipment_type: 'bodyweight'` to the **DB** — but nothing reads it back. They're two disconnected systems.
 
-1. **Date dividers** — "Today", "Yesterday", "Wed, Apr 15" between message groups
-2. **Unread indicator** — a thin red line + "New messages" pill where you last left off
-3. **"Jump to bottom" button** — appears when scrolled up, like Discord
-4. **Typing indicator** — "Andy is typing…" via realtime presence
-5. **Hover/long-press reactions bar** — quick emoji reactions (👍 ❤️ 🔥) on each message
-6. **@mentions autocomplete** — `@` triggers a member dropdown, mentioned user gets a notification
+Additionally: `isTimed`, `isUnilateral`, `isPlyometric` all properly check DB-first then fallback to hardcoded — but `isBodyweight` does NOT have an `equipmentType` parameter at all.
 
-I'd suggest shipping **1, 2, 3** with the layout fix (they're presentation-only, no schema change) and saving 4–6 for a follow-up since they need DB work.
+**Fix (root-cause):**
+1. Add `equipment_type` to the batch-fetched `libraryMeta` and the per-exercise fetch in `ExerciseCard`
+2. Add new `isBodyweightFromMeta(name, dbEquipmentType)` function in `movementPatterns.ts` — DB value of `'bodyweight'` always wins
+3. Pass `equipmentType` through `AdminExerciseMenu` / `ExerciseActionSheet` `onMetadataChange` so the UI updates **immediately** (optimistic) without waiting for re-fetch
+4. Extend `ExerciseCard`'s `metadataManuallySet` ref to also handle `equipmentType` so the next DB fetch doesn't overwrite the optimistic state
 
-### Part 3 — Why the published app isn't updating
+---
 
-I traced this. The PWA setup has two problems:
+### Bug 3 — Unilateral toggle doesn't restructure the set rows
 
-1. `vite.config.ts` uses `registerType: "autoUpdate"` with `skipWaiting: true` + `clientsClaim: true`. This makes the new service worker take over **silently** in the background. There's no `onNeedRefresh` callback, so `useServiceWorkerUpdate` never fires the toast.
-2. `useServiceWorkerUpdate` listens to `controllerchange`, which only fires *after* the new SW has already activated — by then the user has been served the old cached HTML and won't see the prompt until next reload. So the toast effectively never shows.
+**Root cause:** Toggling unilateral in admin updates the DB and `isUnilateral` state — but the **existing sets** stay as bilateral (no `side` column). The `addSet` function checks `isUnilateral` only when *creating new* sets. Existing sets render without L/R labels because their `side` is null.
 
-The fix is the standard `vite-plugin-pwa` prompt pattern:
-- Switch `registerType` to `"prompt"` 
-- Replace `useServiceWorkerUpdate` with the official `useRegisterSW` hook from `virtual:pwa-register/react`, wired to `onNeedRefresh` → show toast → `updateSW(true)` on tap.
-- Also add a 60-second auto-check (`registration.update()`) so users on a long session pick up new releases without restarting.
+**Fix (root-cause):**
+1. When admin toggles `is_unilateral: true`, automatically convert existing bilateral sets — for each set with no side, create a paired left/right set (or prompt user)
+2. When toggling `is_unilateral: false`, collapse paired L/R sets back into single sets
+3. Add a `convertExerciseUnilaterality(exerciseId, toUnilateral)` action in `workoutStore` that handles the migration in a single DB transaction
+4. Wire the admin menu's unilateral toggle to call this conversion immediately after the DB upsert
 
-This is the same pattern used by Notion, Linear, and Cal.com PWAs.
+---
+
+### Bug 4 (bonus) — Duplicate-key error in screenshot
+
+**Root cause:** `exercise_library` has a UNIQUE INDEX on `name` (case-sensitive). Admin menu does `ilike` lookup (case-insensitive) but inserts the exact-case name. So "Half Kneeling Landmine Press" and "Half kneeling landmine press" both exist as separate rows, and a 3rd attempt with a different case throws.
+
+**Fix:** In `upsertExerciseLibraryField`:
+1. If `ilike` finds an existing row, update that row (already does this) — but **also** normalize the lookup so we never insert a near-duplicate
+2. If insert fails with unique-violation, retry as case-insensitive update
+3. (Migration) Convert the unique index to be on `lower(name)` so the DB enforces what the app intends
+
+---
 
 ### Files to edit
-
-**Layout / chat space (3 files)**
-- `src/pages/VaultPage.tsx` — don't render `<Footer />` (it's an in-app page, not landing). Optionally only hide on mobile.
-- `src/pages/Vault.tsx` — when `activeTab === 'community'` on mobile, hide the top logo bar + remove the bottom padding so chat goes edge-to-edge
-- `src/components/layout/BottomNav.tsx` — add scroll-direction auto-hide (transform translate-y on scroll-down, reveal on scroll-up). Disable on desktop.
-
-**Chat polish (2 files)**
-- `src/components/community/ChannelFeed.tsx` — add date dividers between messages, "Jump to bottom" floating button when scrolled up >200px, and unread separator line
-- `src/components/community/DirectMessagePane.tsx` — same date dividers + jump-to-bottom
-
-**PWA update prompt (3 files)**
-- `vite.config.ts` — change `registerType: "autoUpdate"` → `"prompt"`, remove `skipWaiting` + `clientsClaim` from workbox (let user trigger update)
-- `src/hooks/useServiceWorkerUpdate.ts` — rewrite using `useRegisterSW` from `virtual:pwa-register/react`; toast on `onNeedRefresh`, call `updateSW(true)` on tap. Add periodic 60s `registration.update()` check.
-- `src/vite-env.d.ts` — add `/// <reference types="vite-plugin-pwa/react" />` so the virtual module types resolve
+- `vite.config.ts` — runtime cache strategy, define `__APP_VERSION__`
+- `src/main.tsx` — pre-React SW registration + version check
+- `src/hooks/useServiceWorkerUpdate.ts` — version-mismatch fallback toast
+- `public/custom-sw.js` — `skipWaiting` message listener
+- `src/pages/ProfileSettings.tsx` — manual "Check for updates" button
+- `src/lib/movementPatterns.ts` — add `isBodyweightFromMeta(name, dbEquipmentType)`
+- `src/lib/exerciseLibraryUpsert.ts` — case-insensitive upsert with unique-violation fallback
+- `src/components/workout/ExerciseCard.tsx` — fetch + use `equipment_type` from library; wire `equipmentType` through optimistic updates
+- `src/components/workout/AdminExerciseMenu.tsx` & `ExerciseActionSheet.tsx` — call new convert action on unilateral toggle; emit `equipmentType` change
+- `src/stores/workoutStore.ts` — new `convertExerciseUnilaterality(exerciseId, toUnilateral)` action
+- New SQL migration — `CREATE UNIQUE INDEX exercise_library_name_lower_unique ON exercise_library (lower(name))` and drop the old case-sensitive one
 
 ### What does NOT change
-- No DB / RLS changes
-- No store / realtime logic changes
-- No new dependencies (`vite-plugin-pwa` already installed)
-- Desktop layout untouched
-- Landing page (`/`) keeps its footer
-
-### Technical notes
-- Auto-hide nav uses `useEffect` with `window.scrollY` delta; threshold 8px to avoid jitter; transition `transform 200ms ease-out`
-- Date dividers: compare `new Date(prev.created_at).toDateString()` with current; render a centered chip when different
-- Jump-to-bottom: track scroll position on the ScrollArea viewport; show button if `scrollHeight - scrollTop - clientHeight > 200`
-- `useRegisterSW` returns `{ needRefresh, updateServiceWorker }`; we drive a sonner toast with `duration: Infinity` and an action that calls `updateServiceWorker(true)` (true = reload after activation)
+- No changes to data model fields (only the index)
+- No changes to existing completed workout sets' history
+- No store/realtime logic outside of unilateral conversion
 
