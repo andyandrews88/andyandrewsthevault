@@ -270,10 +270,14 @@ export const ExerciseCard = React.memo(function ExerciseCard({ exercise, onRemov
                    onMetadataChange={(field, value) => {
                     metadataManuallySet.current = true;
                     if (field === 'isTimed') setIsTimed(value);
-                    if (field === 'isUnilateral') setIsUnilateral(value);
+                    if (field === 'isUnilateral') {
+                      setIsUnilateral(value);
+                      useWorkoutStore.getState().convertExerciseUnilaterality(exercise.id, value);
+                    }
                     if (field === 'videoUrl') setVideoUrl(value);
                     if (field === 'isPlyometric') setIsPlyometric(value);
                     if (field === 'plyoMetric') setPlyoMetric(value);
+                    if (field === 'equipmentType') setEquipmentType(value);
                   }}
                 />
               </>
@@ -317,10 +321,14 @@ export const ExerciseCard = React.memo(function ExerciseCard({ exercise, onRemov
                   <AdminExerciseMenu exerciseName={exercise.exercise_name} isAdmin={isAdmin} onMetadataChange={(field, value) => {
                     metadataManuallySet.current = true;
                     if (field === 'isTimed') setIsTimed(value);
-                    if (field === 'isUnilateral') setIsUnilateral(value);
+                    if (field === 'isUnilateral') {
+                      setIsUnilateral(value);
+                      useWorkoutStore.getState().convertExerciseUnilaterality(exercise.id, value);
+                    }
                     if (field === 'videoUrl') setVideoUrl(value);
                     if (field === 'isPlyometric') setIsPlyometric(value);
                     if (field === 'plyoMetric') setPlyoMetric(value);
+                    if (field === 'equipmentType') setEquipmentType(value);
                   }} />
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={onRemove} className="text-destructive">
