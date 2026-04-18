@@ -129,36 +129,73 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
     fetchWorkoutDays(12);
   }, [fetchActiveWorkout, fetchPersonalRecords, fetchWorkoutDays]);
 
-  // Batch-fetch exercise library metadata for all exercises in the active workout
+  // Always refresh exercise metadata for the current workout so admin changes
+  // persist when the user leaves and returns to the screen.
   useEffect(() => {
-    if (!exercises.length) return;
-    const names = [...new Set(exercises.map(e => e.exercise_name))];
-    // Only fetch names not already cached
-    const missing = names.filter(n => !libraryMetaMap[n.toLowerCase()]);
-    if (!missing.length) return;
+    if (!exercises.length) {
+      setLibraryMetaMap({});
+      return;
+    }
+
+    let cancelled = false;
+    const names = [...new Set(exercises.map((e) => e.exercise_name))];
+
     const fetchMeta = async () => {
       const { data } = await supabase
         .from('exercise_library')
-        .select('name, video_url, is_timed, is_unilateral, is_plyometric, plyo_metric')
-        .in('name', missing);
-      if (data) {
-        const map: Record<string, ExerciseLibraryMeta> = { ...libraryMetaMap };
-        data.forEach(d => {
-          map[d.name.toLowerCase()] = {
-            video_url: d.video_url,
-            is_timed: d.is_timed,
-            is_unilateral: d.is_unilateral,
-            is_plyometric: d.is_plyometric,
-            plyo_metric: d.plyo_metric,
-          };
-        });
-        // Mark missing names with no DB entry as null-resolved
-        missing.forEach(n => { if (!map[n.toLowerCase()]) map[n.toLowerCase()] = { video_url: null, is_timed: false, is_unilateral: false, is_plyometric: false, plyo_metric: null }; });
-        setLibraryMetaMap(map);
-      }
+        .select('name, video_url, is_timed, is_unilateral, is_plyometric, plyo_metric, equipment_type')
+        .in('name', names);
+
+      if (cancelled) return;
+
+      const nextMap: Record<string, ExerciseLibraryMeta> = {};
+      names.forEach((name) => {
+        nextMap[name.toLowerCase()] = {
+          video_url: null,
+          is_timed: false,
+          is_unilateral: false,
+          is_plyometric: false,
+          plyo_metric: null,
+          equipment_type: null,
+        };
+      });
+
+      (data || []).forEach((entry) => {
+        nextMap[entry.name.toLowerCase()] = {
+          video_url: entry.video_url,
+          is_timed: entry.is_timed,
+          is_unilateral: entry.is_unilateral,
+          is_plyometric: entry.is_plyometric,
+          plyo_metric: entry.plyo_metric,
+          equipment_type: entry.equipment_type,
+        };
+      });
+
+      setLibraryMetaMap(nextMap);
     };
+
     fetchMeta();
-  }, [exercises.map(e => e.exercise_name).join(',')]);
+    return () => {
+      cancelled = true;
+    };
+  }, [exercises]);
+
+  const handleLibraryMetaChange = useCallback((exerciseName: string, patch: Partial<ExerciseLibraryMeta>) => {
+    const key = exerciseName.toLowerCase();
+    setLibraryMetaMap((prev) => ({
+      ...prev,
+      [key]: {
+        video_url: null,
+        is_timed: false,
+        is_unilateral: false,
+        is_plyometric: false,
+        plyo_metric: null,
+        equipment_type: null,
+        ...prev[key],
+        ...patch,
+      },
+    }));
+  }, []);
 
   useEffect(() => {
     fetchWorkoutByDate(selectedDate);
@@ -429,6 +466,7 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
                   canMoveUp={gIdx > 0}
                   canMoveDown={gIdx < sorted.length - 1}
                   libraryMeta={libraryMetaMap[ex.exercise_name.toLowerCase()] ?? undefined}
+                  onLibraryMetaChange={handleLibraryMetaChange}
                 />
               );
             })}
@@ -456,7 +494,8 @@ export function WorkoutLogger({ onBack }: WorkoutLoggerProps) {
               onMoveDown={moveDown}
               canMoveUp={canUp}
               canMoveDown={canDown}
-              libraryMeta={libraryMetaMap[exercise.exercise_name.toLowerCase()] ?? undefined}
+                libraryMeta={libraryMetaMap[exercise.exercise_name.toLowerCase()] ?? undefined}
+                onLibraryMetaChange={handleLibraryMetaChange}
             />
           )
         );
