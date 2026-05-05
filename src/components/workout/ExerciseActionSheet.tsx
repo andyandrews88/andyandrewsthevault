@@ -52,12 +52,13 @@ interface ExerciseActionSheetProps {
   onReplace: () => void;
   onRemove: () => void;
   onMetadataChange?: (field: string, value: any) => void;
+  onViewHistory?: () => void;
 }
 
 export function ExerciseActionSheet({
   open, onOpenChange, exercise, isAdmin, isSupersetted,
   linkableExercises, onLoadLastSession, isLoadingPrevious,
-  onLinkSuperset, onUnlinkSuperset, onReplace, onRemove, onMetadataChange,
+  onLinkSuperset, onUnlinkSuperset, onReplace, onRemove, onMetadataChange, onViewHistory,
 }: ExerciseActionSheetProps) {
   const [showVideoDialog, setShowVideoDialog] = useState(false);
   const [videoUrlInput, setVideoUrlInput] = useState("");
