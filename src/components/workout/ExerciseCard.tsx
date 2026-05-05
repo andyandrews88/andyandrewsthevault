@@ -19,6 +19,7 @@ import { WorkoutExercise } from "@/types/workout";
 import { SetRow } from "./SetRow";
 import { ExerciseSearch } from "./ExerciseSearch";
 import { ExerciseActionSheet } from "./ExerciseActionSheet";
+import { ExerciseHistorySheet } from "./ExerciseHistorySheet";
 import { useWorkoutStore } from "@/stores/workoutStore";
 import { supabase } from "@/integrations/supabase/client";
 import { toEmbedUrl } from "@/lib/vaultService";
@@ -114,6 +115,7 @@ export const ExerciseCard = React.memo(function ExerciseCard({ exercise, onRemov
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [showReplaceSearch, setShowReplaceSearch] = useState(false);
   const [showActionSheet, setShowActionSheet] = useState(false);
+  const [showHistorySheet, setShowHistorySheet] = useState(false);
 
   const handleMetadataChange = (field: string, value: any) => {
     metadataManuallySet.current = true;
@@ -294,6 +296,7 @@ export const ExerciseCard = React.memo(function ExerciseCard({ exercise, onRemov
                   onReplace={() => setShowReplaceSearch(true)}
                   onRemove={onRemove}
                    onMetadataChange={handleMetadataChange}
+                   onViewHistory={() => setShowHistorySheet(true)}
                 />
               </>
             ) : (
@@ -304,6 +307,10 @@ export const ExerciseCard = React.memo(function ExerciseCard({ exercise, onRemov
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setShowHistorySheet(true)}>
+                    <History className="h-4 w-4 mr-2" />
+                    View History
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={handleLoadLastSession} disabled={isLoadingPrevious}>
                     <History className="h-4 w-4 mr-2" />
                     Load Last Session
@@ -461,6 +468,12 @@ export const ExerciseCard = React.memo(function ExerciseCard({ exercise, onRemov
         onOpenChange={setShowReplaceSearch}
         onSelectExercise={(name) => replaceExercise(exercise.id, name)}
         mode="replace"
+      />
+
+      <ExerciseHistorySheet
+        open={showHistorySheet}
+        onOpenChange={setShowHistorySheet}
+        exerciseName={exercise.exercise_name}
       />
     </Card>
     </Collapsible>
