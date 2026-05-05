@@ -296,6 +296,7 @@ export const ExerciseCard = React.memo(function ExerciseCard({ exercise, onRemov
                   onReplace={() => setShowReplaceSearch(true)}
                   onRemove={onRemove}
                    onMetadataChange={handleMetadataChange}
+                   onViewHistory={() => setShowHistorySheet(true)}
                 />
               </>
             ) : (
@@ -306,6 +307,10 @@ export const ExerciseCard = React.memo(function ExerciseCard({ exercise, onRemov
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setShowHistorySheet(true)}>
+                    <History className="h-4 w-4 mr-2" />
+                    View History
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={handleLoadLastSession} disabled={isLoadingPrevious}>
                     <History className="h-4 w-4 mr-2" />
                     Load Last Session
@@ -463,6 +468,12 @@ export const ExerciseCard = React.memo(function ExerciseCard({ exercise, onRemov
         onOpenChange={setShowReplaceSearch}
         onSelectExercise={(name) => replaceExercise(exercise.id, name)}
         mode="replace"
+      />
+
+      <ExerciseHistorySheet
+        open={showHistorySheet}
+        onOpenChange={setShowHistorySheet}
+        exerciseName={exercise.exercise_name}
       />
     </Card>
     </Collapsible>
