@@ -19,6 +19,7 @@ import { WorkoutExercise } from "@/types/workout";
 import { SetRow } from "./SetRow";
 import { ExerciseSearch } from "./ExerciseSearch";
 import { ExerciseActionSheet } from "./ExerciseActionSheet";
+import { ExerciseHistorySheet } from "./ExerciseHistorySheet";
 import { useWorkoutStore } from "@/stores/workoutStore";
 import { supabase } from "@/integrations/supabase/client";
 import { toEmbedUrl } from "@/lib/vaultService";
@@ -114,6 +115,7 @@ export const ExerciseCard = React.memo(function ExerciseCard({ exercise, onRemov
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [showReplaceSearch, setShowReplaceSearch] = useState(false);
   const [showActionSheet, setShowActionSheet] = useState(false);
+  const [showHistorySheet, setShowHistorySheet] = useState(false);
 
   const handleMetadataChange = (field: string, value: any) => {
     metadataManuallySet.current = true;
