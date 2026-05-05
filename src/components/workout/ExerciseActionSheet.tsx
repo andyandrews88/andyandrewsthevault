@@ -86,6 +86,13 @@ export function ExerciseActionSheet({
     <>
       <BottomSheetMenu open={open} onOpenChange={onOpenChange} title={exercise.exercise_name}>
         {/* Core actions */}
+        {onViewHistory && (
+          <BottomSheetItem
+            icon={History}
+            label="View History"
+            onClick={() => handleAction(onViewHistory)}
+          />
+        )}
         <BottomSheetItem
           icon={History}
           label="Load Last Session"
