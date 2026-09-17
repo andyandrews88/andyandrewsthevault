@@ -52,11 +52,13 @@ export function Navbar() {
     fetchProfile();
   }, [user]);
 
+  // Active athlete IA: Today | Train | Nutrition | Coach.
+  // Legacy marketing/audit entries retired (routes still exist, just unlinked).
   const navLinks = [
-    { href: "/", label: "Home", icon: Home },
-    { href: "/audit", label: "Audit", icon: FileText },
+    { href: "/vault?tab=dashboard", label: "Today", icon: Home },
+    { href: "/vault?tab=workouts", label: "Train", icon: Lock },
     { href: "/nutrition", label: "Nutrition", icon: Apple },
-    { href: "/vault", label: "Training", icon: Lock },
+    { href: "/vault?tab=coach", label: "Coach", icon: FileText },
   ];
 
   const handleSignOut = async () => {
