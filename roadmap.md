@@ -41,7 +41,7 @@ legacy `WorkoutTab` analytics components retained in repo but no longer routed.
 - [x] Onboarding tour rewritten for the new IA
 - [x] Typecheck + lint clean; mobile verification of all four tabs signed in; no test data written
 
-## Phase 4 — Coach side (built, coach-account verification pending)
+## Phase 4 — Coach side (complete, verified in-app)
 - [x] `/coach` roster: active / archived / invites, search, per-client real activity only
 - [x] Add Client → name + email + tier → `coach-invite` edge function (create/resend/revoke/sync)
 - [x] Archive / restore via relationship status only — no deletes, all history kept
@@ -52,9 +52,19 @@ legacy `WorkoutTab` analytics components retained in repo but no longer routed.
 - [x] Athlete program browsing now driven by curated availability (`CuratedPrograms`)
 - [x] RLS: relationship+tier gated DMs (`can_direct_message`), coach-only movement writes,
       unique relationship pair, unique pending invite, unique availability scope
-- [x] Typecheck clean; integrity counts unchanged vs Phase 4 baseline
-- [ ] End-to-end coach-account run (roster, invite create/resend/revoke, archive/restore,
-      program assign rollback, Tier 2 availability) — blocked on signing in as the coach account
+- [x] Fixed: availability upsert conflict target now matches the 4-column unique scope
+      (`coach_id,program_id,service_tier,client_id`); badge markup nesting corrected
+- [x] End-to-end signed-in run: roster tabs, invite create (new + existing account link),
+      resend, revoke, archive, restore, Tier 1/Tier 2 workspace behaviour, availability toggle
+      persistence, coach-only movement writes, DM entitlement, athlete route guard
+- [x] Multi-coach readiness: templates now have coach-owned RLS policies (admin access kept),
+      `admin-workout-builder` accepts any coach but scopes them to their own clients and templates,
+      session builder page guarded by coach entitlement instead of admin role
+- [x] Program assignment verified end-to-end as a non-admin coach (template → schedule → sessions)
+- [x] All temporary test data removed; integrity counts identical to Phase 4 baseline
+- Known: Supabase linter reports 7 "signed-in users can execute SECURITY DEFINER function"
+  warnings — these are the RLS helper functions and are required by the policies.
+
 
 ## Later phases (not started)
 - P5 Messaging + push, P6 Analytics, P7 Payments/booking, P8 Retirement of deprecated areas.

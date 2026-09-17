@@ -38,15 +38,24 @@ Deno.serve(async (req) => {
     const adminUserId = user.id;
 
     const serviceClient = createClient(supabaseUrl, serviceRoleKey);
-    const { data: roleData } = await serviceClient
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", adminUserId)
-      .eq("role", "admin")
-      .maybeSingle();
+    const [{ data: roleData }, { data: coachRels }] = await Promise.all([
+      serviceClient
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", adminUserId)
+        .eq("role", "admin")
+        .maybeSingle(),
+      serviceClient
+        .from("coach_client_relationships")
+        .select("client_id")
+        .eq("coach_id", adminUserId),
+    ]);
 
-    if (!roleData) {
-      return new Response(JSON.stringify({ error: "Forbidden: admin only" }), {
+    const isAdmin = !!roleData;
+    const coachedClientIds = new Set((coachRels || []).map((r: any) => r.client_id as string));
+    // Multi-coach ready: admins keep full access, other coaches are scoped to their own clients.
+    if (!isAdmin && coachedClientIds.size === 0) {
+      return new Response(JSON.stringify({ error: "Forbidden: coaches only" }), {
         status: 403,
         headers: corsHeaders,
       });
@@ -54,6 +63,15 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
     const { action } = body;
+
+    const targetClientId = body.userId || body.targetUserId || body.clientUserId;
+    if (!isAdmin && targetClientId && !coachedClientIds.has(targetClientId)) {
+      return new Response(JSON.stringify({ error: "Forbidden: not your client" }), {
+        status: 403,
+        headers: corsHeaders,
+      });
+    }
+
 
     switch (action) {
       // ==================== EXISTING WORKOUT ACTIONS ====================
@@ -261,6 +279,8 @@ Deno.serve(async (req) => {
         const { includeArchived } = body;
         let query = serviceClient.from("coach_program_templates").select("*").order("updated_at", { ascending: false });
         if (!includeArchived) query = query.eq("is_archived", false);
+        // Non-admin coaches only ever see their own templates.
+        if (!isAdmin) query = query.eq("coach_id", adminUserId);
         const { data, error } = await query;
         if (error) throw error;
         return new Response(JSON.stringify(data), { headers: corsHeaders });

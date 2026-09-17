@@ -24,7 +24,7 @@ import {
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { AdminExerciseMenu } from "@/components/workout/AdminExerciseMenu";
 import { supabase } from "@/integrations/supabase/client";
-import { useAdminCheck } from "@/hooks/useAdminCheck";
+import { useEntitlement } from "@/hooks/useEntitlement";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { ExerciseSearch } from "@/components/workout/ExerciseSearch";
@@ -82,7 +82,9 @@ export default function AdminWorkoutBuilderPage() {
   const { userId } = useParams<{ userId: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { isAdmin, isLoading: adminLoading } = useAdminCheck();
+  // Coach-scoped (admins included) — the edge function re-checks the coach→client relationship.
+  const { entitlement, isLoading: adminLoading } = useEntitlement();
+  const isAdmin = entitlement.isCoach;
 
   const workoutName = searchParams.get("name") || "Workout";
   const workoutDate = searchParams.get("date") || format(new Date(), "yyyy-MM-dd");
