@@ -7,6 +7,7 @@ import type {
   WorkoutExercise,
 } from "@/types/workout";
 import { defaultSetUnit } from "@/lib/trainUnits";
+import { findModality, guessModality } from "@/lib/conditioningModalities";
 
 export type SaveStatus = "idle" | "saving" | "saved" | "error";
 
@@ -297,7 +298,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     set({ exercises: [...get().exercises, ...sortExercises([data])] });
     const created = data as any;
     if (type === "conditioning") {
-      await get().addConditioningSet(created.id);
+      await get().addConditioningSet(created.id, guessModality(name));
     } else {
       await get().addSet(created.id);
     }
