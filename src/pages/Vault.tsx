@@ -141,8 +141,10 @@ export function VaultDashboard() {
             </TabsList>
           </div>
 
-          {activeTab === "dashboard" && <TabsContent value="dashboard" forceMount><DashboardView /></TabsContent>}
+          {activeTab === "dashboard" && <TabsContent value="dashboard" forceMount><TodayTab onNavigate={handleTabChange} /></TabsContent>}
           {activeTab === "workouts" && <TabsContent value="workouts" forceMount><TrainTab /></TabsContent>}
+          {activeTab === "nutrition" && <TabsContent value="nutrition" forceMount><NutritionTab /></TabsContent>}
+          {activeTab === "coach" && <TabsContent value="coach" forceMount><CoachTab /></TabsContent>}
           {activeTab === "library" && <TabsContent value="library" forceMount><LibraryTab isPremiumMember={true} isAdmin={isAdmin} /></TabsContent>}
           {activeTab === "progress" && <TabsContent value="progress" forceMount><ProgressTab /></TabsContent>}
           {activeTab === "lifestyle" && <TabsContent value="lifestyle" forceMount><LifestyleTab /></TabsContent>}
