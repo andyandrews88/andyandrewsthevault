@@ -68,10 +68,13 @@ export function VaultDashboard() {
           />
           <div className="flex items-center gap-2">
             {isAdmin && (
-              <Badge variant="default" className="text-[10px] px-1.5 py-0 flex items-center gap-1">
+              <a
+                href="/coach"
+                className="text-[10px] font-semibold uppercase tracking-wide px-2 py-1 rounded-md bg-primary/15 text-primary flex items-center gap-1"
+              >
                 <Shield className="w-2.5 h-2.5" />
-                ADMIN
-              </Badge>
+                Coach
+              </a>
             )}
             <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-xs font-mono text-muted-foreground">
               V
@@ -89,10 +92,12 @@ export function VaultDashboard() {
           <div className="flex items-center gap-2 mb-1">
             <Badge variant="elite">VAULT MEMBER</Badge>
             {isAdmin && (
-              <Badge variant="default" className="flex items-center gap-1">
-                <Shield className="w-3 h-3" />
-                ADMIN
-              </Badge>
+              <a href="/coach">
+                <Badge variant="default" className="flex items-center gap-1">
+                  <Shield className="w-3 h-3" />
+                  COACH WORKSPACE
+                </Badge>
+              </a>
             )}
           </div>
           <h1 className="text-3xl font-bold">Welcome to The Vault</h1>
