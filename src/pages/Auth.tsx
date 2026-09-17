@@ -3,8 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Activity, Lock, Mail, User, CheckCircle } from "lucide-react";
+import { Activity, Lock, Mail } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuthStore } from "@/stores/authStore";
@@ -17,11 +16,10 @@ const passwordSchema = z.string().min(8, "Password must be at least 8 characters
 
 export function AuthPage() {
   const navigate = useNavigate();
-  const { signIn, signUp, isAuthenticated, isLoading } = useAuthStore();
-  
+  const { signIn, isAuthenticated, isLoading } = useAuthStore();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
   const [googleLoading, setGoogleLoading] = useState(false);
 
@@ -67,24 +65,6 @@ export function AuthPage() {
     
     toast.success("Welcome back!");
     navigate("/vault");
-  };
-
-  const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validateForm()) return;
-    
-    const { error } = await signUp(email, password, name);
-    
-    if (error) {
-      if (error.message.includes("already registered")) {
-        toast.error("This email is already registered. Please sign in instead.");
-      } else {
-        toast.error(error.message);
-      }
-      return;
-    }
-    
-    toast.success("Account created! Check your email to confirm, then sign in.");
   };
 
   const handleGoogleSignIn = async () => {

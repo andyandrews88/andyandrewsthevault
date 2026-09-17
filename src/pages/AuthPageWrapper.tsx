@@ -1,13 +1,11 @@
-import { Navbar } from "@/components/layout/Navbar";
+// Sign-in entry for the closed coaching platform.
+// No marketing navbar/footer here — The Vault is members-only.
 import { AuthPage } from "@/pages/Auth";
-import { Footer } from "@/components/landing/Footer";
 
 const AuthPageWrapper = () => {
   return (
     <div className="min-h-screen bg-background">
-      <Navbar />
       <AuthPage />
-      <Footer />
     </div>
   );
 };
