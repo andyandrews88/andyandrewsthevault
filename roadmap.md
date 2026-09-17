@@ -29,9 +29,21 @@ Source of truth: approved final plan (archived under `.lovable/plan/`).
 Deferred from P2: voice logging (P3/P5 per plan), full charts/trends (P6),
 legacy `WorkoutTab` analytics components retained in repo but no longer routed.
 
+## Phase 3 — Today / Nutrition / Progress (complete)
+- [x] `nutritionLogStore` — day entries, effective-dated targets, private photo upload/signing, CRUD + save/error state
+- [x] `nutrition-estimate` edge function (Lovable AI vision) — returns estimates only, never writes
+- [x] Log Meal sheet: photo / voice / typed, AI estimate → athlete confirm & edit → save
+- [x] Nutrition tab: day navigation, target vs actual macros, entries by meal slot, coach targets (admin)
+- [x] Today command center: training, nutrition, weigh-in prompt when due, coach unread
+- [x] Progress photos (private `progress-photos` bucket) added to Body
+- [x] Athlete IA switched to Today | Train | Nutrition | Coach; Body/Resources under More
+- [x] Community / Lifestyle / Podcast / Tracks / Audit removed from active nav — code and data retained
+- [x] Onboarding tour rewritten for the new IA
+- [x] Typecheck + lint clean; mobile verification of all four tabs signed in; no test data written
+
 ## Later phases (not started)
-- P3 Today/Nutrition/Progress, P4 Coach side (roster, invites UI, archive UI),
-  P5 Messaging + push, P6 Analytics, P7 Payments/booking, P8 Retirement of deprecated areas.
+- P4 Coach side (roster, invites UI, archive UI), P5 Messaging + push,
+  P6 Analytics, P7 Payments/booking, P8 Retirement of deprecated areas.
 
 ## Deferred
 - Andy's Assault Bike conditioning entry — log after foundation is complete.
