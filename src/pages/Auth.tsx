@@ -105,12 +105,6 @@ export function AuthPage() {
     }
   };
 
-  const accountBenefits = [
-    "Save your nutrition data across devices",
-    "Track your meals and progress over time",
-    "Access your audit results anywhere",
-    "100% free - no payment required"
-  ];
 
   const GoogleButton = () => (
     <Button
