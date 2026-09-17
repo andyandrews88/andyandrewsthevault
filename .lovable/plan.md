@@ -1,105 +1,108 @@
-# The Vault → Coaching Platform: Audit & Rebuild Plan
+# The Vault — Final Build Plan (coaching platform)
 
-No code or data has been changed. This is the audit and proposed sequence only.
+Locked decisions from Andy are treated as settled. No code or data changes in this turn.
 
-## 1. Current-state audit
+## 1. Final navigation
 
-### What exists and is actually used (real data today)
-- 15 people signed up, 15 profiles, 1 admin (Andy).
-- Training: 81 workouts, 237 exercises, 668 sets, 9 conditioning entries, 82 movements in the exercise library.
-- Programs: 6 programs, 252 program days, 14 enrolments, 270 scheduled calendar days.
-- Nutrition: 44 food diary entries, 5 nutrition profiles, 0 saved meals, 0 custom foods.
-- Body/lifestyle: 10 body entries, 28 daily check-ins, 3 goals.
-- Messaging: 6 direct messages, 8 community posts.
-- Barely/never used: personal records (0 rows — the PR board and PR badges have nothing behind them), podcasts (0), coach templates (1), coach-client assignments (0), custom foods (0), wearables (0), subscriptions (0).
-
-### Information architecture
-Everything lives inside one page with nine tabs (Home, Train, Library, Body, Lifestyle, Podcast, Community, My Coaching, Tracks, Admin) plus separate pages for Nutrition, Audit, Results, Profile, Program landing and five Admin pages. Train then has three sub-tabs, and Admin has its own nested tab set. That is three levels of tabs before an athlete reaches "log my set" — the single biggest usability problem.
-
-### Structural problems found
-- **No real coach-client relationship.** Everything is gated on "is admin". The `coach_client_assignments` table exists but is empty and unused, so the app only works for one coach and treats every athlete as "everyone else".
-- **Coach cannot see nutrition.** Andy can read clients' workouts, sets and body entries, but there is no rule letting him read food logs, nutrition targets or daily check-ins. Coach nutrition feedback is impossible today.
-- **Personal records are never written.** The PR board, PR badges and "estimated 1RM" surfaces read an empty table.
-- **Conditioning is under-modelled.** Conditioning entries store only duration, distance, calories and average heart rate. Modality, average watts, cadence/RPM, max HR, HR zone, RPE and notes have nowhere to go — today's Assault Bike session cannot be logged faithfully yet.
-- **Units are a global preference, not stored per set.** Historic loads have no unit recorded, so switching kg/lb silently reinterprets history.
-- **Duplicated state.** Workout data lives in a 1,143-line store, plus a separate program store, dashboard store, progress store, community store, nutrition store and meal-builder store; several fetch overlapping data on each tab switch. Local-only state (dashboard layout, onboarding, "community visited") is in browser storage and lost per device.
-- **Dead/parallel systems.** Community channels + likes + threads + announcements sit beside direct messages; the fitness Audit questionnaire, podcast tab, resource library, breathwork/lifestyle and PT invoicing all sit in the main navigation.
-- **Profiles are world-readable** to any signed-in user — acceptable for a public community, wrong for a private coaching roster.
-
-## 2. Proposed navigation
-
-Athlete (4 items, bottom bar):
+Athlete (bottom bar, four items):
 ```text
-Today   |   Train   |   Nutrition   |   Coach
+TODAY   |   TRAIN   |   NUTRITION   |   COACH
 ```
-- **Today** — today's session, nutrition targets vs logged, bodyweight prompt, unread coach message.
-- **Train** — today's session, week view, full history, movement history and trends.
-- **Nutrition** — day log by meal, calories/macros vs target, weight/photo entry.
-- **Coach** — one conversation with Andy, plus comments attached to a session or a day's food.
+- **Today** — assigned session, nutrition target vs logged, any item that needs action (unread coach message, missing weigh-in), nothing else.
+- **Train** — today's session, this week, history, movement history, strength and conditioning analytics.
+- **Nutrition** — today's log (photo / voice / manual), targets, history.
+- **Progress** lives inside Train/Today as a single "Progress" screen reachable from Today (bodyweight, measurements, InBody, photos) — not a fifth tab.
+- **Coach** — the private conversation with Andy, text and voice.
+- **Resources** — reached from the profile/menu, not the bottom bar.
 
-Coach (same app, extra section):
+Coach (Andy only; he switches between his coach view and his own athlete view):
 ```text
-Roster → Client → [Overview | Training | Nutrition | Messages]
+ROSTER → CLIENT → [ Overview | Training | Nutrition | Progress | Messages ]
 ```
-Roster shows compliance at a glance; client overview shows today/this week, assigned training, nutrition adherence, recent performance and recent messages. Program/template building stays as a focused builder, not a tab maze.
+Roster = active Tier 1/Tier 2 clients with compliance at a glance (trained today/this week, nutrition logged, unread message, last activity). Plus a Programs/Templates builder and a Movement Library, both coach-only.
 
-## 3. Data model changes (all additive)
+## 2. Core workflows
 
-Keep and build on: `workouts`, `workout_exercises`, `exercise_sets`, `conditioning_sets`, `exercise_library`, `programs`, `program_workouts`, `user_program_enrollments`, `user_calendar_workouts`, `user_food_diary`, `user_nutrition_data`, `user_body_entries`, `user_profiles`, `direct_messages`, `user_roles`.
+**Assign training.** Andy builds a block → weeks → days → sessions → movements with instructions. Per movement he either prescribes exact sets/reps/load/RPE, or prescribes work only and the athlete fills in their own numbers. Both are first-class. He sets how far ahead the athlete can see (today only / this week / whole block) per client.
+
+**Log strength.** Open today's session → movement → set rows: reps, weight, unit, RPE, notes, done. Last comparable performance shows inline on every set row. Supersets, circuits, intervals, AMRAP, EMOM and for-time are grouped formats over the same set rows.
+
+**Log conditioning.** Modality, duration, calories, distance, avg watts, avg speed, RPM/cadence, avg/max HR, HR zone, RPE, notes — with coach-prescribed targets shown alongside.
+
+**Log nutrition.** Photo, voice or manual → AI estimate shown clearly as an estimate → athlete confirms or edits → saved. Andy can review and comment.
+
+**Communicate.** One continuous coach-client thread, text and voice messages, plus comments attached to a specific session or food entry.
+
+## 3. Schema and migration (additive first)
+
+Preserved and built on: `workouts`, `workout_exercises`, `exercise_sets`, `conditioning_sets`, `exercise_library`, `programs`, `program_workouts`, `user_program_enrollments`, `user_calendar_workouts`, `user_food_diary`, `user_nutrition_data`, `user_body_entries`, `user_profiles`, `direct_messages`, `user_roles`, `coach_program_templates`/`coach_template_workouts`. Existing volume stays intact: 81 workouts, 237 exercises, 668 sets, 270 scheduled days, 44 food entries, 10 body entries, 82 movements.
 
 Additions:
-- `coach_client_relationships` — real link between coach and athlete, becoming the basis of every permission rule (backfill: Andy ↔ all existing athletes).
-- `exercise_sets`: add a unit column (default kg, backfilled to each athlete's current preference) and a tempo/notes field.
-- `conditioning_sets`: add modality, average watts, cadence/RPM, max heart rate, HR zone, average speed, RPE and notes.
-- Personal records: populate automatically from completed sets (heaviest set, best estimated 1RM per rep range) via a database trigger, and backfill from the 668 existing sets.
-- Messaging: add a conversation/thread reference plus an optional link to a workout or food-diary day, and read state.
-- Nutrition: daily targets stored per athlete per date so history is honest when targets change.
+- `coach_client_relationships` — coach, client, tier (1/2), status, start/end. Backfill Andy ↔ every existing athlete, including Andy ↔ Andy so his own logging runs through the identical athlete path.
+- `exercise_sets` — add `unit` (kg/lb, backfilled from each athlete's current preference and then immutable per row), `tempo`, `notes`, `is_prescribed`, prescribed reps/load/RPE.
+- `workout_exercises` — add `format` (straight/superset/circuit/interval/amrap/emom/for_time), group id, round/interval config, coach instructions.
+- `conditioning_sets` — add modality, avg watts, avg speed, cadence/RPM, max HR, HR zone, RPE, notes, plus prescribed target fields.
+- `personal_records` — populated automatically by trigger (heaviest set, best estimated 1RM, rep PRs) and backfilled from the 668 existing sets; currently empty, which is why every PR surface is blank today.
+- Programming: `program_blocks` over the existing program/week/day rows, plus a per-enrolment `visible_through` control.
+- Nutrition: `nutrition_targets` per athlete with effective dates; `user_food_diary` gains source (photo/voice/manual), photo path, transcript, AI estimate, confirmed flag, coach comment.
+- Progress: `user_body_entries` gains progress photo support (private bucket) and keeps InBody fields already present.
+- Messaging: conversation id, message kind (text/voice), audio path, read state, optional link to a workout or food entry.
+- Storage buckets (private): meal photos, progress photos, voice notes.
 
-No table is dropped in this phase.
+Nothing is dropped in the build phases; deprecated tables are hidden from the app and deleted only later on Andy's word.
 
-## 4. Cleanup / deprecation list
+## 4. Voice and AI architecture
 
-Retire from navigation now, keep data untouched, delete only after Andy confirms:
-- Fitness Audit questionnaire + results page (7 records — export before retiring).
-- Podcast tab and `vault_podcasts` (0 rows).
-- Resource library / vault files (16 resources — decide keep-as-"Resources"-link or archive).
-- Lifestyle / breathwork section; keep the daily check-in but fold it into Today.
-- Community channels, posts, likes, threads, announcements — replaced by coach-client messaging. 8 posts to export.
-- Goals panel, wearables, subscriptions/trial logic, PT packages/invoices/sessions (keep invoicing data; drop it from the athlete app).
-- Landing/marketing sections, onboarding walkthrough, dashboard "customize/reorder" mode.
+All AI runs server-side through Lovable AI; no keys in the app.
+- **Training voice** — record → transcribe → parse into movement/set/reps/load/unit/RPE → show a filled confirmation card → saves only when the athlete confirms. Anything unparsed is left blank and flagged, never guessed into the log.
+- **Nutrition voice/photo** — transcribe or read the photo → estimate calories/macros → display as "Estimate — check before saving" → athlete confirms or edits → saved with source and original transcript/photo kept for Andy.
+- **Coach voice messages** — stored and played as audio, never parsed into data.
+- **Guardrails** — AI can structure input, estimate nutrition, and summarise patterns for Andy. It cannot alter programming, prescribe, or message a client on Andy's behalf. Every AI value is marked as an estimate until confirmed.
 
-## 5. Loading, saving and performance fixes
-- One query per screen instead of per-widget; today's session, targets and unread count fetched together.
-- Optimistic set logging with a visible saved/failed state and retry — never a silent failure.
-- Remove repeat fetching on every tab switch; cache per day.
-- Fix the metadata refetch loops in the workout logger; render long histories lazily.
-- Consistent error surfaces instead of console-only failures.
+## 5. Access and security
+- Closed platform: no public sign-up. Andy provisions accounts/invites; a client with no active relationship sees a "contact your coach" screen, not the app.
+- All access rules key off `coach_client_relationships` rather than "is admin", so adding a second coach later needs no rewrite and no UI now.
+- Andy's dual role works because he is both coach and his own client row; his athlete screens use the ordinary athlete rules.
+- Coach can read and write assigned training, and read nutrition, progress, body entries and messages for his own clients only — coach access to nutrition and check-ins is missing today and gets added.
+- Profile visibility narrows from "any signed-in user" to self + own coach.
+- Private buckets for photos and voice notes, with signed access limited to owner and coach.
+- Security scan run at the end of each phase.
 
-## 6. Security / RLS plan
-- Rewrite every access rule around `coach_client_relationships` rather than "is admin", so the platform supports more coaches later without a rewrite.
-- Give the coach read access to assigned clients' nutrition logs, targets and check-ins (missing today), and write access to assigned training.
-- Restrict profile visibility to yourself, your coach and your coach's clients.
-- Messaging limited to an existing coach-client pair.
-- Re-check grants and policies on every new column/table; run the security scan at the end of each phase.
+## 6. Loading, saving, performance
+- One query per screen; Today loads session + targets + unread in a single round trip.
+- Optimistic set logging with a visible saved/retry state — no silent failures.
+- Kill the repeat fetching on every tab switch and the metadata refetch loop in the logger; cache per day.
+- Collapse the overlapping stores (workout/program/dashboard/progress) into per-feature data fetching with caching.
+- Lazy-load history and charts; consistent visible error handling.
 
-## 7. Phased implementation (safest order)
+## 7. Phases and acceptance criteria
 
-1. **Foundation (no user-visible change):** coach-client relationships + backfill, new columns, PR trigger + backfill, permission rewrite. Fully additive.
-2. **Athlete Train:** rebuilt session logging — previous performance inline, kg/lb per set, RPE, supersets/circuits, full conditioning metrics. Log the Assault Bike session here as the first real test.
-3. **Athlete Today + Nutrition:** the 4-tab shell, daily targets, simple meal logging, bodyweight.
-4. **Coach side:** roster, client overview, compliance, assign/program.
-5. **Messaging:** one coach-client conversation, read state, comment-on-entry.
-6. **Strength analytics:** movement history, estimated 1RM, volume/load/RPE trends.
-7. **Cleanup:** remove retired sections from navigation, export archives, then delete deprecated tables on approval.
+**P1 — Foundation (invisible to users).** Relationships + backfill, new columns, PR trigger + backfill, permission rewrite, buckets.
+*Accept:* all existing data readable exactly as before; Andy appears as coach and athlete; PR board shows real records from historic sets; security scan clean.
 
-## 8. Decisions needed from Andy
+**P2 — Train.** New session logging: prescribed vs athlete-entered, inline previous performance, per-set unit, RPE, notes, all workout formats, full conditioning metrics.
+*Accept:* a full strength session and the Assault Bike session (45:26, 290.5 cal, 13.4 mi, 150 W, 17.9 mph, 46 RPM — no invented HR/RPE) log and reload correctly on mobile.
 
-1. **Coaching model:** Andy-only coach forever, or build multi-coach-ready from day one? (Recommend the latter — same effort now, no rewrite later.)
-2. **Community:** delete entirely, or keep a single group channel for all clients alongside private coach chat?
-3. **Library / podcast / audit:** archive-and-remove, or keep the library as one simple "Resources" link?
-4. **Units:** is kg the default for everyone, with per-athlete override? Any athlete currently logging in lb whose history needs relabelling?
-5. **Nutrition depth:** quick manual entry (calories/macros/meal notes/photo) only, or keep the food-database search and barcode scanning?
-6. **Check-ins:** keep the daily sleep/stress/energy/drive score on Today, or drop it?
-7. **PT packages/invoices:** keep visible to clients, or coach-only admin data?
-8. **Conditioning targets:** should the coach be able to prescribe conditioning targets (e.g. "45 min, 150 W") and not just have the athlete log freely?
-9. **Confirm the athlete profile** for the Assault Bike session (Andy's own account?) — nothing is written until you confirm.
+**P3 — Today + Nutrition + Progress.** Four-tab shell, targets, photo/voice/manual food logging with confirm step, bodyweight/measurements/InBody/photos.
+*Accept:* an athlete completes a full day (session + meals + weight) without leaving the four tabs; every AI value passes through confirmation.
+
+**P4 — Coach side.** Roster, client workspace, block/week/day programming, visibility control, movement library, compliance.
+*Accept:* Andy programmes a block for a real client, sets visibility, and reviews their week without touching the old admin pages.
+
+**P5 — Messaging + push.** Conversation, voice messages, contextual comments, notifications for messages and new programming, with per-type controls.
+*Accept:* message and new-session notifications arrive on iOS/Android home-screen installs; muting works.
+
+**P6 — Analytics.** Estimated 1RM, rep PRs, volume/load/RPE trends, coach-side deeper views.
+
+**P7 — Payments/access.** Packages, purchase, access state, Andy notified, access provisioned. Deliberately last, after the data model is stable — it changes who can enter the app, so it ships on top of a proven access layer, never inside a migration.
+
+**P8 — Retirement.** Export archives, then delete deprecated tables on Andy's explicit approval.
+
+## 8. Deprecate / archive (hidden, not deleted)
+Community (channels, posts, likes, threads, announcements — 8 posts exported), Fitness Audit + results (7 records, provision retained), standalone Podcast area (content moves into Resources or links out), Lifestyle/breathwork and the daily readiness check-in (architecture retained for later), Goals panel, wearables, subscriptions/trial logic, onboarding walkthrough, dashboard customise mode, marketing/landing sections inside the app. PT packages/invoices data is kept and folded into P7 rather than archived.
+
+## 9. Remaining blockers
+1. **Tier 1 vs Tier 2** — what differs functionally between the tiers (nutrition targets, messaging frequency, programming depth)? Needed before the roster and access rules are finalised.
+2. **Client accounts** — should Andy invite by email from the roster, or keep creating accounts manually?
+3. **Assault Bike session** — confirm it logs to Andy's own athlete account and the date to use.
+4. **Existing 15 accounts** — which are genuine paying clients, which should be archived/deactivated at P1?
