@@ -57,6 +57,10 @@ legacy `WorkoutTab` analytics components retained in repo but no longer routed.
 - [x] End-to-end signed-in run: roster tabs, invite create (new + existing account link),
       resend, revoke, archive, restore, Tier 1/Tier 2 workspace behaviour, availability toggle
       persistence, coach-only movement writes, DM entitlement, athlete route guard
+- [x] Multi-coach readiness: templates now have coach-owned RLS policies (admin access kept),
+      `admin-workout-builder` accepts any coach but scopes them to their own clients and templates,
+      session builder page guarded by coach entitlement instead of admin role
+- [x] Program assignment verified end-to-end as a non-admin coach (template → schedule → sessions)
 - [x] All temporary test data removed; integrity counts identical to Phase 4 baseline
 - Known: Supabase linter reports 7 "signed-in users can execute SECURITY DEFINER function"
   warnings — these are the RLS helper functions and are required by the policies.
