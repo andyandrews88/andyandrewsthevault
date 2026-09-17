@@ -121,8 +121,8 @@ All AI runs server-side through Lovable AI; no keys in the app.
 ## 8. Deprecate / archive (hidden, not deleted)
 Community (channels, posts, likes, threads, announcements — 8 posts exported), Fitness Audit + results (7 records, provision retained), standalone Podcast area (content moves into Resources or links out), Lifestyle/breathwork and the daily readiness check-in (architecture retained for later), Goals panel, wearables, subscriptions/trial logic, onboarding walkthrough, dashboard customise mode, marketing/landing sections inside the app. PT packages/invoices data is kept and folded into P7 rather than archived.
 
-## 9. Remaining blockers
-1. **Tier 1 vs Tier 2** — what differs functionally between the tiers (nutrition targets, messaging frequency, programming depth)? Needed before the roster and access rules are finalised.
-2. **Client accounts** — should Andy invite by email from the roster, or keep creating accounts manually?
-3. **Assault Bike session** — confirm it logs to Andy's own athlete account and the date to use.
-4. **Existing 15 accounts** — which are genuine paying clients, which should be archived/deactivated at P1?
+## 9. Open items
+
+None blocking. Two things are deliberately deferred, not unresolved: the paid coaching-call booking connects with payments in P7 (the CTA and entitlement ship in P4), and Andy's Assault Bike entry is logged after the foundation is done.
+
+**Phase 1 is technically ready to implement.** Every P1 change is additive — new tables and columns, a records trigger with backfill, a permission rewrite keyed to the new relationship table, and private storage buckets. Nothing is dropped or mutated, all 15 accounts stay as they are, and existing screens keep reading the same data throughout.
