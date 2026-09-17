@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '@/integrations/supabase/client';
 import { addDays, format, parseISO } from 'date-fns';
+import { guessModality } from '@/lib/conditioningModalities';
 
 export interface Program {
   id: string;
@@ -357,6 +358,7 @@ export const useProgramStore = create<ProgramState>((set, get) => ({
 
       for (let i = 0; i < exercises.length; i++) {
         const ex = exercises[i];
+        const isConditioning = !!guessModality(ex.name);
 
         const { data: workoutExercise, error: exError } = await supabase
           .from('workout_exercises')
@@ -364,31 +366,47 @@ export const useProgramStore = create<ProgramState>((set, get) => ({
             workout_id: workout.id,
             exercise_name: ex.name,
             order_index: i,
-            exercise_type: 'strength',
+            exercise_type: isConditioning ? 'conditioning' : 'strength',
+            format: isConditioning ? 'conditioning' : 'straight',
+            coach_instructions: ex.notes || null,
             // Encode percentage hint in notes so it's available in the logger
-            notes: [ex.notes, ex.percentage_of_1rm ? `@ ${ex.percentage_of_1rm}% TM` : null]
-              .filter(Boolean).join(' | ') || null,
+            notes: ex.percentage_of_1rm ? `@ ${ex.percentage_of_1rm}% TM` : null,
           })
           .select()
           .single();
 
         if (exError || !workoutExercise) continue;
 
+        if (isConditioning) {
+          await supabase.from('conditioning_sets').insert({
+            exercise_id: workoutExercise.id,
+            set_number: 1,
+            modality: guessModality(ex.name),
+            is_completed: false,
+          });
+          continue;
+        }
+
         // Pre-populate sets based on template sets count, with reps from template
         const targetSets = ex.sets || 1;
         // Parse reps: "5/3/1+" → use last variant, "3-5" → use first number, "5" → 5
-        const parseReps = (repsStr: string): number => {
-          const parts = repsStr.split(/[/,]/);
+        const parseReps = (repsStr: string): number | null => {
+          if (!repsStr) return null;
+          const parts = String(repsStr).split(/[/,]/);
           const last = parts[parts.length - 1].replace(/\+/g, '').trim();
           const num = parseInt(last, 10);
-          return isNaN(num) ? 5 : num;
+          return isNaN(num) ? null : num;
         };
         const targetReps = parseReps(ex.reps);
+        const hasPrescription = targetReps !== null;
 
         const setsToInsert = Array.from({ length: targetSets }, (_, idx) => ({
           exercise_id: workoutExercise.id,
           set_number: idx + 1,
-          reps: targetReps,
+          reps: null,
+          tempo: ex.tempo ?? null,
+          is_prescribed: hasPrescription,
+          prescribed_reps: targetReps,
           is_completed: false,
         }));
 
