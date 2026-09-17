@@ -91,7 +91,7 @@ export function Navbar() {
               key={link.href}
               to={link.href}
               className={`text-sm transition-colors ${
-                location.pathname === link.href
+                `${location.pathname}${location.search}` === link.href
                   ? "text-primary"
                   : "text-muted-foreground hover:text-foreground"
               }`}
@@ -120,10 +120,16 @@ export function Navbar() {
                   Profile Settings
                 </DropdownMenuItem>
                 {isAdmin && (
-                  <DropdownMenuItem onClick={() => navigate('/admin')} className="gap-2 cursor-pointer">
-                    <Shield className="w-4 h-4" />
-                    Admin Dashboard
-                  </DropdownMenuItem>
+                  <>
+                    <DropdownMenuItem onClick={() => navigate('/coach')} className="gap-2 cursor-pointer">
+                      <Shield className="w-4 h-4" />
+                      Coach Workspace
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate('/admin')} className="gap-2 cursor-pointer">
+                      <Shield className="w-4 h-4" />
+                      Admin Dashboard
+                    </DropdownMenuItem>
+                  </>
                 )}
                 <DropdownMenuItem onClick={handleSignOut} className="gap-2 cursor-pointer">
                   <LogOut className="w-4 h-4" />
