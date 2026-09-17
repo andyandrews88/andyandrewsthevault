@@ -236,8 +236,8 @@ export default function CoachClient() {
       <AssignTemplateWizard
         open={assignOpen}
         onOpenChange={setAssignOpen}
-        clientUserId={clientId}
-        clientName={header.displayName}
+        targetUserId={clientId}
+        targetDisplayName={header.displayName}
       />
     </div>
   );
