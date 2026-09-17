@@ -56,7 +56,9 @@ Entitlements are derived from the tier in one place (`service_tier` on the relat
 Preserved and built on: `workouts`, `workout_exercises`, `exercise_sets`, `conditioning_sets`, `exercise_library`, `programs`, `program_workouts`, `user_program_enrollments`, `user_calendar_workouts`, `user_food_diary`, `user_nutrition_data`, `user_body_entries`, `user_profiles`, `direct_messages`, `user_roles`, `coach_program_templates`/`coach_template_workouts`. Existing volume stays intact: 81 workouts, 237 exercises, 668 sets, 270 scheduled days, 44 food entries, 10 body entries, 82 movements.
 
 Additions:
-- `coach_client_relationships` — coach, client, tier (1/2), status, start/end. Backfill Andy ↔ every existing athlete, including Andy ↔ Andy so his own logging runs through the identical athlete path.
+- `coach_client_relationships` — coach, client, `service_tier` (1/2), status (active/archived/pending), start/archived dates. Backfill Andy ↔ every existing athlete, including Andy ↔ Andy so his own logging runs through the identical athlete path.
+- `client_invites` — name, email, tier, token, status, sent/accepted timestamps; accepting creates the relationship at the invited tier.
+- Program availability — a coach-controlled allow-list marking which programs a Tier 2 athlete may choose from and switch between.
 - `exercise_sets` — add `unit` (kg/lb, backfilled from each athlete's current preference and then immutable per row), `tempo`, `notes`, `is_prescribed`, prescribed reps/load/RPE.
 - `workout_exercises` — add `format` (straight/superset/circuit/interval/amrap/emom/for_time), group id, round/interval config, coach instructions.
 - `conditioning_sets` — add modality, avg watts, avg speed, cadence/RPM, max HR, HR zone, RPE, notes, plus prescribed target fields.
@@ -99,7 +101,7 @@ All AI runs server-side through Lovable AI; no keys in the app.
 *Accept:* all existing data readable exactly as before; Andy appears as coach and athlete; PR board shows real records from historic sets; security scan clean.
 
 **P2 — Train.** New session logging: prescribed vs athlete-entered, inline previous performance, per-set unit, RPE, notes, all workout formats, full conditioning metrics.
-*Accept:* a full strength session and the Assault Bike session (45:26, 290.5 cal, 13.4 mi, 150 W, 17.9 mph, 46 RPM — no invented HR/RPE) log and reload correctly on mobile.
+*Accept:* a full strength session and a full conditioning entry (all metrics) log and reload correctly on mobile. Andy's Assault Bike session is logged later, once the foundation is complete — not prioritised now.
 
 **P3 — Today + Nutrition + Progress.** Four-tab shell, targets, photo/voice/manual food logging with confirm step, bodyweight/measurements/InBody/photos.
 *Accept:* an athlete completes a full day (session + meals + weight) without leaving the four tabs; every AI value passes through confirmation.
