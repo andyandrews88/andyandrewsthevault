@@ -176,7 +176,7 @@ export const useNutritionLogStore = create<NutritionLogState>((set, get) => ({
 
       const { data, error } = await supabase
         .from("user_food_diary")
-        .insert(payload)
+        .insert(payload as never)
         .select()
         .single();
       if (error) throw error;
