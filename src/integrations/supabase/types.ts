@@ -2058,6 +2058,10 @@ export type Database = {
       }
       is_vault_member: { Args: { _user_id: string }; Returns: boolean }
       shares_coach_with: { Args: { _a: string; _b: string }; Returns: boolean }
+      was_coach_of: {
+        Args: { _client_id: string; _coach_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
