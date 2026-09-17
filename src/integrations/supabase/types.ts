@@ -2056,6 +2056,7 @@ export type Database = {
         Args: { _client_id: string; _coach_id: string }
         Returns: boolean
       }
+      is_vault_member: { Args: { _user_id: string }; Returns: boolean }
       shares_coach_with: { Args: { _a: string; _b: string }; Returns: boolean }
     }
     Enums: {
