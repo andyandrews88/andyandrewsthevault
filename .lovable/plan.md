@@ -19,7 +19,25 @@ Coach (Andy only; he switches between his coach view and his own athlete view):
 ```text
 ROSTER → CLIENT → [ Overview | Training | Nutrition | Progress | Messages ]
 ```
-Roster = active Tier 1/Tier 2 clients with compliance at a glance (trained today/this week, nutrition logged, unread message, last activity). Plus a Programs/Templates builder and a Movement Library, both coach-only.
+Roster = active clients with compliance at a glance (trained today/this week, nutrition logged, unread message, last activity), an Active/Archived filter, and an **Add Client** button. Plus a Programs/Templates builder and a Movement Library, both coach-only.
+
+## 1a. Tiers, invites and archiving
+
+**One app, one data model.** Tier is an entitlement on the coach-client relationship, not a separate product. Everything below is a switch, never a fork.
+
+| | Tier 1 | Tier 2 |
+|---|---|---|
+| Programming | Andy assigns individual blocks/sessions | Chooses from a curated program list Andy makes available; can switch programs |
+| Training logging, history, analytics, PRs | Full | Full (identical) |
+| Nutrition logging + targets | Full, with coach review | Logging and self-targets; no coach review |
+| Coach tab | Live conversation with Andy | Replaced by "Book a paid coaching call with Andy" |
+| Progress, Resources | Full | Full |
+
+Entitlements are derived from the tier in one place (`service_tier` on the relationship) and read by both the UI and the access rules, so a Tier 2 athlete simply cannot reach coach-only surfaces. Curated availability is a per-program/per-tier or per-client allow-list Andy controls. The booking CTA and its entitlement are built now; the actual paid booking connects with payments in P7.
+
+**Invite flow.** Roster → Add Client → name, email, tier → emailed invite → the client sets a password and lands in the app already linked to Andy at the right tier. Pending invites show in the roster until accepted, and can be resent or revoked. No questionnaire; Andy onboards one-to-one.
+
+**Archive / restore.** Archiving sets the relationship to archived and nothing more: the login, training, nutrition, progress, messages, photos, program history and payment records all stay exactly as they are. Archived clients drop out of the default roster into the Archived filter, stop appearing in compliance counts and notifications, and can be restored to active at any time with their full history intact. Permanent deletion is not part of the coach workflow and is not built in this rebuild. All 15 existing accounts stay as they are until Andy decides individually.
 
 ## 2. Core workflows
 
