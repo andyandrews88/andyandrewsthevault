@@ -55,7 +55,7 @@ export function ProgramAvailabilityManager() {
       .from("program_availability")
       .upsert(
         { coach_id: user.id, program_id: programId, service_tier: "tier_2", client_id: null, is_available: next },
-        { onConflict: "coach_id,program_id,service_tier" },
+        { onConflict: "coach_id,program_id,service_tier,client_id" },
       );
     setBusy(null);
     if (error) {
@@ -80,10 +80,10 @@ export function ProgramAvailabilityManager() {
         <div key={p.id} className="rounded-xl border border-border bg-card p-3 flex items-center gap-3">
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium truncate">{p.name}</p>
-            <p className="text-xs text-muted-foreground">
-              {p.duration_weeks} weeks · {p.days_per_week} days/week
-              <Badge variant="outline" className="ml-2 text-[10px] capitalize">{p.category}</Badge>
-            </p>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span>{p.duration_weeks} weeks · {p.days_per_week} days/week</span>
+              <Badge variant="outline" className="text-[10px] capitalize">{p.category}</Badge>
+            </div>
           </div>
           <Switch
             checked={!!available[p.id]}
