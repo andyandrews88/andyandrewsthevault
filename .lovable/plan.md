@@ -1,81 +1,105 @@
+# The Vault → Coaching Platform: Audit & Rebuild Plan
 
+No code or data has been changed. This is the audit and proposed sequence only.
 
-## Plan: Root-cause fix for 3 critical bugs
+## 1. Current-state audit
 
-After deep investigation I found root causes for all three issues. None are surface-level — they're architectural.
+### What exists and is actually used (real data today)
+- 15 people signed up, 15 profiles, 1 admin (Andy).
+- Training: 81 workouts, 237 exercises, 668 sets, 9 conditioning entries, 82 movements in the exercise library.
+- Programs: 6 programs, 252 program days, 14 enrolments, 270 scheduled calendar days.
+- Nutrition: 44 food diary entries, 5 nutrition profiles, 0 saved meals, 0 custom foods.
+- Body/lifestyle: 10 body entries, 28 daily check-ins, 3 goals.
+- Messaging: 6 direct messages, 8 community posts.
+- Barely/never used: personal records (0 rows — the PR board and PR badges have nothing behind them), podcasts (0), coach templates (1), coach-client assignments (0), custom foods (0), wearables (0), subscriptions (0).
 
----
+### Information architecture
+Everything lives inside one page with nine tabs (Home, Train, Library, Body, Lifestyle, Podcast, Community, My Coaching, Tracks, Admin) plus separate pages for Nutrition, Audit, Results, Profile, Program landing and five Admin pages. Train then has three sub-tabs, and Admin has its own nested tab set. That is three levels of tabs before an athlete reaches "log my set" — the single biggest usability problem.
 
-### Bug 1 — PWA never prompts users to refresh (CRITICAL)
+### Structural problems found
+- **No real coach-client relationship.** Everything is gated on "is admin". The `coach_client_assignments` table exists but is empty and unused, so the app only works for one coach and treats every athlete as "everyone else".
+- **Coach cannot see nutrition.** Andy can read clients' workouts, sets and body entries, but there is no rule letting him read food logs, nutrition targets or daily check-ins. Coach nutrition feedback is impossible today.
+- **Personal records are never written.** The PR board, PR badges and "estimated 1RM" surfaces read an empty table.
+- **Conditioning is under-modelled.** Conditioning entries store only duration, distance, calories and average heart rate. Modality, average watts, cadence/RPM, max HR, HR zone, RPE and notes have nowhere to go — today's Assault Bike session cannot be logged faithfully yet.
+- **Units are a global preference, not stored per set.** Historic loads have no unit recorded, so switching kg/lb silently reinterprets history.
+- **Duplicated state.** Workout data lives in a 1,143-line store, plus a separate program store, dashboard store, progress store, community store, nutrition store and meal-builder store; several fetch overlapping data on each tab switch. Local-only state (dashboard layout, onboarding, "community visited") is in browser storage and lost per device.
+- **Dead/parallel systems.** Community channels + likes + threads + announcements sit beside direct messages; the fitness Audit questionnaire, podcast tab, resource library, breathwork/lifestyle and PT invoicing all sit in the main navigation.
+- **Profiles are world-readable** to any signed-in user — acceptable for a public community, wrong for a private coaching roster.
 
-**Root cause:** The `vite-plugin-pwa` "prompt" mode has a known issue where `needRefresh` only fires if the new SW completes installation **and** detects `controller` already exists. In our config:
-- `workbox.importScripts: ['/custom-sw.js']` injects custom code, but `skipWaiting` was removed → new SW gets stuck in "waiting" state forever
-- The runtime cache rule `urlPattern: /\.(?:js|css)$/` with `NetworkFirst` + 1hr expiration means users keep getting cached JS bundles for up to 60 minutes, hiding the new build hash from the SW
-- No registration call exists in `main.tsx` — `useServiceWorkerUpdate` is mounted inside `<App>`, so it only registers AFTER React boots from cached HTML
+## 2. Proposed navigation
 
-**Fix (proper, not a patch):**
-1. Move SW registration into `main.tsx` so it fires before React renders (matches Notion/Linear pattern)
-2. Switch runtime caching for `.js`/`.css` to **`NetworkFirst` with `networkTimeoutSeconds: 3`** and 5-minute max age — this guarantees fresh assets while keeping offline fallback
-3. Add a **build-time version stamp** (`__APP_VERSION__` injected via Vite `define`) and check it on app load against the running version — if mismatched, force-show the refresh toast (belt-and-braces)
-4. In the SW, add `self.skipWaiting()` listener so `updateServiceWorker(true)` actually activates the new worker
-5. Add an explicit "Check for updates" button in Profile Settings so users can manually trigger
+Athlete (4 items, bottom bar):
+```text
+Today   |   Train   |   Nutrition   |   Coach
+```
+- **Today** — today's session, nutrition targets vs logged, bodyweight prompt, unread coach message.
+- **Train** — today's session, week view, full history, movement history and trends.
+- **Nutrition** — day log by meal, calories/macros vs target, weight/photo entry.
+- **Coach** — one conversation with Andy, plus comments attached to a session or a day's food.
 
-Files: `vite.config.ts`, `src/main.tsx`, `src/hooks/useServiceWorkerUpdate.ts`, `public/custom-sw.js`, `src/pages/ProfileSettings.tsx`
+Coach (same app, extra section):
+```text
+Roster → Client → [Overview | Training | Nutrition | Messages]
+```
+Roster shows compliance at a glance; client overview shows today/this week, assigned training, nutrition adherence, recent performance and recent messages. Program/template building stays as a focused builder, not a tab maze.
 
----
+## 3. Data model changes (all additive)
 
-### Bug 2 — Bodyweight toggle doesn't change UI (root cause: dual source of truth)
+Keep and build on: `workouts`, `workout_exercises`, `exercise_sets`, `conditioning_sets`, `exercise_library`, `programs`, `program_workouts`, `user_program_enrollments`, `user_calendar_workouts`, `user_food_diary`, `user_nutrition_data`, `user_body_entries`, `user_profiles`, `direct_messages`, `user_roles`.
 
-**Root cause:** The `ExerciseCard` derives `isBW` from a **hardcoded** function `isBodyweightExercise(name)` that checks a static map in `movementPatterns.ts`. Meanwhile the admin menu writes `equipment_type: 'bodyweight'` to the **DB** — but nothing reads it back. They're two disconnected systems.
+Additions:
+- `coach_client_relationships` — real link between coach and athlete, becoming the basis of every permission rule (backfill: Andy ↔ all existing athletes).
+- `exercise_sets`: add a unit column (default kg, backfilled to each athlete's current preference) and a tempo/notes field.
+- `conditioning_sets`: add modality, average watts, cadence/RPM, max heart rate, HR zone, average speed, RPE and notes.
+- Personal records: populate automatically from completed sets (heaviest set, best estimated 1RM per rep range) via a database trigger, and backfill from the 668 existing sets.
+- Messaging: add a conversation/thread reference plus an optional link to a workout or food-diary day, and read state.
+- Nutrition: daily targets stored per athlete per date so history is honest when targets change.
 
-Additionally: `isTimed`, `isUnilateral`, `isPlyometric` all properly check DB-first then fallback to hardcoded — but `isBodyweight` does NOT have an `equipmentType` parameter at all.
+No table is dropped in this phase.
 
-**Fix (root-cause):**
-1. Add `equipment_type` to the batch-fetched `libraryMeta` and the per-exercise fetch in `ExerciseCard`
-2. Add new `isBodyweightFromMeta(name, dbEquipmentType)` function in `movementPatterns.ts` — DB value of `'bodyweight'` always wins
-3. Pass `equipmentType` through `AdminExerciseMenu` / `ExerciseActionSheet` `onMetadataChange` so the UI updates **immediately** (optimistic) without waiting for re-fetch
-4. Extend `ExerciseCard`'s `metadataManuallySet` ref to also handle `equipmentType` so the next DB fetch doesn't overwrite the optimistic state
+## 4. Cleanup / deprecation list
 
----
+Retire from navigation now, keep data untouched, delete only after Andy confirms:
+- Fitness Audit questionnaire + results page (7 records — export before retiring).
+- Podcast tab and `vault_podcasts` (0 rows).
+- Resource library / vault files (16 resources — decide keep-as-"Resources"-link or archive).
+- Lifestyle / breathwork section; keep the daily check-in but fold it into Today.
+- Community channels, posts, likes, threads, announcements — replaced by coach-client messaging. 8 posts to export.
+- Goals panel, wearables, subscriptions/trial logic, PT packages/invoices/sessions (keep invoicing data; drop it from the athlete app).
+- Landing/marketing sections, onboarding walkthrough, dashboard "customize/reorder" mode.
 
-### Bug 3 — Unilateral toggle doesn't restructure the set rows
+## 5. Loading, saving and performance fixes
+- One query per screen instead of per-widget; today's session, targets and unread count fetched together.
+- Optimistic set logging with a visible saved/failed state and retry — never a silent failure.
+- Remove repeat fetching on every tab switch; cache per day.
+- Fix the metadata refetch loops in the workout logger; render long histories lazily.
+- Consistent error surfaces instead of console-only failures.
 
-**Root cause:** Toggling unilateral in admin updates the DB and `isUnilateral` state — but the **existing sets** stay as bilateral (no `side` column). The `addSet` function checks `isUnilateral` only when *creating new* sets. Existing sets render without L/R labels because their `side` is null.
+## 6. Security / RLS plan
+- Rewrite every access rule around `coach_client_relationships` rather than "is admin", so the platform supports more coaches later without a rewrite.
+- Give the coach read access to assigned clients' nutrition logs, targets and check-ins (missing today), and write access to assigned training.
+- Restrict profile visibility to yourself, your coach and your coach's clients.
+- Messaging limited to an existing coach-client pair.
+- Re-check grants and policies on every new column/table; run the security scan at the end of each phase.
 
-**Fix (root-cause):**
-1. When admin toggles `is_unilateral: true`, automatically convert existing bilateral sets — for each set with no side, create a paired left/right set (or prompt user)
-2. When toggling `is_unilateral: false`, collapse paired L/R sets back into single sets
-3. Add a `convertExerciseUnilaterality(exerciseId, toUnilateral)` action in `workoutStore` that handles the migration in a single DB transaction
-4. Wire the admin menu's unilateral toggle to call this conversion immediately after the DB upsert
+## 7. Phased implementation (safest order)
 
----
+1. **Foundation (no user-visible change):** coach-client relationships + backfill, new columns, PR trigger + backfill, permission rewrite. Fully additive.
+2. **Athlete Train:** rebuilt session logging — previous performance inline, kg/lb per set, RPE, supersets/circuits, full conditioning metrics. Log the Assault Bike session here as the first real test.
+3. **Athlete Today + Nutrition:** the 4-tab shell, daily targets, simple meal logging, bodyweight.
+4. **Coach side:** roster, client overview, compliance, assign/program.
+5. **Messaging:** one coach-client conversation, read state, comment-on-entry.
+6. **Strength analytics:** movement history, estimated 1RM, volume/load/RPE trends.
+7. **Cleanup:** remove retired sections from navigation, export archives, then delete deprecated tables on approval.
 
-### Bug 4 (bonus) — Duplicate-key error in screenshot
+## 8. Decisions needed from Andy
 
-**Root cause:** `exercise_library` has a UNIQUE INDEX on `name` (case-sensitive). Admin menu does `ilike` lookup (case-insensitive) but inserts the exact-case name. So "Half Kneeling Landmine Press" and "Half kneeling landmine press" both exist as separate rows, and a 3rd attempt with a different case throws.
-
-**Fix:** In `upsertExerciseLibraryField`:
-1. If `ilike` finds an existing row, update that row (already does this) — but **also** normalize the lookup so we never insert a near-duplicate
-2. If insert fails with unique-violation, retry as case-insensitive update
-3. (Migration) Convert the unique index to be on `lower(name)` so the DB enforces what the app intends
-
----
-
-### Files to edit
-- `vite.config.ts` — runtime cache strategy, define `__APP_VERSION__`
-- `src/main.tsx` — pre-React SW registration + version check
-- `src/hooks/useServiceWorkerUpdate.ts` — version-mismatch fallback toast
-- `public/custom-sw.js` — `skipWaiting` message listener
-- `src/pages/ProfileSettings.tsx` — manual "Check for updates" button
-- `src/lib/movementPatterns.ts` — add `isBodyweightFromMeta(name, dbEquipmentType)`
-- `src/lib/exerciseLibraryUpsert.ts` — case-insensitive upsert with unique-violation fallback
-- `src/components/workout/ExerciseCard.tsx` — fetch + use `equipment_type` from library; wire `equipmentType` through optimistic updates
-- `src/components/workout/AdminExerciseMenu.tsx` & `ExerciseActionSheet.tsx` — call new convert action on unilateral toggle; emit `equipmentType` change
-- `src/stores/workoutStore.ts` — new `convertExerciseUnilaterality(exerciseId, toUnilateral)` action
-- New SQL migration — `CREATE UNIQUE INDEX exercise_library_name_lower_unique ON exercise_library (lower(name))` and drop the old case-sensitive one
-
-### What does NOT change
-- No changes to data model fields (only the index)
-- No changes to existing completed workout sets' history
-- No store/realtime logic outside of unilateral conversion
-
+1. **Coaching model:** Andy-only coach forever, or build multi-coach-ready from day one? (Recommend the latter — same effort now, no rewrite later.)
+2. **Community:** delete entirely, or keep a single group channel for all clients alongside private coach chat?
+3. **Library / podcast / audit:** archive-and-remove, or keep the library as one simple "Resources" link?
+4. **Units:** is kg the default for everyone, with per-athlete override? Any athlete currently logging in lb whose history needs relabelling?
+5. **Nutrition depth:** quick manual entry (calories/macros/meal notes/photo) only, or keep the food-database search and barcode scanning?
+6. **Check-ins:** keep the daily sleep/stress/energy/drive score on Today, or drop it?
+7. **PT packages/invoices:** keep visible to clients, or coach-only admin data?
+8. **Conditioning targets:** should the coach be able to prescribe conditioning targets (e.g. "45 min, 150 W") and not just have the athlete log freely?
+9. **Confirm the athlete profile** for the Assault Bike session (Andy's own account?) — nothing is written until you confirm.
