@@ -52,11 +52,13 @@ export function Navbar() {
     fetchProfile();
   }, [user]);
 
+  // Active athlete IA: Today | Train | Nutrition | Coach.
+  // Legacy marketing/audit entries retired (routes still exist, just unlinked).
   const navLinks = [
-    { href: "/", label: "Home", icon: Home },
-    { href: "/audit", label: "Audit", icon: FileText },
+    { href: "/vault?tab=dashboard", label: "Today", icon: Home },
+    { href: "/vault?tab=workouts", label: "Train", icon: Lock },
     { href: "/nutrition", label: "Nutrition", icon: Apple },
-    { href: "/vault", label: "Training", icon: Lock },
+    { href: "/vault?tab=coach", label: "Coach", icon: FileText },
   ];
 
   const handleSignOut = async () => {
@@ -89,7 +91,7 @@ export function Navbar() {
               key={link.href}
               to={link.href}
               className={`text-sm transition-colors ${
-                location.pathname === link.href
+                `${location.pathname}${location.search}` === link.href
                   ? "text-primary"
                   : "text-muted-foreground hover:text-foreground"
               }`}
@@ -118,10 +120,16 @@ export function Navbar() {
                   Profile Settings
                 </DropdownMenuItem>
                 {isAdmin && (
-                  <DropdownMenuItem onClick={() => navigate('/admin')} className="gap-2 cursor-pointer">
-                    <Shield className="w-4 h-4" />
-                    Admin Dashboard
-                  </DropdownMenuItem>
+                  <>
+                    <DropdownMenuItem onClick={() => navigate('/coach')} className="gap-2 cursor-pointer">
+                      <Shield className="w-4 h-4" />
+                      Coach Workspace
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate('/admin')} className="gap-2 cursor-pointer">
+                      <Shield className="w-4 h-4" />
+                      Admin Dashboard
+                    </DropdownMenuItem>
+                  </>
                 )}
                 <DropdownMenuItem onClick={handleSignOut} className="gap-2 cursor-pointer">
                   <LogOut className="w-4 h-4" />
@@ -173,11 +181,18 @@ export function Navbar() {
                 onClick={() => handleNavigate("/profile")}
               />
               {isAdmin && (
-                <BottomSheetItem
-                  icon={Shield}
-                  label="Admin Dashboard"
-                  onClick={() => handleNavigate("/admin")}
-                />
+                <>
+                  <BottomSheetItem
+                    icon={Shield}
+                    label="Coach Workspace"
+                    onClick={() => handleNavigate("/coach")}
+                  />
+                  <BottomSheetItem
+                    icon={Shield}
+                    label="Admin Dashboard"
+                    onClick={() => handleNavigate("/admin")}
+                  />
+                </>
               )}
               <BottomSheetSeparator />
               <BottomSheetItem
