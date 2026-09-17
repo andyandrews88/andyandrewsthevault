@@ -19,7 +19,25 @@ Coach (Andy only; he switches between his coach view and his own athlete view):
 ```text
 ROSTER → CLIENT → [ Overview | Training | Nutrition | Progress | Messages ]
 ```
-Roster = active Tier 1/Tier 2 clients with compliance at a glance (trained today/this week, nutrition logged, unread message, last activity). Plus a Programs/Templates builder and a Movement Library, both coach-only.
+Roster = active clients with compliance at a glance (trained today/this week, nutrition logged, unread message, last activity), an Active/Archived filter, and an **Add Client** button. Plus a Programs/Templates builder and a Movement Library, both coach-only.
+
+## 1a. Tiers, invites and archiving
+
+**One app, one data model.** Tier is an entitlement on the coach-client relationship, not a separate product. Everything below is a switch, never a fork.
+
+| | Tier 1 | Tier 2 |
+|---|---|---|
+| Programming | Andy assigns individual blocks/sessions | Chooses from a curated program list Andy makes available; can switch programs |
+| Training logging, history, analytics, PRs | Full | Full (identical) |
+| Nutrition logging + targets | Full, with coach review | Logging and self-targets; no coach review |
+| Coach tab | Live conversation with Andy | Replaced by "Book a paid coaching call with Andy" |
+| Progress, Resources | Full | Full |
+
+Entitlements are derived from the tier in one place (`service_tier` on the relationship) and read by both the UI and the access rules, so a Tier 2 athlete simply cannot reach coach-only surfaces. Curated availability is a per-program/per-tier or per-client allow-list Andy controls. The booking CTA and its entitlement are built now; the actual paid booking connects with payments in P7.
+
+**Invite flow.** Roster → Add Client → name, email, tier → emailed invite → the client sets a password and lands in the app already linked to Andy at the right tier. Pending invites show in the roster until accepted, and can be resent or revoked. No questionnaire; Andy onboards one-to-one.
+
+**Archive / restore.** Archiving sets the relationship to archived and nothing more: the login, training, nutrition, progress, messages, photos, program history and payment records all stay exactly as they are. Archived clients drop out of the default roster into the Archived filter, stop appearing in compliance counts and notifications, and can be restored to active at any time with their full history intact. Permanent deletion is not part of the coach workflow and is not built in this rebuild. All 15 existing accounts stay as they are until Andy decides individually.
 
 ## 2. Core workflows
 
@@ -38,7 +56,9 @@ Roster = active Tier 1/Tier 2 clients with compliance at a glance (trained today
 Preserved and built on: `workouts`, `workout_exercises`, `exercise_sets`, `conditioning_sets`, `exercise_library`, `programs`, `program_workouts`, `user_program_enrollments`, `user_calendar_workouts`, `user_food_diary`, `user_nutrition_data`, `user_body_entries`, `user_profiles`, `direct_messages`, `user_roles`, `coach_program_templates`/`coach_template_workouts`. Existing volume stays intact: 81 workouts, 237 exercises, 668 sets, 270 scheduled days, 44 food entries, 10 body entries, 82 movements.
 
 Additions:
-- `coach_client_relationships` — coach, client, tier (1/2), status, start/end. Backfill Andy ↔ every existing athlete, including Andy ↔ Andy so his own logging runs through the identical athlete path.
+- `coach_client_relationships` — coach, client, `service_tier` (1/2), status (active/archived/pending), start/archived dates. Backfill Andy ↔ every existing athlete, including Andy ↔ Andy so his own logging runs through the identical athlete path.
+- `client_invites` — name, email, tier, token, status, sent/accepted timestamps; accepting creates the relationship at the invited tier.
+- Program availability — a coach-controlled allow-list marking which programs a Tier 2 athlete may choose from and switch between.
 - `exercise_sets` — add `unit` (kg/lb, backfilled from each athlete's current preference and then immutable per row), `tempo`, `notes`, `is_prescribed`, prescribed reps/load/RPE.
 - `workout_exercises` — add `format` (straight/superset/circuit/interval/amrap/emom/for_time), group id, round/interval config, coach instructions.
 - `conditioning_sets` — add modality, avg watts, avg speed, cadence/RPM, max HR, HR zone, RPE, notes, plus prescribed target fields.
@@ -81,13 +101,13 @@ All AI runs server-side through Lovable AI; no keys in the app.
 *Accept:* all existing data readable exactly as before; Andy appears as coach and athlete; PR board shows real records from historic sets; security scan clean.
 
 **P2 — Train.** New session logging: prescribed vs athlete-entered, inline previous performance, per-set unit, RPE, notes, all workout formats, full conditioning metrics.
-*Accept:* a full strength session and the Assault Bike session (45:26, 290.5 cal, 13.4 mi, 150 W, 17.9 mph, 46 RPM — no invented HR/RPE) log and reload correctly on mobile.
+*Accept:* a full strength session and a full conditioning entry (all metrics) log and reload correctly on mobile. Andy's Assault Bike session is logged later, once the foundation is complete — not prioritised now.
 
 **P3 — Today + Nutrition + Progress.** Four-tab shell, targets, photo/voice/manual food logging with confirm step, bodyweight/measurements/InBody/photos.
 *Accept:* an athlete completes a full day (session + meals + weight) without leaving the four tabs; every AI value passes through confirmation.
 
-**P4 — Coach side.** Roster, client workspace, block/week/day programming, visibility control, movement library, compliance.
-*Accept:* Andy programmes a block for a real client, sets visibility, and reviews their week without touching the old admin pages.
+**P4 — Coach side.** Roster with Active/Archived filter, Add Client invite, archive/restore, client workspace, block/week/day programming, visibility control, curated Tier 2 program list, movement library, compliance.
+*Accept:* Andy invites a client by email at a chosen tier and they land in the app linked to him; a Tier 2 athlete can pick and switch among the curated programs and sees the booking CTA instead of the chat; archiving a client removes them from the active roster with every record intact, and restoring brings them back unchanged.
 
 **P5 — Messaging + push.** Conversation, voice messages, contextual comments, notifications for messages and new programming, with per-type controls.
 *Accept:* message and new-session notifications arrive on iOS/Android home-screen installs; muting works.
@@ -101,8 +121,8 @@ All AI runs server-side through Lovable AI; no keys in the app.
 ## 8. Deprecate / archive (hidden, not deleted)
 Community (channels, posts, likes, threads, announcements — 8 posts exported), Fitness Audit + results (7 records, provision retained), standalone Podcast area (content moves into Resources or links out), Lifestyle/breathwork and the daily readiness check-in (architecture retained for later), Goals panel, wearables, subscriptions/trial logic, onboarding walkthrough, dashboard customise mode, marketing/landing sections inside the app. PT packages/invoices data is kept and folded into P7 rather than archived.
 
-## 9. Remaining blockers
-1. **Tier 1 vs Tier 2** — what differs functionally between the tiers (nutrition targets, messaging frequency, programming depth)? Needed before the roster and access rules are finalised.
-2. **Client accounts** — should Andy invite by email from the roster, or keep creating accounts manually?
-3. **Assault Bike session** — confirm it logs to Andy's own athlete account and the date to use.
-4. **Existing 15 accounts** — which are genuine paying clients, which should be archived/deactivated at P1?
+## 9. Open items
+
+None blocking. Two things are deliberately deferred, not unresolved: the paid coaching-call booking connects with payments in P7 (the CTA and entitlement ship in P4), and Andy's Assault Bike entry is logged after the foundation is done.
+
+**Phase 1 is technically ready to implement.** Every P1 change is additive — new tables and columns, a records trigger with backfill, a permission rewrite keyed to the new relationship table, and private storage buckets. Nothing is dropped or mutated, all 15 accounts stay as they are, and existing screens keep reading the same data throughout.
