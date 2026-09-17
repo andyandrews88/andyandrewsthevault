@@ -93,7 +93,9 @@ export const useCoachStore = create<CoachState>((set, get) => ({
           .order("sent_at", { ascending: false }),
       ]);
 
-      const profiles = new Map((profilesRes.data || []).map((p: any) => [p.id, p]));
+      const profiles = new Map<string, { display_name: string; avatar_url: string | null }>(
+        (profilesRes.data || []).map((p: any) => [p.id as string, p]),
+      );
       const sevenDaysAgo = daysAgoIso(7);
 
       const clients: RosterClient[] = (rels || []).map((r) => {
