@@ -33,6 +33,7 @@ export default defineConfig(({ mode }) => ({
       includeAssets: ["favicon.ico", "robots.txt"],
       workbox: {
         importScripts: ['/custom-sw.js'],
+        navigateFallback: null,
         navigateFallbackDenylist: [/^\/~oauth/, /^\/~/, /^\/assets\//],
         // Do NOT precache index.html — it must always come from the network so
         // the newest asset hashes are picked up on every load.
