@@ -11,16 +11,12 @@ import {
   Dumbbell,
   Library,
   Activity,
-  Heart,
-  Radio,
-  Users,
-  Target,
+  MessageSquare,
   Shield,
   MoreHorizontal,
   UtensilsCrossed,
   UserCircle,
   LogOut,
-  Briefcase,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -34,26 +30,26 @@ export interface VaultTab {
 
 /**
  * Core vault tabs — order matters for display.
- * The `protected` flag marks tabs that are critical to the app and must always be present.
+ * Athlete IA: Today | Train | Nutrition | Coach (+ Body, Admin).
+ * Retired areas (Community, Lifestyle, Podcast, Tracks, Fitness Audit) are no longer
+ * listed in active navigation but their components and data remain intact.
  */
 export const VAULT_TABS: VaultTab[] = [
-  { id: "dashboard", label: "Home",      icon: LayoutDashboard, protected: true },
-  { id: "workouts",  label: "Train",     icon: Dumbbell,        protected: true },
-  { id: "library",   label: "Library",   icon: Library,         protected: true },
-  { id: "progress",  label: "Body",      icon: Activity,        protected: true },
-  { id: "lifestyle", label: "Lifestyle", icon: Heart,           protected: true },
-  { id: "podcast",   label: "Podcast",   icon: Radio,           protected: false },
-  { id: "community", label: "Community", icon: Users,           protected: true },
-  { id: "admin",     label: "Admin",     icon: Shield,          protected: true, adminOnly: true },
+  { id: "dashboard", label: "Today",     icon: LayoutDashboard,  protected: true },
+  { id: "workouts",  label: "Train",     icon: Dumbbell,         protected: true },
+  { id: "nutrition", label: "Nutrition", icon: UtensilsCrossed,  protected: true },
+  { id: "coach",     label: "Coach",     icon: MessageSquare,    protected: true },
+  { id: "progress",  label: "Body",      icon: Activity,         protected: true },
+  { id: "admin",     label: "Admin",     icon: Shield,           protected: true, adminOnly: true },
 ];
 
 /** Bottom navigation tabs for mobile — subset of core tabs */
 export const BOTTOM_NAV_TABS: VaultTab[] = [
-  { id: "dashboard", label: "Home",      icon: LayoutDashboard, protected: true },
-  { id: "workouts",  label: "Train",     icon: Dumbbell,        protected: true },
-  { id: "progress",  label: "Body",      icon: Activity,        protected: true },
-  { id: "community", label: "Community", icon: Users,           protected: true },
-  { id: "more",      label: "More",      icon: MoreHorizontal,  protected: true },
+  { id: "dashboard", label: "Today",     icon: LayoutDashboard,  protected: true },
+  { id: "workouts",  label: "Train",     icon: Dumbbell,         protected: true },
+  { id: "nutrition", label: "Nutrition", icon: UtensilsCrossed,  protected: true },
+  { id: "coach",     label: "Coach",     icon: MessageSquare,    protected: true },
+  { id: "more",      label: "More",      icon: MoreHorizontal,   protected: true },
 ];
 
 /** Items shown in the "More" bottom sheet grid */
@@ -72,18 +68,11 @@ export interface MoreMenuItem {
 }
 
 export const MORE_MENU_ITEMS: MoreMenuItem[] = [
-  // Training
-  { id: "coaching",   label: "My Coaching", icon: Briefcase,       tabId: "coaching",   group: "Training" },
-  { id: "lifestyle",  label: "Lifestyle",  icon: Heart,            tabId: "lifestyle",  group: "Training" },
-  { id: "tracks",     label: "Tracks",     icon: Target,           tabId: "tracks",     group: "Training" },
-  { id: "nutrition",  label: "Nutrition",  icon: UtensilsCrossed,  route: "/nutrition",  group: "Training" },
-  // Content
-  { id: "library",    label: "Library",    icon: Library,          tabId: "library",    group: "Content" },
-  { id: "podcast",    label: "Podcast",    icon: Radio,            tabId: "podcast",    group: "Content" },
-  // Account
-  { id: "profile",    label: "Profile",    icon: UserCircle,       route: "/profile",   group: "Account" },
-  { id: "admin",      label: "Admin",      icon: Shield,           tabId: "admin", adminOnly: true, group: "Account" },
-  { id: "signout",    label: "Sign Out",   icon: LogOut,           destructive: true },
+  { id: "progress",   label: "Body",      icon: Activity,   tabId: "progress",  group: "Training" },
+  { id: "library",    label: "Resources", icon: Library,    tabId: "library",   group: "Content" },
+  { id: "profile",    label: "Profile",   icon: UserCircle, route: "/profile",  group: "Account" },
+  { id: "admin",      label: "Admin",     icon: Shield,     tabId: "admin", adminOnly: true, group: "Account" },
+  { id: "signout",    label: "Sign Out",  icon: LogOut,     destructive: true },
 ];
 
 /** Top-level app routes */
