@@ -2041,6 +2041,7 @@ export type Database = {
         Args: { _reps: number; _weight: number }
         Returns: number
       }
+      can_direct_message: { Args: { _a: string; _b: string }; Returns: boolean }
       has_client_access: { Args: { _client_id: string }; Returns: boolean }
       has_private_coaching: { Args: { _user_id: string }; Returns: boolean }
       has_role: {
