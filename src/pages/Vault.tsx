@@ -9,7 +9,7 @@ import { PodcastTab } from "@/components/vault/PodcastTab";
 import { LibraryTab } from "@/components/vault/LibraryTab";
 import { AdminPanel } from "@/components/vault/AdminPanel";
 import { ProgressTab } from "@/components/progress/ProgressTab";
-import { WorkoutTab } from "@/components/workout/WorkoutTab";
+import { TrainTab } from "@/components/train/TrainTab";
 import { CommunityFeed } from "@/components/community/CommunityFeed";
 import { LifestyleTab } from "@/components/lifestyle/LifestyleTab";
 import { VaultDashboard as DashboardView } from "@/components/dashboard/VaultDashboard";
@@ -140,7 +140,7 @@ export function VaultDashboard() {
           </div>
 
           {activeTab === "dashboard" && <TabsContent value="dashboard" forceMount><DashboardView /></TabsContent>}
-          {activeTab === "workouts" && <TabsContent value="workouts" forceMount><WorkoutTab /></TabsContent>}
+          {activeTab === "workouts" && <TabsContent value="workouts" forceMount><TrainTab /></TabsContent>}
           {activeTab === "library" && <TabsContent value="library" forceMount><LibraryTab isPremiumMember={true} isAdmin={isAdmin} /></TabsContent>}
           {activeTab === "progress" && <TabsContent value="progress" forceMount><ProgressTab /></TabsContent>}
           {activeTab === "lifestyle" && <TabsContent value="lifestyle" forceMount><LifestyleTab /></TabsContent>}

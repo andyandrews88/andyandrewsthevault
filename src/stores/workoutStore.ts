@@ -235,7 +235,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
         .select()
         .single();
       
-      const newExercise: WorkoutExercise = { 
+      const newExercise = { 
         ...exercise, 
         exercise_type: 'conditioning',
         superset_group: exercise.superset_group || null,
@@ -243,7 +243,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
         conditioning_sets: firstSet ? [{...firstSet, distance_unit: (firstSet.distance_unit as 'miles' | 'km' | 'meters') || 'miles'}] : [],
         sets: []
       };
-      set({ exercises: [...exercises, newExercise] });
+      set({ exercises: [...exercises, newExercise as unknown as WorkoutExercise] });
     } else {
       // Check if exercise is unilateral (DB flag or hardcoded)
       const { data: libData } = await supabase
@@ -262,7 +262,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
           ])
           .select();
         
-        const newExercise: WorkoutExercise = { 
+        const newExercise = { 
           ...exercise, 
           exercise_type: 'strength',
           superset_group: exercise.superset_group || null,
@@ -270,7 +270,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
           sets: firstSets ? castSets(firstSets) : [],
           conditioning_sets: []
         };
-        set({ exercises: [...exercises, newExercise] });
+        set({ exercises: [...exercises, newExercise as unknown as WorkoutExercise] });
       } else {
         const { data: firstSet } = await supabase
           .from('exercise_sets')
@@ -278,7 +278,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
           .select()
           .single();
         
-        const newExercise: WorkoutExercise = { 
+        const newExercise = { 
           ...exercise, 
           exercise_type: 'strength',
           superset_group: exercise.superset_group || null,
@@ -286,7 +286,7 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
           sets: firstSet ? [castSet(firstSet)] : [],
           conditioning_sets: []
         };
-        set({ exercises: [...exercises, newExercise] });
+        set({ exercises: [...exercises, newExercise as unknown as WorkoutExercise] });
       }
     }
   },

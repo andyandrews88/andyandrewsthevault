@@ -12,6 +12,29 @@ export interface Workout {
   updated_at: string;
 }
 
+export type WorkoutFormat =
+  | 'straight'
+  | 'superset'
+  | 'circuit'
+  | 'interval'
+  | 'amrap'
+  | 'emom'
+  | 'for_time'
+  | 'conditioning';
+
+/** Per-row weight unit as stored in the database enum. */
+export type SetUnit = 'kg' | 'lb';
+
+export interface GroupConfig {
+  label?: string;
+  rounds?: number;
+  work_seconds?: number;
+  rest_seconds?: number;
+  time_cap_seconds?: number;
+  interval_seconds?: number;
+  [key: string]: unknown;
+}
+
 export interface WorkoutExercise {
   id: string;
   workout_id: string;
@@ -22,6 +45,11 @@ export interface WorkoutExercise {
   superset_group: string | null;
   workout_section: 'warmup' | 'main' | 'cooldown';
   created_at: string;
+  format: WorkoutFormat;
+  group_id: string | null;
+  group_order: number | null;
+  group_config: GroupConfig;
+  coach_instructions: string | null;
   sets?: ExerciseSet[];
   conditioning_sets?: ConditioningSet[];
 }
@@ -39,6 +67,17 @@ export interface ExerciseSet {
   side: 'left' | 'right' | null;
   is_completed: boolean;
   created_at: string;
+  unit: SetUnit;
+  tempo: string | null;
+  notes: string | null;
+  is_prescribed: boolean;
+  prescribed_reps: number | null;
+  prescribed_weight: number | null;
+  prescribed_rpe: number | null;
+  estimated_1rm: number | null;
+  distance_m?: number | null;
+  height_cm?: number | null;
+  speed_mps?: number | null;
 }
 
 export interface ConditioningSet {
@@ -52,6 +91,21 @@ export interface ConditioningSet {
   avg_heart_rate: number | null;
   is_completed: boolean;
   created_at: string;
+  modality: string | null;
+  avg_watts: number | null;
+  avg_speed: number | null;
+  speed_unit: string | null;
+  cadence_rpm: number | null;
+  max_heart_rate: number | null;
+  hr_zone: string | null;
+  rpe: number | null;
+  notes: string | null;
+  target_duration_seconds: number | null;
+  target_distance: number | null;
+  target_watts: number | null;
+  target_hr_zone: string | null;
+  target_hr_min: number | null;
+  target_hr_max: number | null;
 }
 
 export interface PersonalRecord {
