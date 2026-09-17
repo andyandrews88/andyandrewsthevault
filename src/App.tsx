@@ -27,6 +27,10 @@ const AdminTemplates = lazy(() => import("./pages/AdminTemplates"));
 const AdminClientCalendar = lazy(() => import("./pages/AdminClientCalendar"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const ProgramLanding = lazy(() => import("./pages/ProgramLanding"));
+const CoachRoster = lazy(() => import("./pages/CoachRoster"));
+const CoachClient = lazy(() => import("./pages/CoachClient"));
+const CoachPrograms = lazy(() => import("./pages/CoachPrograms"));
+const CoachMovements = lazy(() => import("./pages/CoachMovements"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -68,6 +72,10 @@ function AppContent() {
         <Route path="/admin/user/:userId/calendar" element={<ProtectedRoute><AdminClientCalendar /></ProtectedRoute>} />
         <Route path="/admin/templates" element={<ProtectedRoute><AdminTemplates /></ProtectedRoute>} />
         <Route path="/program/:slug" element={<ProtectedRoute><ProgramLanding /></ProtectedRoute>} />
+        <Route path="/coach" element={<ProtectedRoute><CoachRoster /></ProtectedRoute>} />
+        <Route path="/coach/client/:clientId" element={<ProtectedRoute><CoachClient /></ProtectedRoute>} />
+        <Route path="/coach/programs" element={<ProtectedRoute><CoachPrograms /></ProtectedRoute>} />
+        <Route path="/coach/movements" element={<ProtectedRoute><CoachMovements /></ProtectedRoute>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Suspense>

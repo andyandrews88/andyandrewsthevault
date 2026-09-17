@@ -41,9 +41,24 @@ legacy `WorkoutTab` analytics components retained in repo but no longer routed.
 - [x] Onboarding tour rewritten for the new IA
 - [x] Typecheck + lint clean; mobile verification of all four tabs signed in; no test data written
 
+## Phase 4 — Coach side (built, coach-account verification pending)
+- [x] `/coach` roster: active / archived / invites, search, per-client real activity only
+- [x] Add Client → name + email + tier → `coach-invite` edge function (create/resend/revoke/sync)
+- [x] Archive / restore via relationship status only — no deletes, all history kept
+- [x] `/coach/client/:id` workspace: Overview | Training | Nutrition | Progress | Messages
+- [x] Tier 1 vs Tier 2 entitlements centralised in `src/lib/entitlements.ts` + `useEntitlement`
+- [x] `/coach/programs`: Tier 2 curated availability manager + existing program builder
+- [x] `/coach/movements`: coach-only movement library (athlete submit policy removed)
+- [x] Athlete program browsing now driven by curated availability (`CuratedPrograms`)
+- [x] RLS: relationship+tier gated DMs (`can_direct_message`), coach-only movement writes,
+      unique relationship pair, unique pending invite, unique availability scope
+- [x] Typecheck clean; integrity counts unchanged vs Phase 4 baseline
+- [ ] End-to-end coach-account run (roster, invite create/resend/revoke, archive/restore,
+      program assign rollback, Tier 2 availability) — blocked on signing in as the coach account
+
 ## Later phases (not started)
-- P4 Coach side (roster, invites UI, archive UI), P5 Messaging + push,
-  P6 Analytics, P7 Payments/booking, P8 Retirement of deprecated areas.
+- P5 Messaging + push, P6 Analytics, P7 Payments/booking, P8 Retirement of deprecated areas.
 
 ## Deferred
 - Andy's Assault Bike conditioning entry — log after foundation is complete.
+- Paid coaching-call booking for Tier 2 (CTA placeholder only) — P7.
