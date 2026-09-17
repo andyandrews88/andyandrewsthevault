@@ -181,11 +181,18 @@ export function Navbar() {
                 onClick={() => handleNavigate("/profile")}
               />
               {isAdmin && (
-                <BottomSheetItem
-                  icon={Shield}
-                  label="Admin Dashboard"
-                  onClick={() => handleNavigate("/admin")}
-                />
+                <>
+                  <BottomSheetItem
+                    icon={Shield}
+                    label="Coach Workspace"
+                    onClick={() => handleNavigate("/coach")}
+                  />
+                  <BottomSheetItem
+                    icon={Shield}
+                    label="Admin Dashboard"
+                    onClick={() => handleNavigate("/admin")}
+                  />
+                </>
               )}
               <BottomSheetSeparator />
               <BottomSheetItem
