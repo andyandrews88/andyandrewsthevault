@@ -12,7 +12,9 @@ import { ProgressTab } from "@/components/progress/ProgressTab";
 import { TrainTab } from "@/components/train/TrainTab";
 import { CommunityFeed } from "@/components/community/CommunityFeed";
 import { LifestyleTab } from "@/components/lifestyle/LifestyleTab";
-import { VaultDashboard as DashboardView } from "@/components/dashboard/VaultDashboard";
+import { TodayTab } from "@/components/today/TodayTab";
+import { NutritionTab } from "@/components/nutrition/NutritionTab";
+import { CoachTab } from "@/components/coach/CoachTab";
 import { PrivateCoachingPanel } from "@/components/dashboard/PrivateCoachingPanel";
 import { ProgramLibrary } from "@/components/tracks/ProgramLibrary";
 import { BottomNav } from "@/components/layout/BottomNav";
@@ -39,7 +41,7 @@ export function VaultDashboard() {
   const handleTabChange = (value: string) => {
     setActiveTab(value);
     setSearchParams({ tab: value }, { replace: true });
-    if (value === 'community') {
+    if (value === 'community' || value === 'coach') {
       markCommunityVisited();
     }
   };
@@ -51,7 +53,7 @@ export function VaultDashboard() {
   // Filter tabs based on admin status
   const visibleTabs = VAULT_TABS.filter(tab => !tab.adminOnly || isAdmin);
 
-  const isImmersiveChat = activeTab === 'community';
+  const isImmersiveChat = activeTab === 'community' || activeTab === 'coach';
 
   return (
     <div className={isImmersiveChat ? "min-h-screen md:pt-24 md:pb-12" : "min-h-screen pt-6 md:pt-24 pb-20 md:pb-12"}>
@@ -118,7 +120,7 @@ export function VaultDashboard() {
             <TabsList className="flex overflow-x-auto scrollbar-hide gap-1 h-auto p-1 pr-4 sm:inline-flex sm:w-auto sm:flex-wrap">
               {visibleTabs.map((tab) => {
                 const Icon = tab.icon;
-                const showDot = tab.id === "community" && showCommunityDot;
+                const showDot = tab.id === "coach" && showCommunityDot;
                 return (
                   <TabsTrigger
                     key={tab.id}
@@ -139,8 +141,10 @@ export function VaultDashboard() {
             </TabsList>
           </div>
 
-          {activeTab === "dashboard" && <TabsContent value="dashboard" forceMount><DashboardView /></TabsContent>}
+          {activeTab === "dashboard" && <TabsContent value="dashboard" forceMount><TodayTab onNavigate={handleTabChange} /></TabsContent>}
           {activeTab === "workouts" && <TabsContent value="workouts" forceMount><TrainTab /></TabsContent>}
+          {activeTab === "nutrition" && <TabsContent value="nutrition" forceMount><NutritionTab /></TabsContent>}
+          {activeTab === "coach" && <TabsContent value="coach" forceMount><CoachTab /></TabsContent>}
           {activeTab === "library" && <TabsContent value="library" forceMount><LibraryTab isPremiumMember={true} isAdmin={isAdmin} /></TabsContent>}
           {activeTab === "progress" && <TabsContent value="progress" forceMount><ProgressTab /></TabsContent>}
           {activeTab === "lifestyle" && <TabsContent value="lifestyle" forceMount><LifestyleTab /></TabsContent>}

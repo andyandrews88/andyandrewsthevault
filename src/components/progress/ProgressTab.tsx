@@ -10,13 +10,15 @@ import {
   Activity,
   LineChart as LineChartIcon,
   Ruler,
-  Scan
+  Scan,
+  Camera
 } from "lucide-react";
 import { useProgressStore } from "@/stores/progressStore";
 import { BodyEntryForm } from "./BodyEntryForm";
 import { WeightChart } from "./WeightChart";
 import { MeasurementTable } from "./MeasurementTable";
 import { ProgressOverview } from "./ProgressOverview";
+import { ProgressPhotos } from "./ProgressPhotos";
 // WearableConnect temporarily removed - can restore later
 import { kgToLbs, cmToInches } from "@/types/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -102,7 +104,7 @@ export function ProgressTab() {
         const hasScanData = bodyEntries.some(e => e.lean_mass_kg || e.fat_mass_kg);
         return (
       <Tabs defaultValue="weight" className="space-y-4">
-        <TabsList className={`grid w-full max-w-md h-auto p-1 ${hasScanData ? 'grid-cols-3' : 'grid-cols-2'}`}>
+        <TabsList className={`grid w-full max-w-md h-auto p-1 ${hasScanData ? 'grid-cols-4' : 'grid-cols-3'}`}>
           <TabsTrigger value="weight" className="flex items-center gap-2 py-2.5 px-3">
             <Scale className="w-4 h-4" />
             <span className="text-xs sm:text-sm">Weight</span>
@@ -110,6 +112,10 @@ export function ProgressTab() {
           <TabsTrigger value="measurements" className="flex items-center gap-2 py-2.5 px-3">
             <Ruler className="w-4 h-4" />
             <span className="text-xs sm:text-sm">Measures</span>
+          </TabsTrigger>
+          <TabsTrigger value="photos" className="flex items-center gap-2 py-2.5 px-3">
+            <Camera className="w-4 h-4" />
+            <span className="text-xs sm:text-sm">Photos</span>
           </TabsTrigger>
           {hasScanData && (
             <TabsTrigger value="scans" className="flex items-center gap-2 py-2.5 px-3">
@@ -176,6 +182,25 @@ export function ProgressTab() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        <TabsContent value="photos">
+          <Card variant="elevated">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Camera className="w-5 h-5 text-primary" />
+                Progress Photos
+              </CardTitle>
+              <CardDescription>
+                Private to you and your coach
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ProgressPhotos />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+
 
         <TabsContent value="scans">
           <Card variant="elevated">

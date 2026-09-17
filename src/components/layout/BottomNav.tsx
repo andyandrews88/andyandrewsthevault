@@ -79,7 +79,7 @@ export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
             const isMore = tab.id === "more";
             const isActive = isMore ? moreOpen : activeTab === tab.id;
             const showDot =
-              tab.id === "community" &&
+              tab.id === "coach" &&
               (hasNewAnnouncement || unreadDmCount > 0);
 
             return (

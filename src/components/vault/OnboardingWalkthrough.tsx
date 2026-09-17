@@ -55,83 +55,46 @@ const tourSteps: TourStep[] = [
   },
   {
     icon: LayoutDashboard,
-    title: "Your Dashboard",
+    title: "Today",
     description:
-      "This is your command center. Your AI coaching review appears here each week — pulling together training, nutrition, and lifestyle data into one actionable summary.",
+      "Your command center. Everything that needs doing today — your session, your food, your check-ins — in one place.",
     tab: "dashboard",
   },
   {
-    icon: Heart,
-    title: "Daily Check-In",
-    description:
-      "Start each day with a 30-second check-in. Rate your sleep, stress, energy, and drive — these generate your Readiness Score.",
-    tip: "The notes field is the most valuable input in the entire app. The AI reads every note and connects the dots you might miss.",
-    tab: "lifestyle",
-  },
-  {
     icon: Dumbbell,
-    title: "Training",
+    title: "Train",
     description:
-      "Log your strength and conditioning work. The app tracks volume, PRs, and trends automatically. Add RIR (Reps in Reserve) to your sets so the AI can assess your intensity.",
+      "Log strength and conditioning set by set. Your previous performance sits next to every set so you always know what to beat.",
     tab: "workouts",
   },
   {
     icon: Apple,
     title: "Nutrition",
     description:
-      "Engineering-grade macro calculator, food diary with barcode scanning, hand portion logging, and a 50+ recipe library — all feeding into your weekly AI review.",
-    tip: "Use the hand portion logger if you don't want to weigh food — it's just as effective for the AI.",
+      "Snap a photo, speak it, or type it. You get an estimate, you check it, you save it. Your targets are set by Andy.",
+    tip: "Photos are the fastest way to log — you can always adjust the numbers before saving.",
     tab: "nutrition",
   },
   {
     icon: Activity,
-    title: "Progress Tracking",
+    title: "Body",
     description:
-      "Track bodyweight, body measurements, and composition data here. The AI uses weight trends to spot patterns — like whether a calorie deficit is affecting your training.",
+      "Weigh-ins, measurements, scan data and progress photos. Photos stay private between you and Andy.",
     tab: "progress",
   },
   {
-    icon: Wind,
-    title: "Breathwork & Recovery",
+    icon: MessageSquare,
+    title: "Coach",
     description:
-      "Five evidence-based breathing protocols — Box Breathing, 4-7-8, Wim Hof, and more — with visual and audio guidance. All inside the Lifestyle tab.",
-    tab: "lifestyle",
-  },
-  {
-    icon: Library,
-    title: "Library",
-    description:
-      "Curated coaching resources — articles, videos, and guides on training, nutrition, mindset, and lifestyle. New content drops regularly.",
-    tab: "library",
-  },
-  {
-    icon: Radio,
-    title: "Podcast",
-    description:
-      "Listen to coaching episodes directly in the app. New drops land here automatically so you never miss one.",
-    tab: "podcast",
-  },
-  {
-    icon: Users,
-    title: "Community",
-    description:
-      "Share wins, ask questions, and send direct messages to other Vault members. Accountability is the hidden multiplier.",
-    tip: "Post your wins — accountability is the hidden multiplier.",
-    tab: "community",
-  },
-  {
-    icon: Target,
-    title: "Training Programs",
-    description:
-      "Structured programs — follow Foundation or Performance tracks, or browse the free program library. The app schedules your sessions and tracks compliance.",
-    tab: "tracks",
+      "Your private line to Andy. Ask questions, send updates, get answers — no public feed, no noise.",
+    tab: "coach",
   },
   {
     icon: Rocket,
     title: "You're Ready",
     description:
-      "You've seen everything The Vault has to offer. Head to the Lifestyle tab and do your first Daily Check-In — the more you log, the smarter and more specific your coaching gets.",
-    tab: "lifestyle",
+      "Start by logging today's session and your first meal. The more you log, the sharper your coaching gets.",
+    tab: "dashboard",
   },
 ];
 
