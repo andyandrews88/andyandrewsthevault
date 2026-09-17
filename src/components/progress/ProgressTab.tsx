@@ -183,6 +183,25 @@ export function ProgressTab() {
           </Card>
         </TabsContent>
 
+        <TabsContent value="photos">
+          <Card variant="elevated">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Camera className="w-5 h-5 text-primary" />
+                Progress Photos
+              </CardTitle>
+              <CardDescription>
+                Private to you and your coach
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ProgressPhotos />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+
+
         <TabsContent value="scans">
           <Card variant="elevated">
             <CardHeader>
