@@ -20,4 +20,15 @@ try {
   /* localStorage unavailable — ignore */
 }
 
+// When a newly deployed service worker takes control, reload once so the tab
+// is never left running an outdated bundle.
+if ("serviceWorker" in navigator) {
+  let reloading = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (reloading) return;
+    reloading = true;
+    window.location.reload();
+  });
+}
+
 createRoot(document.getElementById("root")!).render(<App />);

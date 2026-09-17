@@ -3,8 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Activity, Lock, Mail, User, CheckCircle } from "lucide-react";
+import { Activity, Lock, Mail } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuthStore } from "@/stores/authStore";
@@ -17,11 +16,10 @@ const passwordSchema = z.string().min(8, "Password must be at least 8 characters
 
 export function AuthPage() {
   const navigate = useNavigate();
-  const { signIn, signUp, isAuthenticated, isLoading } = useAuthStore();
-  
+  const { signIn, isAuthenticated, isLoading } = useAuthStore();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
   const [googleLoading, setGoogleLoading] = useState(false);
 
@@ -69,24 +67,6 @@ export function AuthPage() {
     navigate("/vault");
   };
 
-  const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validateForm()) return;
-    
-    const { error } = await signUp(email, password, name);
-    
-    if (error) {
-      if (error.message.includes("already registered")) {
-        toast.error("This email is already registered. Please sign in instead.");
-      } else {
-        toast.error(error.message);
-      }
-      return;
-    }
-    
-    toast.success("Account created! Check your email to confirm, then sign in.");
-  };
-
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
     try {
@@ -105,12 +85,6 @@ export function AuthPage() {
     }
   };
 
-  const accountBenefits = [
-    "Save your nutrition data across devices",
-    "Track your meals and progress over time",
-    "Access your audit results anywhere",
-    "100% free - no payment required"
-  ];
 
   const GoogleButton = () => (
     <Button
@@ -168,127 +142,69 @@ export function AuthPage() {
           <div className="w-12 h-12 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-4">
             <Activity className="w-6 h-6 text-primary" />
           </div>
-          <h1 className="text-2xl font-bold">Performance Architect</h1>
-          <p className="text-muted-foreground text-sm mt-1">Create your free account</p>
+          <h1 className="text-2xl font-bold">The Vault</h1>
+          <p className="text-muted-foreground text-sm mt-1">Private coaching platform — members only</p>
         </div>
 
         <Card variant="elevated">
-          <Tabs defaultValue="signup">
-            <TabsList className="w-full grid grid-cols-2 mb-4">
-              <TabsTrigger value="signup">Create Account</TabsTrigger>
-              <TabsTrigger value="signin">Sign In</TabsTrigger>
-            </TabsList>
+          <CardHeader className="pb-4">
+            <CardTitle className="text-lg">Sign in</CardTitle>
+            <CardDescription>Use the email address your coaching account was set up with.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <GoogleButton />
+            <Divider />
 
-            <TabsContent value="signup">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-lg">Create Your Account</CardTitle>
-                <CardDescription>Join free and save your progress</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="mb-6 space-y-2">
-                  {accountBenefits.map((benefit, index) => (
-                    <div key={index} className="flex items-center gap-2 text-sm">
-                      <CheckCircle className="w-4 h-4 text-primary flex-shrink-0" />
-                      <span className="text-muted-foreground">{benefit}</span>
-                    </div>
-                  ))}
+            <form onSubmit={handleSignIn} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="signin-email">Email</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input id="signin-email" type="email" placeholder="you@example.com" value={email} onChange={(e) => { setEmail(e.target.value); setErrors(prev => ({ ...prev, email: undefined })); }} className={`pl-10 ${errors.email ? 'border-destructive' : ''}`} required />
                 </div>
-
-                <GoogleButton />
-                <Divider />
-
-                <form onSubmit={handleSignUp} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-name">Full Name</Label>
-                    <div className="relative">
-                      <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <Input id="signup-name" type="text" placeholder="Andy Andrews" value={name} onChange={(e) => setName(e.target.value)} className="pl-10" />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-email">Email</Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <Input id="signup-email" type="email" placeholder="andy@example.com" value={email} onChange={(e) => { setEmail(e.target.value); setErrors(prev => ({ ...prev, email: undefined })); }} className={`pl-10 ${errors.email ? 'border-destructive' : ''}`} required />
-                    </div>
-                    {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-password">Password</Label>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <Input id="signup-password" type="password" placeholder="••••••••" value={password} onChange={(e) => { setPassword(e.target.value); setErrors(prev => ({ ...prev, password: undefined })); }} className={`pl-10 ${errors.password ? 'border-destructive' : ''}`} minLength={8} required />
-                    </div>
-                    {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
-                  </div>
-                  <Button variant="hero" className="w-full" disabled={isLoading}>
-                    {isLoading ? "Creating account..." : "Create Account"}
-                  </Button>
-                  <p className="text-xs text-muted-foreground text-center">
-                    By signing up, you agree to our Terms and Privacy Policy
-                  </p>
-                </form>
-              </CardContent>
-            </TabsContent>
-
-            <TabsContent value="signin">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-lg">Welcome back</CardTitle>
-                <CardDescription>Enter your credentials to access your account</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <GoogleButton />
-                <Divider />
-
-                <form onSubmit={handleSignIn} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="signin-email">Email</Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <Input id="signin-email" type="email" placeholder="andy@example.com" value={email} onChange={(e) => { setEmail(e.target.value); setErrors(prev => ({ ...prev, email: undefined })); }} className={`pl-10 ${errors.email ? 'border-destructive' : ''}`} required />
-                    </div>
-                    {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="signin-password">Password</Label>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <Input id="signin-password" type="password" placeholder="••••••••" value={password} onChange={(e) => { setPassword(e.target.value); setErrors(prev => ({ ...prev, password: undefined })); }} className={`pl-10 ${errors.password ? 'border-destructive' : ''}`} required />
-                    </div>
-                    {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
-                  </div>
-                  <Button variant="hero" className="w-full" disabled={isLoading}>
-                    {isLoading ? "Signing in..." : "Sign In"}
-                  </Button>
-                  <button
-                    type="button"
-                    className="text-xs text-primary hover:underline w-full text-center"
-                    onClick={async () => {
-                      if (!email) {
-                        toast.error("Enter your email first, then click Forgot Password");
-                        return;
-                      }
-                      const emailResult = emailSchema.safeParse(email);
-                      if (!emailResult.success) {
-                        toast.error("Please enter a valid email address");
-                        return;
-                      }
-                      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-                        redirectTo: `${window.location.origin}/reset-password`,
-                      });
-                      if (error) {
-                        toast.error(error.message);
-                      } else {
-                        toast.success("Password reset email sent! Check your inbox.");
-                      }
-                    }}
-                  >
-                    Forgot your password?
-                  </button>
-                </form>
-              </CardContent>
-            </TabsContent>
-          </Tabs>
+                {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="signin-password">Password</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input id="signin-password" type="password" placeholder="••••••••" value={password} onChange={(e) => { setPassword(e.target.value); setErrors(prev => ({ ...prev, password: undefined })); }} className={`pl-10 ${errors.password ? 'border-destructive' : ''}`} required />
+                </div>
+                {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
+              </div>
+              <Button variant="hero" className="w-full" disabled={isLoading}>
+                {isLoading ? "Signing in..." : "Sign In"}
+              </Button>
+              <button
+                type="button"
+                className="text-xs text-primary hover:underline w-full text-center"
+                onClick={async () => {
+                  if (!email) {
+                    toast.error("Enter your email first, then click Forgot Password");
+                    return;
+                  }
+                  const emailResult = emailSchema.safeParse(email);
+                  if (!emailResult.success) {
+                    toast.error("Please enter a valid email address");
+                    return;
+                  }
+                  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                    redirectTo: `${window.location.origin}/reset-password`,
+                  });
+                  if (error) {
+                    toast.error(error.message);
+                  } else {
+                    toast.success("Password reset email sent! Check your inbox.");
+                  }
+                }}
+              >
+                Forgot your password?
+              </button>
+              <p className="text-xs text-muted-foreground text-center">
+                No account? Access to The Vault is by invitation from Andy.
+              </p>
+            </form>
+          </CardContent>
         </Card>
       </div>
     </div>
