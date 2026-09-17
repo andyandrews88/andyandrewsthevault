@@ -245,8 +245,9 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       exercise_id: exerciseId,
       set_number: existing.length + 1,
       modality: modality ?? last?.modality ?? null,
-      distance_unit: last?.distance_unit ?? "meters",
-      speed_unit: last?.speed_unit ?? null,
+      distance_unit:
+        last?.distance_unit ?? findModality(modality)?.distanceUnit ?? "meters",
+      speed_unit: last?.speed_unit ?? findModality(modality)?.speedUnit ?? null,
       is_completed: false,
     };
     const { data, error } = await supabase
