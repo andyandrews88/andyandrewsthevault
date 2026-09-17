@@ -106,8 +106,8 @@ All AI runs server-side through Lovable AI; no keys in the app.
 **P3 — Today + Nutrition + Progress.** Four-tab shell, targets, photo/voice/manual food logging with confirm step, bodyweight/measurements/InBody/photos.
 *Accept:* an athlete completes a full day (session + meals + weight) without leaving the four tabs; every AI value passes through confirmation.
 
-**P4 — Coach side.** Roster, client workspace, block/week/day programming, visibility control, movement library, compliance.
-*Accept:* Andy programmes a block for a real client, sets visibility, and reviews their week without touching the old admin pages.
+**P4 — Coach side.** Roster with Active/Archived filter, Add Client invite, archive/restore, client workspace, block/week/day programming, visibility control, curated Tier 2 program list, movement library, compliance.
+*Accept:* Andy invites a client by email at a chosen tier and they land in the app linked to him; a Tier 2 athlete can pick and switch among the curated programs and sees the booking CTA instead of the chat; archiving a client removes them from the active roster with every record intact, and restoring brings them back unchanged.
 
 **P5 — Messaging + push.** Conversation, voice messages, contextual comments, notifications for messages and new programming, with per-type controls.
 *Accept:* message and new-session notifications arrive on iOS/Android home-screen installs; muting works.
