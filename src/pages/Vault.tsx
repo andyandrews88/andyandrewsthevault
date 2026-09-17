@@ -41,7 +41,7 @@ export function VaultDashboard() {
   const handleTabChange = (value: string) => {
     setActiveTab(value);
     setSearchParams({ tab: value }, { replace: true });
-    if (value === 'community') {
+    if (value === 'community' || value === 'coach') {
       markCommunityVisited();
     }
   };
@@ -53,7 +53,7 @@ export function VaultDashboard() {
   // Filter tabs based on admin status
   const visibleTabs = VAULT_TABS.filter(tab => !tab.adminOnly || isAdmin);
 
-  const isImmersiveChat = activeTab === 'community';
+  const isImmersiveChat = activeTab === 'community' || activeTab === 'coach';
 
   return (
     <div className={isImmersiveChat ? "min-h-screen md:pt-24 md:pb-12" : "min-h-screen pt-6 md:pt-24 pb-20 md:pb-12"}>
@@ -120,7 +120,7 @@ export function VaultDashboard() {
             <TabsList className="flex overflow-x-auto scrollbar-hide gap-1 h-auto p-1 pr-4 sm:inline-flex sm:w-auto sm:flex-wrap">
               {visibleTabs.map((tab) => {
                 const Icon = tab.icon;
-                const showDot = tab.id === "community" && showCommunityDot;
+                const showDot = tab.id === "coach" && showCommunityDot;
                 return (
                   <TabsTrigger
                     key={tab.id}
