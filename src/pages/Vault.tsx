@@ -16,7 +16,7 @@ import { TodayTab } from "@/components/today/TodayTab";
 import { NutritionTab } from "@/components/nutrition/NutritionTab";
 import { CoachTab } from "@/components/coach/CoachTab";
 import { PrivateCoachingPanel } from "@/components/dashboard/PrivateCoachingPanel";
-import { ProgramLibrary } from "@/components/tracks/ProgramLibrary";
+import { CuratedPrograms } from "@/components/tracks/CuratedPrograms";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { VAULT_TABS, APP_VERSION, APP_BUILD_DATE } from "@/lib/navigationConstants";
 import { useState } from "react";
@@ -246,7 +246,7 @@ export function VaultDashboard() {
             </Card>
 
             {/* Free Programs Library */}
-            <ProgramLibrary />
+            <CuratedPrograms />
           </TabsContent>
           )}
 
