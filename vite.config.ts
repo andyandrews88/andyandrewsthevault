@@ -24,19 +24,24 @@ export default defineConfig(({ mode }) => ({
     react(),
     mode === "development" && componentTagger(),
     VitePWA({
-      registerType: "prompt",
+      // autoUpdate: a new deploy activates immediately instead of waiting for
+      // the user to accept a prompt (which left clients stuck on old builds).
+      registerType: "autoUpdate",
       devOptions: {
         enabled: false,
       },
       includeAssets: ["favicon.ico", "robots.txt"],
       workbox: {
         importScripts: ['/custom-sw.js'],
-        navigateFallbackDenylist: [/^\/~oauth/],
-        globPatterns: ["**/*.{html,ico,png,svg,woff2}"],
+        navigateFallbackDenylist: [/^\/~oauth/, /^\/~/, /^\/assets\//],
+        // Do NOT precache index.html — it must always come from the network so
+        // the newest asset hashes are picked up on every load.
+        globPatterns: ["**/*.{ico,png,svg,woff2}"],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+        skipWaiting: true,
+        clientsClaim: true,
+        cleanupOutdatedCaches: true,
         // Always prefer fresh assets — fall back to cache only after 3s.
-        // This guarantees users get the new build hash quickly, so the SW
-        // detects the update and the refresh prompt fires.
         runtimeCaching: [
           {
             urlPattern: /\.(?:js|css)$/,
