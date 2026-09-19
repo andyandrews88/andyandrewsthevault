@@ -39,9 +39,13 @@ export function VaultDashboard() {
   const showCommunityDot = hasNewAnnouncement || unreadCount > 0;
 
   // Deep links such as /vault?tab=coach must switch tabs even when already mounted.
+  // "train" is accepted as a friendly alias for the internal "workouts" tab.
   const tabParam = searchParams.get('tab');
   useEffect(() => {
-    if (tabParam && tabParam !== activeTab) setActiveTab(tabParam);
+    if (!tabParam) return;
+    const resolved = tabParam === 'train' ? 'workouts' : tabParam === 'today' ? 'dashboard' : tabParam;
+    const known = VAULT_TABS.some((t) => t.id === resolved) || resolved === 'library';
+    if (known && resolved !== activeTab) setActiveTab(resolved);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tabParam]);
 
