@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Calendar, ChevronDown, ClipboardList, Loader2, Pencil } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ServiceTier } from "@/lib/entitlements";
+import { VolumeAnalytics } from "@/components/train/VolumeAnalytics";
 
 interface Props {
   clientId: string;
