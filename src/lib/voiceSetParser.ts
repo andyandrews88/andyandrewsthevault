@@ -31,9 +31,16 @@ const TENS: Record<string, number> = {
   seventy: 70, eighty: 80, ninety: 90,
 };
 
+/** Spoken ordinals, so "fourth set" reads the same as "set four". */
+const ORDINALS: Record<string, number> = {
+  first: 1, second: 2, third: 3, fourth: 4, fifth: 5, sixth: 6, seventh: 7,
+  eighth: 8, ninth: 9, tenth: 10, eleventh: 11, twelfth: 12,
+};
+
 const HOMOPHONES: Record<string, string> = {
   won: "one", to: "two", too: "two", for: "four", fore: "four", ate: "eight",
 };
+
 
 /** Rewrites spoken number words into digits, handling "eighty five" -> 85. */
 export function wordsToDigits(input: string): string {
@@ -52,8 +59,11 @@ export function wordsToDigits(input: string): string {
         i += 1;
       }
       out.push(String(value));
+    } else if (word in ORDINALS) {
+      out.push(String(ORDINALS[word]));
     } else if (word in UNITS) {
       out.push(String(UNITS[word]));
+
     } else if (word === "hundred" && out.length > 0 && /^\d+$/.test(out[out.length - 1])) {
       out[out.length - 1] = String(Number(out[out.length - 1]) * 100);
     } else {
@@ -86,7 +96,17 @@ export function parseSpokenSet(transcript: string): ParsedSet {
   const weightMatch = text.match(
     new RegExp(`${NUM}\\s*(kilograms?|kilos?|kgs?|pounds?|lbs?|lb)\\b`)
   );
-  const setMatch = text.match(new RegExp(`\\bset\\s*(?:number\\s*)?${NUM}`));
+  // "4th set" / "4 set" is checked first; "set 4" must not swallow a following
+  // load or rep count (e.g. "set, 60 kilos" is not set number 60).
+  const setMatch =
+    text.match(new RegExp(`${NUM}\\s*(?:st|nd|rd|th)?\\s*set\\b`)) ??
+    text.match(
+      new RegExp(
+        `\\bset\\s*(?:number\\s*)?${NUM}(?!\\s*(?:kilograms?|kilos?|kgs?|pounds?|lbs?|lb|reps?|repetitions?|times)\\b)`
+      )
+    );
+
+
 
   let unit: "kg" | "lb" | null = null;
   if (weightMatch) unit = /^(k)/.test(weightMatch[2]) ? "kg" : "lb";

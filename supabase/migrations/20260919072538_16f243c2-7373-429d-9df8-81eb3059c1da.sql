@@ -1,0 +1,2 @@
+UPDATE public.workouts SET date = '2026-09-17' WHERE id = '3646d730-bae0-4865-83c3-ea5edf2a2972';
+UPDATE public.workouts SET date = CURRENT_DATE WHERE id = '33333333-3333-4333-8333-333333333333';
