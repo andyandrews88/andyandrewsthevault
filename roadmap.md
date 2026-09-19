@@ -66,8 +66,24 @@ legacy `WorkoutTab` analytics components retained in repo but no longer routed.
   warnings — these are the RLS helper functions and are required by the policies.
 
 
+## Phase 5 — Messaging + push (complete)
+- [x] Shared `Conversation` used by athlete Coach tab and coach Client Messages (one thread)
+- [x] Text + voice notes: real MIME/extension handling (m4a/webm/ogg/mp3/wav), private upload,
+      signed playback, optimistic send with retry/discard, read receipts
+- [x] Tier 2 = paid-call CTA only; archived relationship keeps history, disables sending
+- [x] Contextual comments: "ask your coach" from a session and from a logged meal →
+      context chip on the composed message
+- [x] `notify-user` edge function: per-recipient Web Push, relationship/coach authorisation,
+      recipient preferences respected, expired subscriptions cleaned
+- [x] Programming push on template assignment; message push on send (best-effort)
+- [x] Notification preferences: mute all, messages, programming, reminders (+ legacy toggles)
+- [x] Unread badges from real direct-message unread counts (nav + coach Messages tab)
+- [x] Verified signed-in on mobile viewport: send/persist/reload, deep links, Train renders
+      the in-progress session (no spinner); test messages removed, 6 historical DMs intact
+- [x] Security scan: no critical findings; avatar upload ownership policy tightened
+
 ## Later phases (not started)
-- P5 Messaging + push, P6 Analytics, P7 Payments/booking, P8 Retirement of deprecated areas.
+- P6 Analytics, P7 Payments/booking, P8 Retirement of deprecated areas.
 
 ## Deferred
 - Andy's Assault Bike conditioning entry — log after foundation is complete.
