@@ -67,7 +67,6 @@ export function VoiceSetSheet({ open, onOpenChange, exercises, defaultExerciseId
   const { logVoiceSet } = useSessionStore();
   const [stage, setStage] = useState<Stage>("idle");
   const [draft, setDraft] = useState<Draft | null>(null);
-  const [finalText, setFinalText] = useState("");
   const [movementMismatch, setMovementMismatch] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -79,7 +78,7 @@ export function VoiceSetSheet({ open, onOpenChange, exercises, defaultExerciseId
   const resetAll = () => {
     setStage("idle");
     setDraft(null);
-    setFinalText("");
+
     setMovementMismatch(false);
     speech.reset();
   };
@@ -107,7 +106,7 @@ export function VoiceSetSheet({ open, onOpenChange, exercises, defaultExerciseId
     const chosen = matched ?? (parsed.movement ? null : fallback);
 
     setMovementMismatch(!!parsed.movement && !matched);
-    setFinalText(parsed.normalised);
+
     setDraft({
       exerciseId: chosen?.id ?? null,
       spokenMovement: parsed.movement,
@@ -125,7 +124,7 @@ export function VoiceSetSheet({ open, onOpenChange, exercises, defaultExerciseId
   const startListening = () => {
     speech.reset();
     setDraft(null);
-    setFinalText("");
+
     setStage("listening");
     speech.start();
   };
