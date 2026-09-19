@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuthStore } from "@/stores/authStore";
 import { useProgramStore, type UserCalendarWorkout } from "@/stores/programStore";
 import { SessionScreen } from "./SessionScreen";
+import { VolumeAnalytics } from "./VolumeAnalytics";
 import { cn } from "@/lib/utils";
 
 interface WorkoutRow {
@@ -253,6 +254,16 @@ export function TrainTab() {
           <Plus className="h-4 w-4 mr-1.5" /> Start empty session
         </Button>
       </section>
+
+      {/* Volume */}
+      {userId && (
+        <section className="space-y-2">
+          <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+            Training volume
+          </p>
+          <VolumeAnalytics userId={userId} />
+        </section>
+      )}
 
       {/* History */}
       <section className="space-y-2">

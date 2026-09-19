@@ -10,6 +10,7 @@ import { useSessionStore } from "@/stores/sessionStore";
 import { StrengthBlock } from "./StrengthBlock";
 import { ConditioningBlock } from "./ConditioningBlock";
 import { VoiceSetSheet } from "./VoiceSetSheet";
+import { SessionVolumeCard } from "./SessionVolumeCard";
 import { ExerciseSearch } from "@/components/workout/ExerciseSearch";
 import { guessModality } from "@/lib/conditioningModalities";
 import type { WorkoutExercise, WorkoutFormat } from "@/types/workout";
@@ -215,6 +216,10 @@ export function SessionScreen({ workoutId, onBack }: Props) {
           affected row to retry.
         </p>
       )}
+
+      <div className="mt-4">
+        <SessionVolumeCard workoutId={workoutId} refreshKey={`${doneSets}-${pendingCount}`} />
+      </div>
 
       <div className="space-y-5 mt-4">
         {(["warmup", "main", "cooldown"] as const).map((section) => {

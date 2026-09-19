@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Calendar, ChevronDown, ClipboardList, Loader2, Pencil } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ServiceTier } from "@/lib/entitlements";
+import { VolumeAnalytics } from "@/components/train/VolumeAnalytics";
 
 interface Props {
   clientId: string;
@@ -131,6 +132,8 @@ export function ClientTraining({ clientId, clientName, tier, onAssignProgram }: 
           Tier 2: this athlete self-selects from the curated program list. Individualised programming is a Tier 1 service.
         </p>
       )}
+
+      <VolumeAnalytics userId={clientId} />
 
       {loading ? (
         <div className="flex justify-center py-10"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
