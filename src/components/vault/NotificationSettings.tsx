@@ -16,7 +16,7 @@ export function NotificationSettings() {
   const { isSupported, isSubscribed, permission, loading, subscribe, unsubscribe } = useWebPush();
   const { toast } = useToast();
 
-  const handleToggle = (key: 'announcement_alerts' | 'pr_badge_alerts', value: boolean) => {
+  const handleToggle = (key: keyof typeof prefs, value: boolean) => {
     if (!user) return;
     saveNotificationPrefs(user.id, { ...prefs, [key]: value });
   };
@@ -63,6 +63,69 @@ export function NotificationSettings() {
             />
           </div>
         )}
+        <div className="flex items-center justify-between gap-3 pb-3 border-b border-border/50">
+          <div className="flex-1">
+            <Label htmlFor="toggle-mute" className="text-sm font-medium cursor-pointer">
+              Mute everything
+            </Label>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              No notifications of any kind until you switch this off
+            </p>
+          </div>
+          <Switch
+            id="toggle-mute"
+            checked={prefs.mute_all}
+            onCheckedChange={(v) => handleToggle('mute_all', v)}
+          />
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex-1">
+            <Label htmlFor="toggle-messages" className="text-sm font-medium cursor-pointer">
+              Message alerts
+            </Label>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              New messages in your coaching conversation
+            </p>
+          </div>
+          <Switch
+            id="toggle-messages"
+            checked={prefs.message_alerts && !prefs.mute_all}
+            disabled={prefs.mute_all}
+            onCheckedChange={(v) => handleToggle('message_alerts', v)}
+          />
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex-1">
+            <Label htmlFor="toggle-programming" className="text-sm font-medium cursor-pointer">
+              Programming alerts
+            </Label>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              When new training is assigned to you
+            </p>
+          </div>
+          <Switch
+            id="toggle-programming"
+            checked={prefs.programming_alerts && !prefs.mute_all}
+            disabled={prefs.mute_all}
+            onCheckedChange={(v) => handleToggle('programming_alerts', v)}
+          />
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex-1">
+            <Label htmlFor="toggle-reminders" className="text-sm font-medium cursor-pointer">
+              Training & nutrition reminders
+            </Label>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              Occasional nudges — never more than one a day
+            </p>
+          </div>
+          <Switch
+            id="toggle-reminders"
+            checked={prefs.reminder_alerts && !prefs.mute_all}
+            disabled={prefs.mute_all}
+            onCheckedChange={(v) => handleToggle('reminder_alerts', v)}
+          />
+        </div>
         <div className="flex items-center justify-between gap-3">
           <div className="flex-1">
             <Label htmlFor="toggle-announcements" className="text-sm font-medium cursor-pointer">

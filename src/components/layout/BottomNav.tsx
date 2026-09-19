@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { BOTTOM_NAV_TABS, MORE_MENU_ITEMS } from "@/lib/navigationConstants";
 import { useNotificationStore } from "@/stores/notificationStore";
-import { useCommunityStore } from "@/stores/communityStore";
+import { useUnreadMessages } from "@/hooks/useUnreadMessages";
 import { useAdminCheck } from "@/hooks/useAdminCheck";
 import { useAuthStore } from "@/stores/authStore";
 import { supabase } from "@/integrations/supabase/client";
@@ -21,7 +21,7 @@ interface BottomNavProps {
 
 export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
   const { hasNewAnnouncement } = useNotificationStore();
-  const { unreadDmCount } = useCommunityStore();
+  const { unreadCount } = useUnreadMessages();
   const { isAdmin } = useAdminCheck();
   const navigate = useNavigate();
   const [moreOpen, setMoreOpen] = useState(false);
@@ -79,8 +79,7 @@ export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
             const isMore = tab.id === "more";
             const isActive = isMore ? moreOpen : activeTab === tab.id;
             const showDot =
-              tab.id === "coach" &&
-              (hasNewAnnouncement || unreadDmCount > 0);
+              tab.id === "coach" && (hasNewAnnouncement || unreadCount > 0);
 
             return (
               <button

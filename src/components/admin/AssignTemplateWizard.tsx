@@ -68,6 +68,17 @@ export function AssignTemplateWizard({ open, onOpenChange, targetUserId, targetD
         },
       });
       if (error) throw error;
+      // Best-effort push — never block the assignment on a notification failure.
+      supabase.functions
+        .invoke("notify-user", {
+          body: {
+            type: "programming",
+            recipientId: targetUserId,
+            title: "New training assigned",
+            preview: `${selectedTemplate.name} starts ${startDate}`,
+          },
+        })
+        .catch(() => {});
       toast({ title: "Program assigned!", description: `${selectedTemplate.name} → ${targetDisplayName}` });
       onOpenChange(false);
     } catch (e: any) {

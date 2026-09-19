@@ -16,6 +16,7 @@ import { ClientNutrition } from "@/components/coach/client/ClientNutrition";
 import { ClientProgress } from "@/components/coach/client/ClientProgress";
 import { ClientMessages } from "@/components/coach/client/ClientMessages";
 import { AssignTemplateWizard } from "@/components/admin/AssignTemplateWizard";
+import { useUnreadMessages } from "@/hooks/useUnreadMessages";
 
 interface Header {
   displayName: string;
@@ -37,6 +38,7 @@ export default function CoachClient() {
   const { user } = useAuthStore();
   const { entitlement, isLoading: entLoading } = useEntitlement();
   const { setRelationshipStatus, load } = useCoachStore();
+  const { unreadCount: unreadFromClient } = useUnreadMessages(clientId);
 
   const [header, setHeader] = useState<Header | null>(null);
   const [overview, setOverview] = useState<OverviewData | null>(null);
@@ -198,7 +200,14 @@ export default function CoachClient() {
             <TabsTrigger value="training">Training</TabsTrigger>
             <TabsTrigger value="nutrition">Nutrition</TabsTrigger>
             <TabsTrigger value="progress">Progress</TabsTrigger>
-            <TabsTrigger value="messages">Messages</TabsTrigger>
+            <TabsTrigger value="messages" className="relative">
+              Messages
+              {unreadFromClient > 0 && (
+                <span className="ml-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-destructive-foreground">
+                  {unreadFromClient}
+                </span>
+              )}
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="mt-4">

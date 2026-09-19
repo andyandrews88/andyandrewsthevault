@@ -19,13 +19,13 @@ import { PrivateCoachingPanel } from "@/components/dashboard/PrivateCoachingPane
 import { CuratedPrograms } from "@/components/tracks/CuratedPrograms";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { VAULT_TABS, APP_VERSION, APP_BUILD_DATE } from "@/lib/navigationConstants";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import logo from "@/assets/logo.png";
 import { useAdminCheck } from "@/hooks/useAdminCheck";
 import { OnboardingWalkthrough } from "@/components/vault/OnboardingWalkthrough";
 import { useSearchParams } from "react-router-dom";
 import { useNotificationStore } from "@/stores/notificationStore";
-import { useCommunityStore } from "@/stores/communityStore";
+import { useUnreadMessages } from "@/hooks/useUnreadMessages";
 import { Shield } from "lucide-react";
 
 export function VaultDashboard() {
@@ -34,9 +34,16 @@ export function VaultDashboard() {
   const defaultTab = searchParams.get('tab') || 'dashboard';
   const [activeTab, setActiveTab] = useState(defaultTab);
   const { hasNewAnnouncement, markCommunityVisited } = useNotificationStore();
-  const { unreadDmCount } = useCommunityStore();
+  const { unreadCount } = useUnreadMessages();
 
-  const showCommunityDot = hasNewAnnouncement || unreadDmCount > 0;
+  const showCommunityDot = hasNewAnnouncement || unreadCount > 0;
+
+  // Deep links such as /vault?tab=coach must switch tabs even when already mounted.
+  const tabParam = searchParams.get('tab');
+  useEffect(() => {
+    if (tabParam && tabParam !== activeTab) setActiveTab(tabParam);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tabParam]);
 
   const handleTabChange = (value: string) => {
     setActiveTab(value);

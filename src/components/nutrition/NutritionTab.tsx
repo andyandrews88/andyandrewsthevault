@@ -9,6 +9,8 @@ import { LogMealSheet } from "./LogMealSheet";
 import { TargetsSheet } from "./TargetsSheet";
 import { FoodEntryRow } from "./FoodEntryRow";
 import { MacroProgress } from "./MacroProgress";
+import { useEntitlement } from "@/hooks/useEntitlement";
+import { hasLiveCoaching } from "@/lib/entitlements";
 
 const SLOT_ORDER: MealSlot[] = ["breakfast", "lunch", "dinner", "snack"];
 
@@ -21,6 +23,8 @@ export function NutritionTab() {
   const [logOpen, setLogOpen] = useState(false);
   const [slot, setSlot] = useState<MealSlot>("lunch");
   const [targetsOpen, setTargetsOpen] = useState(false);
+  const { entitlement } = useEntitlement();
+  const canMessageCoach = hasLiveCoaching(entitlement) && !!entitlement.coachId;
 
   useEffect(() => {
     if (user) loadDay(selectedDate, user.id);
@@ -140,7 +144,12 @@ export function NutritionTab() {
                 </button>
               </div>
               {rows.map((e) => (
-                <FoodEntryRow key={e.id} entry={e} onDelete={deleteEntry} />
+                <FoodEntryRow
+                  key={e.id}
+                  entry={e}
+                  onDelete={deleteEntry}
+                  canMessageCoach={canMessageCoach}
+                />
               ))}
             </section>
           );
