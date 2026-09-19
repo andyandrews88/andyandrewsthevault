@@ -133,6 +133,8 @@ export function ClientTraining({ clientId, clientName, tier, onAssignProgram }: 
         </p>
       )}
 
+      <VolumeAnalytics userId={clientId} />
+
       {loading ? (
         <div className="flex justify-center py-10"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
       ) : workouts.length === 0 ? (
