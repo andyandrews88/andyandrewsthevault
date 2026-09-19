@@ -138,7 +138,7 @@ export function LogMealSheet({ open, onOpenChange, entryDate, defaultSlot = "lun
       },
       source,
       photoFile: photo,
-      transcript: speech.transcript || null,
+      transcript: voiceTranscript,
       aiEstimate: aiRaw,
     });
     if (!ok) {
@@ -214,8 +214,8 @@ export function LogMealSheet({ open, onOpenChange, entryDate, defaultSlot = "lun
               placeholder="Chicken, rice and veg — big bowl"
               className="min-h-[72px]"
             />
-            {speech.transcript && (
-              <p className="text-xs text-muted-foreground italic">Heard: "{speech.transcript}"</p>
+            {speech.listening && (
+              <p className="text-xs text-muted-foreground">Listening… speak your meal, then stop.</p>
             )}
             {speech.supported ? (
               <Button
