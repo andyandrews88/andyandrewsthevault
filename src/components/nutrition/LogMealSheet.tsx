@@ -78,6 +78,8 @@ export function LogMealSheet({ open, onOpenChange, entryDate, defaultSlot = "lun
     setIsEstimate(false);
     setAiRaw(null);
     setMacros({ calories: "", protein: "", carbs: "", fats: "" });
+    setUsedVoice(false);
+    setVoiceTranscript(null);
     speech.reset();
   };
 
@@ -123,7 +125,7 @@ export function LogMealSheet({ open, onOpenChange, entryDate, defaultSlot = "lun
       toast.error("Describe the meal or add a photo.");
       return;
     }
-    const source: LogSource = photo ? "photo" : speech.transcript ? "voice" : "manual";
+    const source: LogSource = photo ? "photo" : usedVoice ? "voice" : "manual";
     const ok = await addEntry({
       entry_date: entryDate,
       meal_slot: slot,
