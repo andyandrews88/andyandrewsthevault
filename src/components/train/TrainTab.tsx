@@ -183,6 +183,14 @@ export function TrainTab() {
           <div className="flex justify-center py-8">
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
           </div>
+        ) : loadError ? (
+          <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4 space-y-2">
+            <p className="text-sm font-semibold text-destructive">Couldn't load your training</p>
+            <p className="text-xs text-muted-foreground">{loadError}</p>
+            <Button variant="outline" className="h-10" onClick={load}>
+              Try again
+            </Button>
+          </div>
         ) : inProgress ? (
           <button
             onClick={() => setOpenWorkoutId(inProgress.id)}
