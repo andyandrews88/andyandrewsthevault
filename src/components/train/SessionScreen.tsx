@@ -240,10 +240,24 @@ export function SessionScreen({ workoutId, onBack }: Props) {
       </div>
 
       {!readOnly && (
-        <Button variant="outline" className="w-full mt-4 h-11" onClick={() => setSearchOpen(true)}>
-          <Plus className="h-4 w-4 mr-1.5" /> Add movement
-        </Button>
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <Button variant="outline" className="h-11" onClick={() => setSearchOpen(true)}>
+            <Plus className="h-4 w-4 mr-1.5" /> Add movement
+          </Button>
+          <Button variant="outline" className="h-11" onClick={() => setVoiceOpen(true)}>
+            <Mic className="h-4 w-4 mr-1.5" /> Log by voice
+          </Button>
+        </div>
       )}
+
+      <VoiceSetSheet
+        open={voiceOpen}
+        onOpenChange={setVoiceOpen}
+        exercises={exercises}
+        defaultExerciseId={
+          exercises.find((e) => (e.sets ?? []).some((s) => !s.is_completed))?.id ?? null
+        }
+      />)
 
       <div className="fixed bottom-16 left-0 right-0 px-4 z-20">
         <div className="max-w-2xl mx-auto">
