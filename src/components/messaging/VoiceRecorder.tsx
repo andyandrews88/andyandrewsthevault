@@ -41,11 +41,8 @@ export function VoiceRecorder({ disabled, sending, onSend }: Props) {
     }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mime = MediaRecorder.isTypeSupported("audio/webm")
-        ? "audio/webm"
-        : MediaRecorder.isTypeSupported("audio/mp4")
-          ? "audio/mp4"
-          : "";
+      const candidates = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg"];
+      const mime = candidates.find((m) => MediaRecorder.isTypeSupported?.(m)) ?? "";
       const recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
       chunksRef.current = [];
       recorder.ondataavailable = (e) => {
@@ -53,8 +50,14 @@ export function VoiceRecorder({ disabled, sending, onSend }: Props) {
       };
       recorder.onstop = () => {
         stream.getTracks().forEach((t) => t.stop());
-        const blob = new Blob(chunksRef.current, { type: mime || "audio/webm" });
+        // Trust the recorder's own mimeType: iOS Safari ignores the requested one.
+        const actual = recorder.mimeType || mime || chunksRef.current[0]?.type || "audio/webm";
+        const blob = new Blob(chunksRef.current, { type: actual });
         const duration = Math.max(1, Math.round((Date.now() - startedAtRef.current) / 1000));
+        if (blob.size === 0) {
+          setError("That recording came back empty. Try again.");
+          return;
+        }
         setClip({ blob, url: URL.createObjectURL(blob), duration });
       };
       recorderRef.current = recorder;

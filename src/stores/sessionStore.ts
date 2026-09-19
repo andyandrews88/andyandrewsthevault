@@ -66,6 +66,18 @@ interface SessionState {
   reopenSession: () => Promise<void>;
 
   loadLastPerformance: (exerciseName: string) => Promise<void>;
+
+  /** Writes a voice-dictated set, only ever called after explicit confirmation. */
+  logVoiceSet: (
+    exerciseId: string,
+    setNumber: number,
+    values: {
+      weight?: number | null;
+      unit?: "kg" | "lb" | null;
+      reps?: number | null;
+      rpe?: number | null;
+    }
+  ) => Promise<boolean>;
 }
 
 const EXERCISE_SELECT = `
@@ -393,5 +405,40 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       lastPerformance: { ...get().lastPerformance, [key]: result },
       loadingPerformance: { ...get().loadingPerformance, [key]: false },
     });
+  },
+
+  logVoiceSet: async (exerciseId, setNumber, values) => {
+    const exercise = get().exercises.find((e) => e.id === exerciseId);
+    if (!exercise) return false;
+
+    let target = (exercise.sets ?? []).find((s) => s.set_number === setNumber);
+    let guard = 0;
+    while (!target && guard < 30) {
+      guard += 1;
+      const before = get().exercises.find((e) => e.id === exerciseId)?.sets?.length ?? 0;
+      await get().addSet(exerciseId);
+      const sets = get().exercises.find((e) => e.id === exerciseId)?.sets ?? [];
+      if (sets.length === before) break; // insert failed — stop rather than loop
+      target = sets.find((s) => s.set_number === setNumber);
+    }
+    if (!target) return false;
+
+    const patch: Partial<ExerciseSet> = {};
+    if (values.weight !== null && values.weight !== undefined) patch.weight = values.weight;
+    if (values.unit) patch.unit = values.unit;
+    if (values.reps !== null && values.reps !== undefined) patch.reps = values.reps;
+    if (values.rpe !== null && values.rpe !== undefined) patch.rpe = values.rpe;
+    patch.is_completed = true;
+
+    await get().saveSet(target.id, patch);
+    if (get().saveStates[target.id] === "error") return false;
+
+    const { data } = await supabase
+      .from("exercise_sets")
+      .select("estimated_1rm")
+      .eq("id", target.id)
+      .maybeSingle();
+    if (data) get().patchSetLocal(target.id, { estimated_1rm: data.estimated_1rm });
+    return true;
   },
 }));

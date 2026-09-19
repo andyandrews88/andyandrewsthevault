@@ -89,6 +89,20 @@ function rowToMessage(row: Record<string, unknown>): ConversationMessage {
   };
 }
 
+/** Maps the recorder's real blob MIME type onto a matching extension + content type. */
+export function audioFormat(blob: Blob): { ext: string; contentType: string } {
+  const mime = (blob.type || "").toLowerCase().split(";")[0].trim();
+  if (mime.includes("mp4") || mime.includes("m4a") || mime.includes("aac")) {
+    return { ext: "m4a", contentType: "audio/mp4" };
+  }
+  if (mime.includes("ogg")) return { ext: "ogg", contentType: "audio/ogg" };
+  if (mime.includes("mpeg") || mime.includes("mp3")) return { ext: "mp3", contentType: "audio/mpeg" };
+  if (mime.includes("wav")) return { ext: "wav", contentType: "audio/wav" };
+  if (mime.includes("webm")) return { ext: "webm", contentType: "audio/webm" };
+  // Unknown recorder output — webm is the safest default on non-Apple browsers.
+  return { ext: "webm", contentType: mime || "audio/webm" };
+}
+
 function sortByTime(a: ConversationMessage, b: ConversationMessage) {
   return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
 }
@@ -236,10 +250,13 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
     }));
 
     // Voice notes live in the private `voice-notes` bucket under the sender's folder.
-    const path = `${userId}/${crypto.randomUUID()}.webm`;
+    // iOS Safari records audio/mp4, Chrome/Android audio/webm — the stored file
+    // extension and content type must match the real blob or playback fails.
+    const { ext, contentType } = audioFormat(blob);
+    const path = `${userId}/${crypto.randomUUID()}.${ext}`;
     const { error: upErr } = await supabase.storage
       .from("voice-notes")
-      .upload(path, blob, { contentType: blob.type || "audio/webm", upsert: false });
+      .upload(path, blob, { contentType, upsert: false });
 
     if (upErr) {
       set((s) => ({

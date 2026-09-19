@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { addDays, format, startOfWeek } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Loader2, Play, Plus, Dumbbell, ChevronRight, Moon } from "lucide-react";
@@ -28,45 +28,67 @@ export function TrainTab() {
   const [history, setHistory] = useState<WorkoutRow[]>([]);
   const [weekDates, setWeekDates] = useState<Record<string, number>>({});
   const [starting, setStarting] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  const today = format(new Date(), "yyyy-MM-dd");
-  const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
+  // These must be stable strings: rebuilding Date objects each render previously
+  // re-created `load`, which re-fired the effect forever and pinned the spinner.
+  const today = useMemo(() => format(new Date(), "yyyy-MM-dd"), []);
+  const weekStartStr = useMemo(
+    () => format(startOfWeek(new Date(), { weekStartsOn: 1 }), "yyyy-MM-dd"),
+    []
+  );
+  const weekStart = useMemo(() => new Date(`${weekStartStr}T00:00:00`), [weekStartStr]);
+
+  const userId = user?.id ?? null;
 
   const load = useCallback(async () => {
-    if (!user) return;
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
-    const weekStartStr = format(weekStart, "yyyy-MM-dd");
-    const [{ data: todayRows }, { data: historyRows }, { data: weekRows }] = await Promise.all([
-      supabase
-        .from("workouts")
-        .select("id, date, workout_name, is_completed, total_volume")
-        .eq("user_id", user.id)
-        .eq("date", today)
-        .order("created_at", { ascending: true }),
-      supabase
-        .from("workouts")
-        .select("id, date, workout_name, is_completed, total_volume")
-        .eq("user_id", user.id)
-        .eq("is_completed", true)
-        .order("date", { ascending: false })
-        .limit(15),
-      supabase
-        .from("workouts")
-        .select("date")
-        .eq("user_id", user.id)
-        .gte("date", weekStartStr)
-        .lte("date", format(addDays(weekStart, 6), "yyyy-MM-dd"))
-        .eq("is_completed", true),
-    ]);
-    setTodaySessions((todayRows ?? []) as WorkoutRow[]);
-    setHistory((historyRows ?? []) as WorkoutRow[]);
-    const counts: Record<string, number> = {};
-    (weekRows ?? []).forEach((r: any) => {
-      counts[r.date] = (counts[r.date] ?? 0) + 1;
-    });
-    setWeekDates(counts);
-    setLoading(false);
-  }, [user, today, weekStart]);
+    setLoadError(null);
+    try {
+      const weekEndStr = format(addDays(new Date(`${weekStartStr}T00:00:00`), 6), "yyyy-MM-dd");
+      const [todayRes, historyRes, weekRes] = await Promise.all([
+        supabase
+          .from("workouts")
+          .select("id, date, workout_name, is_completed, total_volume")
+          .eq("user_id", userId)
+          .eq("date", today)
+          .order("created_at", { ascending: true }),
+        supabase
+          .from("workouts")
+          .select("id, date, workout_name, is_completed, total_volume")
+          .eq("user_id", userId)
+          .eq("is_completed", true)
+          .order("date", { ascending: false })
+          .limit(15),
+        supabase
+          .from("workouts")
+          .select("date")
+          .eq("user_id", userId)
+          .gte("date", weekStartStr)
+          .lte("date", weekEndStr)
+          .eq("is_completed", true),
+      ]);
+
+      const firstError = todayRes.error || historyRes.error || weekRes.error;
+      if (firstError) throw firstError;
+
+      setTodaySessions((todayRes.data ?? []) as WorkoutRow[]);
+      setHistory((historyRes.data ?? []) as WorkoutRow[]);
+      const counts: Record<string, number> = {};
+      (weekRes.data ?? []).forEach((r: any) => {
+        counts[r.date] = (counts[r.date] ?? 0) + 1;
+      });
+      setWeekDates(counts);
+    } catch (e: any) {
+      setLoadError(e?.message ?? "Could not load your training.");
+    } finally {
+      setLoading(false);
+    }
+  }, [userId, today, weekStartStr]);
 
   useEffect(() => {
     fetchTodaysWorkouts();
@@ -160,6 +182,14 @@ export function TrainTab() {
         {loading ? (
           <div className="flex justify-center py-8">
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : loadError ? (
+          <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4 space-y-2">
+            <p className="text-sm font-semibold text-destructive">Couldn't load your training</p>
+            <p className="text-xs text-muted-foreground">{loadError}</p>
+            <Button variant="outline" className="h-10" onClick={load}>
+              Try again
+            </Button>
           </div>
         ) : inProgress ? (
           <button

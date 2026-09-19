@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -53,7 +53,22 @@ export function LogMealSheet({ open, onOpenChange, entryDate, defaultSlot = "lun
   const [aiRaw, setAiRaw] = useState<Record<string, unknown> | null>(null);
   const [macros, setMacros] = useState({ calories: "", protein: "", carbs: "", fats: "" });
 
-  const text = speech.transcript ? `${description} ${speech.transcript}`.trim() : description;
+  const [usedVoice, setUsedVoice] = useState(false);
+  const [voiceTranscript, setVoiceTranscript] = useState<string | null>(null);
+
+  // Interim browser recognition text is noisy, so it is never shown. Only the
+  // final result is folded into the description once the user stops speaking.
+  useEffect(() => {
+    if (speech.listening || !speech.transcript) return;
+    const final = speech.transcript.trim();
+    if (!final) return;
+    setDescription((prev) => (prev ? `${prev} ${final}`.trim() : final));
+    setVoiceTranscript((prev) => (prev ? `${prev} ${final}`.trim() : final));
+    setUsedVoice(true);
+    speech.reset();
+  }, [speech.listening, speech.transcript, speech]);
+
+  const text = description;
 
   const reset = () => {
     setSlot(defaultSlot);
@@ -63,6 +78,8 @@ export function LogMealSheet({ open, onOpenChange, entryDate, defaultSlot = "lun
     setIsEstimate(false);
     setAiRaw(null);
     setMacros({ calories: "", protein: "", carbs: "", fats: "" });
+    setUsedVoice(false);
+    setVoiceTranscript(null);
     speech.reset();
   };
 
@@ -108,7 +125,7 @@ export function LogMealSheet({ open, onOpenChange, entryDate, defaultSlot = "lun
       toast.error("Describe the meal or add a photo.");
       return;
     }
-    const source: LogSource = photo ? "photo" : speech.transcript ? "voice" : "manual";
+    const source: LogSource = photo ? "photo" : usedVoice ? "voice" : "manual";
     const ok = await addEntry({
       entry_date: entryDate,
       meal_slot: slot,
@@ -121,7 +138,7 @@ export function LogMealSheet({ open, onOpenChange, entryDate, defaultSlot = "lun
       },
       source,
       photoFile: photo,
-      transcript: speech.transcript || null,
+      transcript: voiceTranscript,
       aiEstimate: aiRaw,
     });
     if (!ok) {
@@ -197,8 +214,8 @@ export function LogMealSheet({ open, onOpenChange, entryDate, defaultSlot = "lun
               placeholder="Chicken, rice and veg — big bowl"
               className="min-h-[72px]"
             />
-            {speech.transcript && (
-              <p className="text-xs text-muted-foreground italic">Heard: "{speech.transcript}"</p>
+            {speech.listening && (
+              <p className="text-xs text-muted-foreground">Listening… speak your meal, then stop.</p>
             )}
             {speech.supported ? (
               <Button
