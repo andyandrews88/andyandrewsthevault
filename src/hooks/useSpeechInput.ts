@@ -8,13 +8,16 @@ import { useCallback, useEffect, useRef, useState } from "react";
  * there and the UI must fall back to typing. A server-side transcription
  * provider would be required to cover every device.
  */
+type RecognitionResult = ArrayLike<{ transcript: string }> & { isFinal: boolean };
+
 type Recognition = {
   lang: string;
   continuous: boolean;
   interimResults: boolean;
   start: () => void;
   stop: () => void;
-  onresult: ((e: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null;
+  abort?: () => void;
+  onresult: ((e: { resultIndex: number; results: ArrayLike<RecognitionResult> }) => void) | null;
   onerror: ((e: { error: string }) => void) | null;
   onend: (() => void) | null;
 };
@@ -28,27 +31,60 @@ function getRecognitionCtor(): (new () => Recognition) | null {
 export function useSpeechInput() {
   const [supported] = useState(() => !!getRecognitionCtor());
   const [listening, setListening] = useState(false);
+  /** Finalised utterances only. Interim recognition text is never exposed. */
   const [transcript, setTranscript] = useState("");
   const [error, setError] = useState<string | null>(null);
   const ref = useRef<Recognition | null>(null);
+  /** Guards against the same finalised result being appended twice. */
+  const seen = useRef<Set<number>>(new Set());
+
+  const teardown = useCallback(() => {
+    const rec = ref.current;
+    if (!rec) return;
+    rec.onresult = null;
+    rec.onerror = null;
+    rec.onend = null;
+    try {
+      rec.abort ? rec.abort() : rec.stop();
+    } catch {
+      /* already stopped */
+    }
+    ref.current = null;
+  }, []);
 
   const stop = useCallback(() => {
-    ref.current?.stop();
+    try {
+      ref.current?.stop();
+    } catch {
+      /* already stopped */
+    }
     setListening(false);
   }, []);
 
   const start = useCallback(() => {
     const Ctor = getRecognitionCtor();
     if (!Ctor) return;
+    // Always begin from a clean recogniser and empty buffers so nothing from a
+    // previous attempt can be concatenated onto this one.
+    teardown();
+    seen.current = new Set();
+    setTranscript("");
     setError(null);
     const rec = new Ctor();
     rec.lang = navigator.language || "en-GB";
     rec.continuous = true;
-    rec.interimResults = true;
+    rec.interimResults = false;
     rec.onresult = (e) => {
-      let text = "";
-      for (let i = 0; i < e.results.length; i++) text += e.results[i][0].transcript;
-      setTranscript(text.trim());
+      let added = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const r = e.results[i];
+        if (!r?.isFinal || seen.current.has(i)) continue;
+        seen.current.add(i);
+        added += `${r[0].transcript} `;
+      }
+      const clean = added.trim();
+      if (!clean) return;
+      setTranscript((prev) => (prev ? `${prev} ${clean}` : clean));
     };
     rec.onerror = (e) => {
       setError(
@@ -62,14 +98,16 @@ export function useSpeechInput() {
     ref.current = rec;
     rec.start();
     setListening(true);
-  }, []);
+  }, [teardown]);
 
   const reset = useCallback(() => {
+    seen.current = new Set();
     setTranscript("");
     setError(null);
   }, []);
 
-  useEffect(() => () => ref.current?.stop(), []);
+  useEffect(() => () => teardown(), [teardown]);
 
   return { supported, listening, transcript, error, start, stop, reset, setTranscript };
 }
+
