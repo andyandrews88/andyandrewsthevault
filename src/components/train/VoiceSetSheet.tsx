@@ -143,6 +143,20 @@ export function VoiceSetSheet({ open, onOpenChange, exercises, defaultExerciseId
     return firstOpen?.set_number ?? sets.length + 1;
   }, [selected]);
 
+  // A short summary built ONLY from the parsed fields — never the raw recognition text.
+  const cleanSummary = useMemo(() => {
+    if (!draft) return "";
+    const parts = [
+      selected?.exercise_name ?? "Movement — check this",
+      draft.setNumber ? `Set ${draft.setNumber}` : "Set — check this",
+      draft.weight ? `${draft.weight} ${draft.unit}` : "Load — check this",
+      draft.reps ? `${draft.reps} reps` : "Reps — check this",
+      draft.rpe ? `RPE ${draft.rpe}` : null,
+    ].filter(Boolean);
+    return parts.join(" · ");
+  }, [draft, selected]);
+
+
   const confirm = async () => {
     if (!draft || !draft.exerciseId) {
       toast.error("Choose the movement first.");
