@@ -66,6 +66,18 @@ interface SessionState {
   reopenSession: () => Promise<void>;
 
   loadLastPerformance: (exerciseName: string) => Promise<void>;
+
+  /** Writes a voice-dictated set, only ever called after explicit confirmation. */
+  logVoiceSet: (
+    exerciseId: string,
+    setNumber: number,
+    values: {
+      weight?: number | null;
+      unit?: "kg" | "lb" | null;
+      reps?: number | null;
+      rpe?: number | null;
+    }
+  ) => Promise<boolean>;
 }
 
 const EXERCISE_SELECT = `
