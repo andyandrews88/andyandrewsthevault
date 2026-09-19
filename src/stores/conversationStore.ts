@@ -236,10 +236,13 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
     }));
 
     // Voice notes live in the private `voice-notes` bucket under the sender's folder.
-    const path = `${userId}/${crypto.randomUUID()}.webm`;
+    // iOS Safari records audio/mp4, Chrome/Android audio/webm — the stored file
+    // extension and content type must match the real blob or playback fails.
+    const { ext, contentType } = audioFormat(blob);
+    const path = `${userId}/${crypto.randomUUID()}.${ext}`;
     const { error: upErr } = await supabase.storage
       .from("voice-notes")
-      .upload(path, blob, { contentType: blob.type || "audio/webm", upsert: false });
+      .upload(path, blob, { contentType, upsert: false });
 
     if (upErr) {
       set((s) => ({
