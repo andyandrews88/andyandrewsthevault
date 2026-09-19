@@ -53,7 +53,22 @@ export function LogMealSheet({ open, onOpenChange, entryDate, defaultSlot = "lun
   const [aiRaw, setAiRaw] = useState<Record<string, unknown> | null>(null);
   const [macros, setMacros] = useState({ calories: "", protein: "", carbs: "", fats: "" });
 
-  const text = speech.transcript ? `${description} ${speech.transcript}`.trim() : description;
+  const [usedVoice, setUsedVoice] = useState(false);
+  const [voiceTranscript, setVoiceTranscript] = useState<string | null>(null);
+
+  // Interim browser recognition text is noisy, so it is never shown. Only the
+  // final result is folded into the description once the user stops speaking.
+  useEffect(() => {
+    if (speech.listening || !speech.transcript) return;
+    const final = speech.transcript.trim();
+    if (!final) return;
+    setDescription((prev) => (prev ? `${prev} ${final}`.trim() : final));
+    setVoiceTranscript((prev) => (prev ? `${prev} ${final}`.trim() : final));
+    setUsedVoice(true);
+    speech.reset();
+  }, [speech.listening, speech.transcript, speech]);
+
+  const text = description;
 
   const reset = () => {
     setSlot(defaultSlot);
