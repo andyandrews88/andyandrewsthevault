@@ -96,7 +96,11 @@ export function parseSpokenSet(transcript: string): ParsedSet {
   const weightMatch = text.match(
     new RegExp(`${NUM}\\s*(kilograms?|kilos?|kgs?|pounds?|lbs?|lb)\\b`)
   );
-  const setMatch = text.match(new RegExp(`\\bset\\s*(?:number\\s*)?${NUM}`));
+  // "set 4", "set number 4" and "4th set" / "4 set" all resolve the same way.
+  const setMatch =
+    text.match(new RegExp(`\\bset\\s*(?:number\\s*)?${NUM}`)) ??
+    text.match(new RegExp(`${NUM}\\s*(?:st|nd|rd|th)?\\s*set\\b`));
+
 
   let unit: "kg" | "lb" | null = null;
   if (weightMatch) unit = /^(k)/.test(weightMatch[2]) ? "kg" : "lb";
