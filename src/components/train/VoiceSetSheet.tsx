@@ -216,23 +216,21 @@ export function VoiceSetSheet({ open, onOpenChange, exercises, defaultExerciseId
             <div className="space-y-4">
               <div className="rounded-lg border border-accent/40 bg-accent/5 px-3 py-2">
                 <p className="text-xs font-semibold text-accent">Check this before saving</p>
-                {finalText && (
-                  <p className="text-[11px] text-muted-foreground mt-0.5">"{finalText}"</p>
-                )}
+                <p className="text-[11px] text-muted-foreground mt-0.5">{cleanSummary}</p>
               </div>
 
               {movementMismatch && (
                 <div className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2">
                   <AlertTriangle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
                   <p className="text-xs text-destructive">
-                    "{draft.spokenMovement}" isn't in this session. Pick the right movement below.
+                    That movement isn't in this session. Pick the right one below.
                   </p>
                 </div>
               )}
 
               <div className="space-y-1.5">
                 <Label className="text-xs">Movement</Label>
-                <div className="grid gap-1.5">
+                <div className="grid gap-1.5 max-h-40 overflow-y-auto pr-0.5">
                   {strength.map((ex) => (
                     <button
                       key={ex.id}
@@ -257,6 +255,7 @@ export function VoiceSetSheet({ open, onOpenChange, exercises, defaultExerciseId
                   )}
                 </div>
               </div>
+
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
