@@ -1,10 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, CheckCircle2, Loader2, Plus, Pencil } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Loader2, Plus, Pencil, Mic, MessageSquare } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useComposeContextStore } from "@/stores/composeContextStore";
+import { useEntitlement } from "@/hooks/useEntitlement";
+import { hasLiveCoaching } from "@/lib/entitlements";
 import { toast } from "sonner";
 import { useSessionStore } from "@/stores/sessionStore";
 import { StrengthBlock } from "./StrengthBlock";
 import { ConditioningBlock } from "./ConditioningBlock";
+import { VoiceSetSheet } from "./VoiceSetSheet";
 import { ExerciseSearch } from "@/components/workout/ExerciseSearch";
 import { guessModality } from "@/lib/conditioningModalities";
 import type { WorkoutExercise, WorkoutFormat } from "@/types/workout";
@@ -84,6 +89,11 @@ export function SessionScreen({ workoutId, onBack }: Props) {
     reopenSession,
   } = useSessionStore();
   const [searchOpen, setSearchOpen] = useState(false);
+  const [voiceOpen, setVoiceOpen] = useState(false);
+  const navigate = useNavigate();
+  const setContext = useComposeContextStore((s) => s.setContext);
+  const { entitlement } = useEntitlement();
+  const canMessageCoach = hasLiveCoaching(entitlement) && !!entitlement.coachId;
   const [finishing, setFinishing] = useState(false);
 
   useEffect(() => {
@@ -172,6 +182,24 @@ export function SessionScreen({ workoutId, onBack }: Props) {
               {readOnly ? " · completed" : ""}
             </p>
           </div>
+          {canMessageCoach && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 shrink-0"
+              aria-label="Ask your coach about this session"
+              onClick={() => {
+                setContext({
+                  type: "workout",
+                  id: workout.id,
+                  label: `${workout.workout_name} · ${workout.date}`,
+                });
+                navigate("/vault?tab=coach");
+              }}
+            >
+              <MessageSquare className="h-4 w-4" />
+            </Button>
+          )}
         </div>
         <div className="mt-2 h-1 rounded-full bg-muted overflow-hidden">
           <div
@@ -257,7 +285,7 @@ export function SessionScreen({ workoutId, onBack }: Props) {
         defaultExerciseId={
           exercises.find((e) => (e.sets ?? []).some((s) => !s.is_completed))?.id ?? null
         }
-      />)
+      />
 
       <div className="fixed bottom-16 left-0 right-0 px-4 z-20">
         <div className="max-w-2xl mx-auto">

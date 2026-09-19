@@ -6,6 +6,14 @@ const COMMUNITY_VISITED_KEY = 'community_last_visited';
 export interface NotificationPrefs {
   announcement_alerts: boolean;
   pr_badge_alerts: boolean;
+  /** new coach <-> client messages */
+  message_alerts: boolean;
+  /** newly assigned or published programming */
+  programming_alerts: boolean;
+  /** training / nutrition reminders */
+  reminder_alerts: boolean;
+  /** master switch — when true nothing is pushed at all */
+  mute_all: boolean;
 }
 
 interface NotificationState {
@@ -26,6 +34,10 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
   prefs: {
     announcement_alerts: true,
     pr_badge_alerts: true,
+    message_alerts: true,
+    programming_alerts: true,
+    reminder_alerts: true,
+    mute_all: false,
   },
   isPrefsLoaded: false,
 
@@ -90,6 +102,10 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
       const prefs: NotificationPrefs = {
         announcement_alerts: raw?.announcement_alerts !== false,
         pr_badge_alerts: raw?.pr_badge_alerts !== false,
+        message_alerts: raw?.message_alerts !== false,
+        programming_alerts: raw?.programming_alerts !== false,
+        reminder_alerts: raw?.reminder_alerts !== false,
+        mute_all: raw?.mute_all === true,
       };
 
       set({ prefs, isPrefsLoaded: true });

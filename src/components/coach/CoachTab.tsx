@@ -7,6 +7,7 @@ import { useEntitlement } from "@/hooks/useEntitlement";
 import { hasLiveCoaching, showsPaidCallCta } from "@/lib/entitlements";
 import { Conversation } from "@/components/messaging/Conversation";
 import { PushPrompt } from "@/components/messaging/PushPrompt";
+import { useComposeContextStore } from "@/stores/composeContextStore";
 
 /**
  * Athlete Coach tab.
@@ -18,6 +19,7 @@ export function CoachTab() {
   const { user } = useAuthStore();
   const { entitlement, isLoading } = useEntitlement();
   const [coachName, setCoachName] = useState("your coach");
+  const { context, clearContext } = useComposeContextStore();
 
   const coachId = entitlement.coachId;
 
@@ -94,6 +96,8 @@ export function CoachTab() {
           partnerName={coachName}
           canSend={canSend}
           disabledReason="Messaging is paused while your coaching is inactive."
+          composeContext={context}
+          onClearContext={clearContext}
         />
       </div>
     </div>
