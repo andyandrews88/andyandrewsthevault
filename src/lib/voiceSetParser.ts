@@ -31,9 +31,16 @@ const TENS: Record<string, number> = {
   seventy: 70, eighty: 80, ninety: 90,
 };
 
+/** Spoken ordinals, so "fourth set" reads the same as "set four". */
+const ORDINALS: Record<string, number> = {
+  first: 1, second: 2, third: 3, fourth: 4, fifth: 5, sixth: 6, seventh: 7,
+  eighth: 8, ninth: 9, tenth: 10, eleventh: 11, twelfth: 12,
+};
+
 const HOMOPHONES: Record<string, string> = {
   won: "one", to: "two", too: "two", for: "four", fore: "four", ate: "eight",
 };
+
 
 /** Rewrites spoken number words into digits, handling "eighty five" -> 85. */
 export function wordsToDigits(input: string): string {
