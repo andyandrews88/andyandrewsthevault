@@ -59,8 +59,11 @@ export function wordsToDigits(input: string): string {
         i += 1;
       }
       out.push(String(value));
+    } else if (word in ORDINALS) {
+      out.push(String(ORDINALS[word]));
     } else if (word in UNITS) {
       out.push(String(UNITS[word]));
+
     } else if (word === "hundred" && out.length > 0 && /^\d+$/.test(out[out.length - 1])) {
       out[out.length - 1] = String(Number(out[out.length - 1]) * 100);
     } else {
